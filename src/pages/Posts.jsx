@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Trash2, Image, Film } from 'lucide-react';
+import { Eye, Trash2, Image, Film } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
@@ -10,10 +10,12 @@ import { ConfirmModal } from '../components/Modal.jsx';
 import { filterOptions } from '../data/postsData.jsx';
 import { formatNumber, formatDateTime, getStatusColor, capitalize } from '../utils/helpers.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchPosts } from '../store/postsSlice.js';
+import { fetchPosts, deletePostById } from '../store/postsSlice.js';
+import { useNavigate } from 'react-router-dom';
 
 const Posts = () => {
   const THUMB_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+UG9zdDwvdGV4dD48L3N2Zz4='
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, status, error } = useSelector((s) => s.posts);
   const [posts, setPosts] = useState([]);
@@ -33,14 +35,19 @@ const Posts = () => {
         p.username ||
         'Unknown';
       const mediaItem = Array.isArray(p.media) ? p.media[0] : null;
-      const thumbnail =
-        (mediaItem && (mediaItem.fileUrl || mediaItem.url)) ||
-        p.thumbnail ||
-        p.image ||
-        p.cover ||
-        THUMB_PLACEHOLDER;
-      const type =
-        (mediaItem && mediaItem.type === 'video') ? 'reel' : 'post';
+      const isVideo = !!(mediaItem && mediaItem.type === 'video');
+      const videoUrl = isVideo ? (mediaItem?.fileUrl || '') : '';
+      const videoThumb =
+        isVideo
+          ? (mediaItem?.thumbnail ||
+             mediaItem?.thumbUrl ||
+             mediaItem?.poster ||
+             '')
+          : '';
+      const thumbnail = isVideo
+        ? (videoThumb || '')
+        : (mediaItem?.fileUrl || THUMB_PLACEHOLDER);
+      const type = isVideo ? 'reel' : 'post';
       const likes = p.likes_count ?? p.likes ?? p.likesCount ?? 0;
       const comments = Array.isArray(p.comments) ? p.comments.length : (p.commentsCount ?? 0);
       const status = 'active';
@@ -50,6 +57,7 @@ const Posts = () => {
         postId: id,
         owner,
         thumbnail,
+        videoUrl,
         type,
         likes,
         comments,
@@ -71,6 +79,10 @@ const Posts = () => {
   });
 
   const handleAction = (type, post) => {
+    if (type === 'view') {
+      navigate(`/posts/${post.id}`);
+      return;
+    }
     setConfirmModal({ isOpen: true, type, post });
   };
 
@@ -78,13 +90,18 @@ const Posts = () => {
     const { type, post } = confirmModal;
     
     if (type === 'delete') {
-      setPosts(posts.filter(p => p.id !== post.id));
-    } else if (type === 'hide') {
-      setPosts(posts.map(p => 
-        p.id === post.id 
-          ? { ...p, status: p.status === 'hidden' ? 'active' : 'hidden' }
-          : p
-      ));
+      const id = post.id;
+      dispatch(deletePostById(id))
+        .unwrap()
+        .then(() => {
+          setPosts(posts.filter(p => p.id !== id));
+        })
+        .catch(() => {
+        })
+        .finally(() => {
+          setConfirmModal({ isOpen: false, type: null, post: null });
+        });
+      return;
     }
     
     setConfirmModal({ isOpen: false, type: null, post: null });
@@ -96,11 +113,21 @@ const Posts = () => {
       title: 'Content',
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          <img 
-            src={row.thumbnail} 
-            alt={value}
-            className="w-12 h-12 rounded-lg object-cover"
-          />
+          {row.type === 'reel' && !row.thumbnail && row.videoUrl ? (
+            <video
+              src={row.videoUrl}
+              className="w-12 h-12 rounded-lg object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img 
+              src={row.thumbnail || THUMB_PLACEHOLDER} 
+              alt={value}
+              className="w-12 h-12 rounded-lg object-cover"
+            />
+          )}
           <div>
             <div className="flex items-center gap-2">
               <p className="font-medium text-neutral-800">{value}</p>
@@ -156,14 +183,6 @@ const Posts = () => {
           <Button 
             variant="ghost" 
             size="sm" 
-            icon={EyeOff}
-            onClick={() => handleAction('hide', row)}
-          >
-            {row.status === 'hidden' ? 'Show' : 'Hide'}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
             icon={Trash2}
             onClick={() => handleAction('delete', row)}
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -179,10 +198,6 @@ const Posts = () => {
     const { type, post } = confirmModal;
     if (type === 'delete') {
       return `Are you sure you want to delete ${post?.postId}? This action cannot be undone.`;
-    }
-    if (type === 'hide') {
-      const action = post?.status === 'hidden' ? 'show' : 'hide';
-      return `Are you sure you want to ${action} ${post?.postId}?`;
     }
     return '';
   };

@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   Image,
+  Briefcase,
   Wallet,
   Settings,
   Menu,
@@ -18,6 +19,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/posts', label: 'Posts', icon: Image },
+  { path: '/vendors', label: 'Vendors', icon: Briefcase },
   { path: '/wallets', label: 'Wallets', icon: Wallet },
   { path: '/settings', label: 'Settings', icon: Settings }
 ];
