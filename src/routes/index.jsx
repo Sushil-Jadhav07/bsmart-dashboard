@@ -13,6 +13,7 @@ import PublicOnlyLayout from '../layout/PublicOnlyLayout.jsx';
 import AdminCreate from '../pages/AdminCreate.jsx';
 import Vendors from '../pages/Vendors.jsx';
 import PostDetails from '../pages/PostDetails.jsx';
+import UserDetails from '../pages/UserDetails.jsx';
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: '/users/create-admin',
         element: <AdminCreate />
+      },
+      {
+        path: '/users/:id',
+        element: <UserDetails />
       },
       {
         path: '/posts',

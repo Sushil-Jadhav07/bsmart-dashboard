@@ -44,6 +44,30 @@ export const patchVendorValidation = createAsyncThunk(
   }
 )
 
+export const deleteVendorById = createAsyncThunk(
+  'vendors/deleteById',
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token
+      if (!token) return rejectWithValue('No token')
+      const res = await fetch(`${baseUrl}/api/admin/vendors/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        return rejectWithValue(data?.message || 'Failed to delete vendor')
+      }
+      return id
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
 const slice = createSlice({
   name: 'vendors',
   initialState: {
@@ -91,6 +115,9 @@ const slice = createSlice({
         const { id } = action.meta.arg || {}
         if (id) delete state.updating[id]
         state.error = action.payload || 'Failed to update validation'
+      })
+      .addCase(deleteVendorById.fulfilled, (state, action) => {
+        state.items = state.items.filter((item) => item._id !== action.payload)
       })
   },
 })

@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, Ban, Trash2, Users as UsersIcon, Search } from 'lucide-react';
+import { Eye, Trash2, Users as UsersIcon, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUsers, deleteUserById } from '../store/usersSlice.js';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import Badge from '../components/Badge.jsx';
@@ -9,12 +12,11 @@ import Select from '../components/Select.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { formatNumber, formatDate, getStatusColor, getRoleColor, capitalize } from '../utils/helpers.jsx';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchUsers } from '../store/usersSlice.js';
 
 const Users = () => {
   const AVATAR_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+VXNlcjwvdGV4dD48L3N2Zz4='
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { items, status, error } = useSelector((s) => s.users);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,13 +73,15 @@ const Users = () => {
     const { type, user } = confirmModal;
     
     if (type === 'delete') {
-      setUsers(users.filter(u => u.id !== user.id));
-    } else if (type === 'suspend') {
-      setUsers(users.map(u => 
-        u.id === user.id 
-          ? { ...u, status: u.status === 'suspended' ? 'active' : 'suspended' }
-          : u
-      ));
+      dispatch(deleteUserById(user.id))
+        .unwrap()
+        .then(() => {
+          // Success, redux state will update automatically
+        })
+        .catch((err) => {
+          console.error('Failed to delete user:', err);
+          // Optional: show error toast/notification
+        });
     }
     
     setConfirmModal({ isOpen: false, type: null, user: null });
@@ -141,17 +145,9 @@ const Users = () => {
             variant="ghost" 
             size="sm" 
             icon={Eye}
-            onClick={() => handleAction('view', row)}
+            onClick={() => navigate(`/users/${row.id}`)}
           >
             View
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            icon={Ban}
-            onClick={() => handleAction('suspend', row)}
-          >
-            {row.status === 'suspended' ? 'Unsuspend' : 'Suspend'}
           </Button>
           <Button 
             variant="ghost" 
@@ -171,10 +167,6 @@ const Users = () => {
     const { type, user } = confirmModal;
     if (type === 'delete') {
       return `Are you sure you want to delete ${user?.name}? This action cannot be undone.`;
-    }
-    if (type === 'suspend') {
-      const action = user?.status === 'suspended' ? 'unsuspend' : 'suspend';
-      return `Are you sure you want to ${action} ${user?.name}?`;
     }
     return '';
   };
@@ -267,7 +259,7 @@ const Users = () => {
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, type: null, user: null })}
         onConfirm={handleConfirm}
-        title={confirmModal.type === 'delete' ? 'Delete User' : 'Suspend User'}
+        title={confirmModal.type === 'delete' ? 'Delete User' : 'Confirm Action'}
         description={getConfirmMessage()}
         confirmText={confirmModal.type === 'delete' ? 'Delete' : 'Confirm'}
         confirmVariant={confirmModal.type === 'delete' ? 'danger' : 'primary'}

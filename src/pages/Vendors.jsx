@@ -5,8 +5,10 @@ import Table from '../components/Table.jsx'
 import Button from '../components/Button.jsx'
 import Badge from '../components/Badge.jsx'
 import Input from '../components/Input.jsx'
-import { fetchVendors, patchVendorValidation, setVendorValidatedOptimistic } from '../store/vendorsSlice.js'
+import { fetchVendors, patchVendorValidation, setVendorValidatedOptimistic, deleteVendorById } from '../store/vendorsSlice.js'
 import { getStatusColor, capitalize } from '../utils/helpers.jsx'
+import { Trash2 } from 'lucide-react'
+import { ConfirmModal } from '../components/Modal.jsx'
 
 const Toast = ({ message, onClose }) => (
   <div className="fixed bottom-6 right-6 px-4 py-3 bg-green-600 text-white rounded-lg shadow-soft">
@@ -25,6 +27,7 @@ function Vendors() {
     (authUser && (authUser.id || authUser._id || authUser.uuid || authUser.user_id)) || null
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState('')
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, vendor: null })
 
   useEffect(() => {
     dispatch(fetchVendors())
@@ -67,6 +70,27 @@ function Vendors() {
     }
   }
 
+  const handleDeleteClick = (row) => {
+    setConfirmModal({ isOpen: true, vendor: row })
+  }
+
+  const handleConfirmDelete = () => {
+    const { vendor } = confirmModal
+    if (vendor) {
+      dispatch(deleteVendorById(vendor.id))
+        .unwrap()
+        .then(() => {
+          setToast('Vendor deleted successfully')
+          setTimeout(() => setToast(''), 2500)
+        })
+        .catch((err) => {
+          console.error('Failed to delete vendor:', err)
+          // Optional: handle error UI
+        })
+    }
+    setConfirmModal({ isOpen: false, vendor: null })
+  }
+
   const columns = [
     {
       key: 'business',
@@ -103,14 +127,25 @@ function Vendors() {
       title: 'Action',
       sortable: false,
       render: (_, row) => (
-        <Button
-          variant={row.validated ? 'secondary' : 'primary'}
-          size="sm"
-          onClick={() => handleToggle(row)}
-          disabled={!adminId || !!updating[row.id] || status === 'loading'}
-        >
-          {row.validated ? 'Unvalidate' : 'Validate'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={row.validated ? 'secondary' : 'primary'}
+            size="sm"
+            onClick={() => handleToggle(row)}
+            disabled={!adminId || !!updating[row.id] || status === 'loading'}
+          >
+            {row.validated ? 'Unvalidate' : 'Validate'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Trash2}
+            onClick={() => handleDeleteClick(row)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            Delete
+          </Button>
+        </div>
       ),
     },
   ]
@@ -147,6 +182,16 @@ function Vendors() {
       </Card>
 
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, vendor: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Vendor"
+        description={`Are you sure you want to delete ${confirmModal.vendor?.business || 'this vendor'}? This action cannot be undone.`}
+        confirmText="Delete"
+        confirmVariant="danger"
+      />
     </div>
   )
 }

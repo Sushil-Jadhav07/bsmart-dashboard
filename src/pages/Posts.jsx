@@ -37,16 +37,17 @@ const Posts = () => {
       const mediaItem = Array.isArray(p.media) ? p.media[0] : null;
       const isVideo = !!(mediaItem && mediaItem.type === 'video');
       const videoUrl = isVideo ? (mediaItem?.fileUrl || '') : '';
-      const videoThumb =
-        isVideo
-          ? (mediaItem?.thumbnail ||
-             mediaItem?.thumbUrl ||
-             mediaItem?.poster ||
-             '')
-          : '';
+      // thumbnail can be an array [{fileUrl}] or an object {fileUrl}
+      const getThumbnailUrl = (m) => {
+        if (!m) return '';
+        if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl;
+        if (m.thumbnail?.fileUrl) return m.thumbnail.fileUrl;
+        return '';
+      };
+      const videoThumb = isVideo ? getThumbnailUrl(mediaItem) : '';
       const thumbnail = isVideo
-        ? (videoThumb || '')
-        : (mediaItem?.fileUrl || THUMB_PLACEHOLDER);
+        ? (videoThumb || THUMB_PLACEHOLDER)
+        : (getThumbnailUrl(mediaItem) || mediaItem?.fileUrl || THUMB_PLACEHOLDER);
       const type = isVideo ? 'reel' : 'post';
       const likes = p.likes_count ?? p.likes ?? p.likesCount ?? 0;
       const comments = Array.isArray(p.comments) ? p.comments.length : (p.commentsCount ?? 0);
@@ -113,28 +114,25 @@ const Posts = () => {
       title: 'Content',
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          {row.type === 'reel' && !row.thumbnail && row.videoUrl ? (
-            <video
-              src={row.videoUrl}
-              className="w-12 h-12 rounded-lg object-cover"
-              muted
-              playsInline
-              preload="metadata"
-            />
-          ) : (
-            <img 
-              src={row.thumbnail || THUMB_PLACEHOLDER} 
+          <div className="relative w-12 h-12 flex-shrink-0">
+            <img
+              src={row.thumbnail || THUMB_PLACEHOLDER}
               alt={value}
               className="w-12 h-12 rounded-lg object-cover"
+              onError={(e) => { e.target.src = THUMB_PLACEHOLDER; }}
             />
-          )}
+            {row.type === 'reel' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30">
+              </div>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-medium text-neutral-800">{value}</p>
+              <p className="font-medium text-neutral-800 truncate max-w-[160px]">{value}</p>
               {row.type === 'reel' ? (
-                <Film className="w-4 h-4 text-secondary" />
+                <Film className="w-4 h-4 text-secondary flex-shrink-0" />
               ) : (
-                <Image className="w-4 h-4 text-primary" />
+                <Image className="w-4 h-4 text-primary flex-shrink-0" />
               )}
             </div>
             <p className="text-xs text-neutral-500">{row.owner}</p>
