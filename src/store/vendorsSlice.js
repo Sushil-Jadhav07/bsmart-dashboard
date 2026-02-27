@@ -21,25 +21,6 @@ export const fetchVendors = createAsyncThunk(
   }
 )
 
-export const fetchVendorById = createAsyncThunk(
-  'vendors/fetchById',
-  async (id, { getState, rejectWithValue }) => {
-    try {
-      const token = getState().auth.token
-      const headers = { Accept: 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/${id}`, { headers })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        return rejectWithValue(data?.message || 'Failed to load vendor')
-      }
-      return data
-    } catch (e) {
-      return rejectWithValue(e.message || 'Network error')
-    }
-  }
-)
-
 export const patchVendorValidation = createAsyncThunk(
   'vendors/patchVendorValidation',
   async ({ id, admin_user_id, validated }, { getState, rejectWithValue }) => {
@@ -94,9 +75,6 @@ const slice = createSlice({
     status: 'idle',
     error: null,
     updating: {},
-    current: null,
-    currentStatus: 'idle',
-    currentError: null,
   },
   reducers: {
     setVendorValidatedOptimistic(state, action) {
@@ -120,19 +98,6 @@ const slice = createSlice({
       .addCase(fetchVendors.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.payload || 'Failed to load vendors'
-      })
-      .addCase(fetchVendorById.pending, (state) => {
-        state.currentStatus = 'loading'
-        state.currentError = null
-        state.current = null
-      })
-      .addCase(fetchVendorById.fulfilled, (state, action) => {
-        state.currentStatus = 'succeeded'
-        state.current = action.payload
-      })
-      .addCase(fetchVendorById.rejected, (state, action) => {
-        state.currentStatus = 'failed'
-        state.currentError = action.payload || 'Failed to load vendor'
       })
       .addCase(patchVendorValidation.pending, (state, action) => {
         const { id } = action.meta.arg || {}

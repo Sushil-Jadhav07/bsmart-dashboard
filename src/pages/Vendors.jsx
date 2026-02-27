@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import Card from '../components/Card.jsx'
 import Table from '../components/Table.jsx'
@@ -8,7 +7,7 @@ import Badge from '../components/Badge.jsx'
 import Input from '../components/Input.jsx'
 import { fetchVendors, patchVendorValidation, setVendorValidatedOptimistic, deleteVendorById } from '../store/vendorsSlice.js'
 import { getStatusColor, capitalize } from '../utils/helpers.jsx'
-import { Trash2, Eye } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { ConfirmModal } from '../components/Modal.jsx'
 import { clsx } from 'clsx'
 
@@ -23,15 +22,14 @@ const Toast = ({ message, onClose }) => (
 
 function Vendors() {
   const dispatch = useDispatch()
-  const navigate = useNavigate()
   const { items, status, error, updating } = useSelector((s) => s.vendors)
   const authUser = useSelector((s) => s.auth.user)
   const adminId =
     (authUser && (authUser.id || authUser._id || authUser.uuid || authUser.user_id)) || null
   const [search, setSearch] = useState('')
+  const [activeTab, setActiveTab] = useState('all')
   const [toast, setToast] = useState('')
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, vendor: null })
-  const [activeTab, setActiveTab] = useState('all') // all | validated | unvalidated
 
   useEffect(() => {
     dispatch(fetchVendors())
@@ -50,23 +48,16 @@ function Vendors() {
       return { id, validated, business, username, fullName, phone, role }
     })
     
-    // 1. Filter by search
-    const q = search.trim().toLowerCase()
+    // Filter by tab
     let filtered = rows
-    if (q) {
-      filtered = filtered.filter((r) =>
-        [r.business, r.username, r.fullName, r.phone, r.role].some((f) => (f || '').toLowerCase().includes(q))
-      )
-    }
+    if (activeTab === 'validated') filtered = rows.filter(r => r.validated)
+    if (activeTab === 'invalidated') filtered = rows.filter(r => !r.validated)
 
-    // 2. Filter by tab
-    if (activeTab === 'validated') {
-      filtered = filtered.filter((r) => r.validated)
-    } else if (activeTab === 'unvalidated') {
-      filtered = filtered.filter((r) => !r.validated)
-    }
-    
-    return filtered
+    const q = search.trim().toLowerCase()
+    if (!q) return filtered
+    return filtered.filter((r) =>
+      [r.business, r.username, r.fullName, r.phone, r.role].some((f) => (f || '').toLowerCase().includes(q))
+    )
   }, [items, search, activeTab])
 
   const handleToggle = async (row) => {
@@ -146,14 +137,6 @@ function Vendors() {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
-            icon={Eye}
-            onClick={() => navigate(`/vendors/${row.id}`)}
-          >
-            View
-          </Button>
-          <Button
             variant={row.validated ? 'secondary' : 'primary'}
             size="sm"
             onClick={() => handleToggle(row)}
@@ -186,22 +169,18 @@ function Vendors() {
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-neutral-200">
-        {[
-          { id: 'all', label: 'All Vendors' },
-          { id: 'validated', label: 'Validated' },
-          { id: 'unvalidated', label: 'Unvalidated' },
-        ].map((tab) => (
+        {['all', 'validated', 'invalidated'].map((tab) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             className={clsx(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2',
-              activeTab === tab.id
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              activeTab === tab
                 ? 'border-primary text-primary'
-                : 'border-transparent text-neutral-500 hover:text-neutral-800'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
             )}
           >
-            {tab.label}
+            {capitalize(tab)}
           </button>
         ))}
       </div>

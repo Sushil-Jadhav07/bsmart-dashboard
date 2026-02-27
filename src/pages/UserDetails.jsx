@@ -141,8 +141,6 @@ export default function UserDetails() {
   const profile = useMemo(() => {
     const u = userDetail || {}
     const listUser = listItem?.user || {}
-    const wallet = u.wallet || listUser.wallet || {}
-    const coins = (typeof wallet.balance === 'number' ? wallet.balance : undefined) || u.coins || listUser.coins || 0
     return {
       id: u._id || u.id || id,
       full_name: u.full_name || listUser.full_name || 'Unknown',
@@ -156,7 +154,6 @@ export default function UserDetails() {
       following_count: u.following_count ?? listUser.following_count ?? 0,
       is_active: u.is_active !== undefined ? u.is_active : true,
       validated: u.validated ?? listUser.validated ?? false,
-      coins,
       createdAt: u.createdAt || listUser.createdAt || '',
       updatedAt: u.updatedAt || listUser.updatedAt || '',
     }
@@ -334,16 +331,6 @@ export default function UserDetails() {
                 <p className="text-[10px] text-neutral-400 mt-1">Following</p>
               </div>
             </div>
-
-            {profile.role === 'vendor' && (
-              <>
-                <Divider />
-                <div className="flex flex-col items-center justify-center py-4 bg-violet-50/50">
-                  <p className="text-xl font-bold text-violet-600 leading-none">{profile.coins}</p>
-                  <p className="text-[10px] text-violet-400 font-bold tracking-wider mt-1 uppercase">Wallet Coins</p>
-                </div>
-              </>
-            )}
 
             <Divider />
 
