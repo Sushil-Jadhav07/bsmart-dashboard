@@ -19,7 +19,7 @@ const MainLayout = () => {
       <main 
         className={clsx(
           'pt-16 min-h-screen transition-all duration-300',
-          sidebarCollapsed ? 'pl-20' : 'pl-64'
+          sidebarCollapsed ? 'pl-2 md:pl-20' : 'p-2 md:pl-64'
         )}
       >
         <div className="p-6">

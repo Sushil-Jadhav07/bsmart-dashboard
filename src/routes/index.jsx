@@ -14,6 +14,8 @@ import AdminCreate from '../pages/AdminCreate.jsx';
 import Vendors from '../pages/Vendors.jsx';
 import PostDetails from '../pages/PostDetails.jsx';
 import UserDetails from '../pages/UserDetails.jsx';
+import Ads from '../pages/Ads.jsx';
+import AdDetails from '../pages/AdDetails.jsx';
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +49,14 @@ export const router = createBrowserRouter([
       {
         path: '/posts/:id',
         element: <PostDetails />
+      },
+      {
+        path: '/ads',
+        element: <Ads />
+      },
+      {
+        path: '/ads/:id',
+        element: <AdDetails />
       },
       {
         path: '/vendors',

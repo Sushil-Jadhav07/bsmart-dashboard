@@ -47,24 +47,29 @@ function StatBox({ label, value, color = 'text-neutral-900' }) {
 function PostCard({ post, onClick }) {
   const media = Array.isArray(post.media) ? post.media[0] : null
   const isVideo = media?.type === 'video'
-  const thumb = getThumbnailUrl(media) || media?.fileUrl || ''
+  const thumb = getThumbnailUrl(media)
+  const fileUrl = media?.fileUrl || ''
   const likes = post.likes_count ?? post.likes?.length ?? 0
   const comments = post.comments_count ?? post.comments?.length ?? 0
+
+  const showVideo = isVideo && !thumb
 
   return (
     <div
       onClick={onClick}
       className="group relative rounded-xl overflow-hidden bg-neutral-100 aspect-square cursor-pointer"
     >
-      {thumb ? (
-        <img src={thumb} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      {thumb || (!showVideo && fileUrl) ? (
+        <img src={thumb || fileUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      ) : showVideo ? (
+        <video src={fileUrl} className="w-full h-full object-cover" muted />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           {isVideo ? <Film className="w-6 h-6 text-neutral-400" /> : <ImageIcon className="w-6 h-6 text-neutral-400" />}
         </div>
       )}
       {/* overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 z-10">
         <div className="flex items-center gap-1 text-white text-xs font-semibold">
           <Heart className="w-3.5 h-3.5 fill-white" /> {likes}
         </div>
@@ -73,7 +78,7 @@ function PostCard({ post, onClick }) {
         </div>
       </div>
       {isVideo && (
-        <div className="absolute top-1.5 right-1.5 bg-black/50 backdrop-blur-sm rounded-md p-0.5">
+        <div className="absolute top-1.5 right-1.5 bg-black/50 backdrop-blur-sm rounded-md p-0.5 z-10">
           <Film className="w-3 h-3 text-white" />
         </div>
       )}

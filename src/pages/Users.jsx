@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, Trash2, Users as UsersIcon, Search } from 'lucide-react';
+import { Eye, Trash2, Users as UsersIcon, Search, Plus, Filter, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUsers, deleteUserById } from '../store/usersSlice.js';
@@ -12,6 +12,38 @@ import Select from '../components/Select.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { formatNumber, formatDate, getStatusColor, getRoleColor, capitalize } from '../utils/helpers.jsx';
+import { clsx } from 'clsx';
+
+function StatCard({ label, value, trend, trendUp, icon: Icon, color = 'blue' }) {
+  const colorStyles = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    rose: 'bg-rose-50 text-rose-600',
+    violet: 'bg-violet-50 text-violet-600',
+  };
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-neutral-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.1)] transition-shadow">
+      <div className="flex items-start justify-between mb-4">
+        <div className={clsx('p-3 rounded-xl', colorStyles[color])}>
+          <Icon className="w-5 h-5" />
+        </div>
+        {trend && (
+          <div className={clsx('flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full', 
+            trendUp ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+          )}>
+            {trendUp ? '+' : ''}{trend}%
+            <ArrowUpRight className={clsx('w-3 h-3', !trendUp && 'rotate-90')} />
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-neutral-900 mb-1">{value}</p>
+        <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">{label}</p>
+      </div>
+    </div>
+  );
+}
 
 const Users = () => {
   const AVATAR_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+VXNlcjwvdGV4dD48L3N2Zz4='
@@ -80,7 +112,6 @@ const Users = () => {
         })
         .catch((err) => {
           console.error('Failed to delete user:', err);
-          // Optional: show error toast/notification
         });
     }
     
@@ -90,16 +121,22 @@ const Users = () => {
   const columns = [
     {
       key: 'name',
-      title: 'User',
+      title: 'User Profile',
       render: (value, row) => (
-        <div className="flex items-center gap-3">
-          <img 
-            src={row.avatar} 
-            alt={value}
-            className="w-10 h-10 rounded-full object-cover"
-          />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <img 
+              src={row.avatar} 
+              alt={value}
+              className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+            />
+            <span className={clsx(
+              'absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white',
+              row.status === 'active' ? 'bg-emerald-500' : 'bg-neutral-300'
+            )} />
+          </div>
           <div>
-            <p className="font-medium text-neutral-800">{value}</p>
+            <p className="font-semibold text-neutral-900">{value}</p>
             <p className="text-xs text-neutral-500">{row.email}</p>
           </div>
         </div>
@@ -108,32 +145,42 @@ const Users = () => {
     {
       key: 'role',
       title: 'Role',
+      className: 'hidden sm:table-cell',
       render: (value) => (
-        <Badge variant="default" className={getRoleColor(value)}>
+        <span className={clsx(
+          'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize',
+          getRoleColor(value).replace('bg-', 'bg-opacity-10 bg-').replace('text-', 'text-')
+        )}>
           {capitalize(value)}
-        </Badge>
+        </span>
       )
     },
     {
       key: 'status',
       title: 'Status',
       render: (value) => (
-        <Badge variant="default" className={getStatusColor(value)}>
-          {capitalize(value)}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+           <span className={clsx(
+              'w-1.5 h-1.5 rounded-full',
+              value === 'active' ? 'bg-emerald-500' : 'bg-red-500'
+            )} />
+           <span className="text-sm text-neutral-600 capitalize">{value}</span>
+        </div>
       )
     },
     {
       key: 'coins',
-      title: 'Coins',
+      title: 'Balance',
+      className: 'hidden md:table-cell',
       render: (value) => (
-        <span className="font-medium text-neutral-800">{formatNumber(value)}</span>
+        <span className="font-mono text-sm font-medium text-neutral-600">{formatNumber(value)}</span>
       )
     },
     {
       key: 'joinedDate',
       title: 'Joined',
-      render: (value) => formatDate(value)
+      className: 'hidden lg:table-cell',
+      render: (value) => <span className="text-sm text-neutral-500">{formatDate(value)}</span>
     },
     {
       key: 'actions',
@@ -141,23 +188,20 @@ const Users = () => {
       sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            icon={Eye}
+          <button 
             onClick={() => navigate(`/users/${row.id}`)}
+            className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group"
+            title="View Details"
           >
-            View
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            icon={Trash2}
+            <Eye className="w-4 h-4" />
+          </button>
+          <button 
             onClick={() => handleAction('delete', row)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete User"
           >
-            Delete
-          </Button>
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       )
     }
@@ -172,87 +216,108 @@ const Users = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8 max-w-[1600px] mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-800">Users</h1>
-          <p className="text-neutral-500 mt-1">Manage user accounts and permissions</p>
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Users</h1>
+          <p className="text-neutral-500 mt-2 text-sm max-w-md leading-relaxed">
+            Manage your user base, track growth, and handle permissions efficiently from a single dashboard.
+          </p>
         </div>
-        <Button
-          variant="primary"
-          icon={UsersIcon}
-          disabled={status === 'loading'}
-          onClick={() => window.location.assign('/users/create-admin')}
-        >
-          {status === 'loading' ? 'Loading…' : 'Add Admin'}
-        </Button>
+        <div className="flex items-center gap-3">
+            
+            <Button
+                variant="primary"
+                icon={Plus}
+                className="shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-shadow"
+                disabled={status === 'loading'}
+                onClick={() => window.location.assign('/users/create-admin')}
+            >
+            {status === 'loading' ? 'Loading…' : 'Add New Admin'}
+            </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card padding="small">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              icon={Search}
-              fullWidth
-            />
-          </div>
-          <div className="flex gap-3">
-            <Select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              options={roleOptions}
-              className="w-40"
-            />
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={statusOptions}
-              className="w-40"
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card padding="small">
-          <p className="text-sm text-neutral-500">Total Users</p>
-          <p className="text-2xl font-bold text-neutral-800 mt-1">{users.length}</p>
-        </Card>
-        <Card padding="small">
-          <p className="text-sm text-neutral-500">Active</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {users.filter(u => u.status === 'active').length}
-          </p>
-        </Card>
-        <Card padding="small">
-          <p className="text-sm text-neutral-500">Suspended</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">
-            {users.filter(u => u.status === 'suspended').length}
-          </p>
-        </Card>
-        <Card padding="small">
-          <p className="text-sm text-neutral-500">New Today</p>
-          <p className="text-2xl font-bold text-primary mt-1">12</p>
-        </Card>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <Table
-          columns={columns}
-          data={filteredUsers}
-          searchable={false}
-          pagination={true}
-          pageSize={10}
-          emptyMessage={error ? `Error: ${error}` : (status === 'loading' ? 'Loading users…' : 'No users found')}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard 
+            label="Total Users" 
+            value={formatNumber(users.length)} 
+            trend="12" 
+            trendUp={true} 
+            icon={UsersIcon}
+            color="blue"
         />
-      </Card>
+        <StatCard 
+            label="Active Now" 
+            value={formatNumber(users.filter(u => u.status === 'active').length)} 
+            trend="4" 
+            trendUp={true} 
+            icon={Eye}
+            color="green"
+        />
+         <StatCard 
+            label="Suspended" 
+            value={formatNumber(users.filter(u => u.status === 'suspended').length)} 
+            trend="0" 
+            trendUp={true} 
+            icon={Trash2}
+            color="rose"
+        />
+         <StatCard 
+            label="New Today" 
+            value="12" 
+            trend="8" 
+            trendUp={true} 
+            icon={ArrowUpRight}
+            color="violet"
+        />
+      </div>
+
+      {/* Main Content Card */}
+      <div className="bg-white rounded-3xl border border-neutral-200/60 shadow-sm overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-5 border-b border-neutral-100 bg-neutral-50/30 flex flex-col sm:flex-row gap-4 justify-between items-center">
+             <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input 
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-neutral-400"
+                />
+             </div>
+             <div className="flex gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <Select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    options={roleOptions}
+                    className="w-36 flex-shrink-0"
+                />
+                <Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    options={statusOptions}
+                    className="w-36 flex-shrink-0"
+                />
+             </div>
+        </div>
+
+        {/* Table Area */}
+        <div className="overflow-x-auto">
+            <Table
+                columns={columns}
+                data={filteredUsers}
+                searchable={false}
+                pagination={true}
+                pageSize={10}
+                emptyMessage={error ? `Error: ${error}` : (status === 'loading' ? 'Loading users…' : 'No users found')}
+                className="min-w-full"
+            />
+        </div>
+      </div>
 
       {/* Confirm Modal */}
       <ConfirmModal
@@ -261,7 +326,7 @@ const Users = () => {
         onConfirm={handleConfirm}
         title={confirmModal.type === 'delete' ? 'Delete User' : 'Confirm Action'}
         description={getConfirmMessage()}
-        confirmText={confirmModal.type === 'delete' ? 'Delete' : 'Confirm'}
+        confirmText={confirmModal.type === 'delete' ? 'Delete Account' : 'Confirm'}
         confirmVariant={confirmModal.type === 'delete' ? 'danger' : 'primary'}
       />
     </div>

@@ -100,7 +100,7 @@ const Table = ({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+      <div className="overflow-x-auto  border border-neutral-200">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -144,7 +144,8 @@ const Table = ({
                       className={clsx(
                         'px-4 py-3.5 text-sm text-neutral-700',
                         column.align === 'center' && 'text-center',
-                        column.align === 'right' && 'text-right'
+                        column.align === 'right' && 'text-right',
+                        column.className
                       )}
                     >
                       {column.render 
@@ -171,7 +172,7 @@ const Table = ({
 
       {/* Pagination */}
       {pagination && totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center justify-between my-4 px-4">
           <p className="text-sm text-neutral-500">
             Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} results
           </p>
