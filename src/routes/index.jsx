@@ -16,6 +16,7 @@ import PostDetails from '../pages/PostDetails.jsx';
 import UserDetails from '../pages/UserDetails.jsx';
 import Ads from '../pages/Ads.jsx';
 import AdDetails from '../pages/AdDetails.jsx';
+import VendorDetails from '../pages/VendorDetails.jsx';
 
 export const router = createBrowserRouter([
   {
@@ -61,6 +62,10 @@ export const router = createBrowserRouter([
       {
         path: '/vendors',
         element: <Vendors />
+      },
+      {
+        path: '/vendors/:id',
+        element: <VendorDetails />
       },
       {
         // reports removed

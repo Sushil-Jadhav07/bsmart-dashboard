@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import Card from '../components/Card.jsx'
 import Table from '../components/Table.jsx'
@@ -7,8 +8,9 @@ import Badge from '../components/Badge.jsx'
 import Input from '../components/Input.jsx'
 import { fetchVendors, patchVendorValidation, setVendorValidatedOptimistic, deleteVendorById } from '../store/vendorsSlice.js'
 import { getStatusColor, capitalize } from '../utils/helpers.jsx'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Eye } from 'lucide-react'
 import { ConfirmModal } from '../components/Modal.jsx'
+import { clsx } from 'clsx'
 
 const Toast = ({ message, onClose }) => (
   <div className="fixed bottom-6 right-6 px-4 py-3 bg-green-600 text-white rounded-lg shadow-soft">
@@ -21,6 +23,7 @@ const Toast = ({ message, onClose }) => (
 
 function Vendors() {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const { items, status, error, updating } = useSelector((s) => s.vendors)
   const authUser = useSelector((s) => s.auth.user)
   const adminId =
@@ -28,6 +31,7 @@ function Vendors() {
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState('')
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, vendor: null })
+  const [activeTab, setActiveTab] = useState('all') // all | validated | unvalidated
 
   useEffect(() => {
     dispatch(fetchVendors())
@@ -45,12 +49,25 @@ function Vendors() {
       const role = user.role || 'vendor'
       return { id, validated, business, username, fullName, phone, role }
     })
+    
+    // 1. Filter by search
     const q = search.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((r) =>
-      [r.business, r.username, r.fullName, r.phone, r.role].some((f) => (f || '').toLowerCase().includes(q))
-    )
-  }, [items, search])
+    let filtered = rows
+    if (q) {
+      filtered = filtered.filter((r) =>
+        [r.business, r.username, r.fullName, r.phone, r.role].some((f) => (f || '').toLowerCase().includes(q))
+      )
+    }
+
+    // 2. Filter by tab
+    if (activeTab === 'validated') {
+      filtered = filtered.filter((r) => r.validated)
+    } else if (activeTab === 'unvalidated') {
+      filtered = filtered.filter((r) => !r.validated)
+    }
+    
+    return filtered
+  }, [items, search, activeTab])
 
   const handleToggle = async (row) => {
     const next = !row.validated
@@ -129,6 +146,14 @@ function Vendors() {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <Button
+            variant="ghost"
+            size="sm"
+            icon={Eye}
+            onClick={() => navigate(`/vendors/${row.id}`)}
+          >
+            View
+          </Button>
+          <Button
             variant={row.validated ? 'secondary' : 'primary'}
             size="sm"
             onClick={() => handleToggle(row)}
@@ -157,6 +182,28 @@ function Vendors() {
           <h1 className="text-2xl font-bold text-neutral-800">Vendors</h1>
           <p className="text-neutral-500 mt-1">Manage vendor validation</p>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-neutral-200">
+        {[
+          { id: 'all', label: 'All Vendors' },
+          { id: 'validated', label: 'Validated' },
+          { id: 'unvalidated', label: 'Unvalidated' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              'px-4 py-2 text-sm font-medium transition-colors border-b-2',
+              activeTab === tab.id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <Card padding="small">
