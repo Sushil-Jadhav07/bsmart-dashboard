@@ -57,9 +57,11 @@ export const fetchAdsAdmin = createAsyncThunk(
       }
       const items = Array.isArray(data?.data)
         ? data.data
-        : Array.isArray(data)
-          ? data
-          : Array.isArray(data?.items)
+        : Array.isArray(data?.ads)
+          ? data.ads
+          : Array.isArray(data)
+            ? data
+            : Array.isArray(data?.items)
             ? data.items
             : Array.isArray(data?.results)
               ? data.results

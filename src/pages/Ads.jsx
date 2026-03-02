@@ -43,42 +43,54 @@ const Ads = () => {
   }, [dispatch, page, limit, statusFilter, categoryFilter]);
 
   useEffect(() => {
-    const getThumbnailUrl = (m) => {
-      if (!m) return '';
-      if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl;
-      if (m.thumbnail?.fileUrl) return m.thumbnail.fileUrl;
-      if (Array.isArray(m.thumbnails) && m.thumbnails[0]?.fileUrl) return m.thumbnails[0].fileUrl;
-      if (m.thumbnails?.fileUrl) return m.thumbnails.fileUrl;
-      if (m.thumbnail_url) return m.thumbnail_url;
-      return '';
-    };
-
     const mapped = (items || []).map((ad) => {
       const id = ad._id || ad.ad_id || ad.id || '';
-      const title = ad.title || ad.headline || ad.caption || 'Untitled ad';
+
+      // API uses 'caption' for ad text; fallback to title/headline
+      const rawCaption = ad.caption && ad.caption.trim() ? ad.caption : null;
+      const productTitle = Array.isArray(ad.product_offer) && ad.product_offer[0]?.title ? ad.product_offer[0].title : null;
+      const title = ad.title || ad.headline || rawCaption || productTitle || 'Untitled ad';
+
+      // API returns populated objects as vendor_id and user_id (not vendor/user)
       const creator =
+        ad.vendor_id?.business_name ||
         ad.vendor?.business_name ||
+        ad.user_id?.full_name ||
+        ad.user_id?.username ||
         ad.vendor?.user?.username ||
         ad.user?.full_name ||
         ad.user?.username ||
         ad.creator?.username ||
         'Unknown';
+
       const categoryRaw = ad.category || ad.targeting_rules?.category_label || '';
       const category =
         typeof categoryRaw === 'string'
           ? categoryRaw
           : (categoryRaw?.label || categoryRaw?.name || categoryRaw?.title || '');
+
       const mediaItem = Array.isArray(ad.media) ? ad.media[0] : null;
       const mediaType = mediaItem?.media_type || mediaItem?.type || mediaItem?.mime_type || '';
       const isVideo = String(mediaType).toLowerCase().includes('video');
-      const thumb = getThumbnailUrl(mediaItem);
-      const thumbnail = isVideo
-        ? (thumb || THUMB_PLACEHOLDER)
-        : (thumb || mediaItem?.fileUrl || mediaItem?.url || THUMB_PLACEHOLDER);
+
+      // API stores thumbnails as an array inside each media item
+      const getThumb = (m) => {
+        if (!m) return '';
+        if (Array.isArray(m.thumbnails) && m.thumbnails[0]?.fileUrl) return m.thumbnails[0].fileUrl;
+        if (m.thumbnails?.fileUrl) return m.thumbnails.fileUrl;
+        if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl;
+        if (m.thumbnail?.fileUrl) return m.thumbnail.fileUrl;
+        if (m.thumbnail_url) return m.thumbnail_url;
+        if (!isVideo && m.fileUrl) return m.fileUrl;
+        return '';
+      };
+
+      const thumbnail = getThumb(mediaItem) || THUMB_PLACEHOLDER;
       const coinsReward = ad.coins_reward ?? ad.reward_config?.coins_per_view ?? 0;
       const views = ad.views_count ?? ad.views ?? ad.view_count ?? 0;
       const status = ad.status || 'pending';
       const createdAt = ad.createdAt || ad.created_at || new Date().toISOString();
+
       return {
         id,
         adId: id,
