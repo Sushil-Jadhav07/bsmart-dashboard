@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
-const baseUrl = 'https://bsmart.asynk.store'
+const baseUrl = 'https://api.bebsmart.in'
 
 const initialState = {
   items: [],
