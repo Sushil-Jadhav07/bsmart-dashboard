@@ -12,6 +12,7 @@ import Logout from '../pages/Logout.jsx';
 import PublicOnlyLayout from '../layout/PublicOnlyLayout.jsx';
 import AdminCreate from '../pages/AdminCreate.jsx';
 import Vendors from '../pages/Vendors.jsx';
+import VendorDetails from '../pages/VendorDetails.jsx';
 import PostDetails from '../pages/PostDetails.jsx';
 import UserDetails from '../pages/UserDetails.jsx';
 import Ads from '../pages/Ads.jsx';
@@ -61,6 +62,10 @@ export const router = createBrowserRouter([
       {
         path: '/vendors',
         element: <Vendors />
+      },
+      {
+        path: '/vendors/:id',
+        element: <VendorDetails />
       },
       {
         // reports removed

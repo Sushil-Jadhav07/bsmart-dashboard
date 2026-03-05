@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import Card from '../components/Card.jsx'
 import Table from '../components/Table.jsx'
 import Button from '../components/Button.jsx'
 import Badge from '../components/Badge.jsx'
 import Input from '../components/Input.jsx'
-import { fetchVendors, patchVendorValidation, setVendorValidatedOptimistic, deleteVendorById } from '../store/vendorsSlice.js'
-import { getStatusColor, capitalize } from '../utils/helpers.jsx'
-import { Trash2 } from 'lucide-react'
+import { fetchVendors, fetchVendorProfiles, patchVendorProfileApproval, setVendorValidatedOptimistic, deleteVendorById, processVendorProfile } from '../store/vendorsSlice.js'
+import { capitalize } from '../utils/helpers.jsx'
+import { Eye, Trash2 } from 'lucide-react'
 import { ConfirmModal } from '../components/Modal.jsx'
 import { clsx } from 'clsx'
 
@@ -20,9 +21,58 @@ const Toast = ({ message, onClose }) => (
   </div>
 )
 
+const REQUIRED_PROFILE_FIELDS = [
+  'company_name',
+  'legal_business_name',
+  'registration_number',
+  'tax_id_or_vat',
+  'year_established',
+  'company_type',
+  'industry_category',
+  'business_nature',
+  'website',
+  'business_email',
+  'business_phone',
+  'address',
+  'country',
+  'service_coverage',
+  'company_description',
+  'logo_url',
+  'city',
+]
+
+const isEmptyValue = (value) => {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string') return value.trim() === ''
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'object') {
+    if ('fileUrl' in value) return !value.fileUrl
+    if ('url' in value) return !value.url
+  }
+  return false
+}
+
+const resolveProfileByVendorId = (profileMap, vendor) => {
+  if (!vendor) return null
+  const vendorId = vendor._id
+  const userId = vendor?.user?._id || vendor?.user?.id
+  return profileMap[vendorId] || (userId ? profileMap[userId] : null) || null
+}
+
+const getProfileMissingFields = (profile) => {
+  if (!profile) return ['profile']
+
+  const missing = REQUIRED_PROFILE_FIELDS
+    .filter((key) => isEmptyValue(profile?.[key]))
+    .map((key) => key.replaceAll('_', ' '))
+
+  return missing
+}
+
 function Vendors() {
   const dispatch = useDispatch()
-  const { items, status, error, updating } = useSelector((s) => s.vendors)
+  const navigate = useNavigate()
+  const { items, profilesByVendorId, status, error, updating } = useSelector((s) => s.vendors)
   const authUser = useSelector((s) => s.auth.user)
   const adminId =
     (authUser && (authUser.id || authUser._id || authUser.uuid || authUser.user_id)) || null
@@ -33,6 +83,7 @@ function Vendors() {
 
   useEffect(() => {
     dispatch(fetchVendors())
+    dispatch(fetchVendorProfiles())
   }, [dispatch])
 
   const data = useMemo(() => {
@@ -41,11 +92,14 @@ function Vendors() {
       const validated = !!v.validated
       const business = v.business_name || ''
       const user = v.user || {}
+      const profile = resolveProfileByVendorId(profilesByVendorId || {}, v)
+      const missingFields = getProfileMissingFields(profile)
+      const isProfileComplete = missingFields.length === 0
       const username = user.username || ''
       const fullName = user.full_name || ''
       const phone = user.phone || ''
       const role = user.role || 'vendor'
-      return { id, validated, business, username, fullName, phone, role }
+      return { id, validated, business, username, fullName, phone, role, isProfileComplete, missingFields }
     })
     
     // Filter by tab
@@ -58,23 +112,28 @@ function Vendors() {
     return filtered.filter((r) =>
       [r.business, r.username, r.fullName, r.phone, r.role].some((f) => (f || '').toLowerCase().includes(q))
     )
-  }, [items, search, activeTab])
+  }, [items, profilesByVendorId, search, activeTab])
 
   const handleToggle = async (row) => {
-    const next = !row.validated
-    dispatch(setVendorValidatedOptimistic({ id: row.id, validated: next }))
+    if (!row.isProfileComplete && !row.validated) {
+      setToast(`Cannot validate: missing ${row.missingFields.join(', ')}`)
+      setTimeout(() => setToast(''), 3000)
+      return
+    }
+    const nextStatus = row.validated ? 'rejected' : 'approved'
+    dispatch(setVendorValidatedOptimistic({ id: row.id, validated: !row.validated }))
     try {
       await dispatch(
-        patchVendorValidation({
+        processVendorProfile({
           id: row.id,
-          admin_user_id: adminId,
-          validated: next,
+          status: nextStatus,
+          rejection_reason: nextStatus === 'rejected' ? 'Admin unvalidated' : undefined,
         })
       ).unwrap()
-      setToast(next ? 'Vendor validated' : 'Vendor unvalidated')
+      setToast(row.validated ? 'Vendor unvalidated' : 'Vendor validated')
       setTimeout(() => setToast(''), 2500)
     } catch {
-      dispatch(setVendorValidatedOptimistic({ id: row.id, validated: !next }))
+      dispatch(setVendorValidatedOptimistic({ id: row.id, validated: row.validated }))
     }
   }
 
@@ -137,10 +196,19 @@ function Vendors() {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <Button
+            variant="ghost"
+            size="sm"
+            icon={Eye}
+            onClick={() => navigate(`/vendors/${row.id}`)}
+          >
+            View
+          </Button>
+          <Button
             variant={row.validated ? 'secondary' : 'primary'}
             size="sm"
             onClick={() => handleToggle(row)}
-            disabled={!adminId || !!updating[row.id] || status === 'loading'}
+            disabled={!adminId || !!updating[row.id] || status === 'loading' || (!row.isProfileComplete && !row.validated)}
+            title={!row.isProfileComplete && !row.validated ? `Missing: ${row.missingFields.join(', ')}` : ''}
           >
             {row.validated ? 'Unvalidate' : 'Validate'}
           </Button>
