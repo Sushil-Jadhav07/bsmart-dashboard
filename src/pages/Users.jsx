@@ -14,6 +14,20 @@ import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { formatNumber, formatDate, getStatusColor, getRoleColor, capitalize } from '../utils/helpers.jsx';
 import { clsx } from 'clsx';
 
+const Toast = ({ message, onClose, variant = 'success' }) => (
+  <div
+    className={clsx(
+      'fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-soft z-50',
+      variant === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+    )}
+  >
+    <div className="flex items-center gap-3">
+      <span className="text-sm">{message}</span>
+      <button onClick={onClose} className="text-white/80 hover:text-white text-xs">Close</button>
+    </div>
+  </div>
+)
+
 function StatCard({ label, value, trend, trendUp, icon: Icon, color = 'blue' }) {
   const colorStyles = {
     blue: 'bg-blue-50 text-blue-600',
@@ -55,6 +69,8 @@ const Users = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null, user: null });
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState({ message: '', variant: 'success' })
 
   useEffect(() => {
     dispatch(fetchUsers());
@@ -63,7 +79,7 @@ const Users = () => {
   useEffect(() => {
     const mapped = (items || []).map((u) => {
       const base = u && u.user ? u.user : u || {};
-      const id = base.id || base._id || base.uuid || '';
+      const id = base._id || base.id || base.user_id || base.uuid || '';
       const name =
         base.full_name ||
         base.fullName ||
@@ -105,14 +121,25 @@ const Users = () => {
     const { type, user } = confirmModal;
     
     if (type === 'delete') {
+      setDeleting(true)
       dispatch(deleteUserById(user.id))
         .unwrap()
         .then(() => {
-          // Success, redux state will update automatically
+          setToast({ message: 'User deleted successfully', variant: 'success' })
+          setTimeout(() => setToast({ message: '', variant: 'success' }), 2500)
+          dispatch(fetchUsers())
         })
         .catch((err) => {
+          const msg = typeof err === 'string' ? err : (err?.message || 'Failed to delete user')
           console.error('Failed to delete user:', err);
+          setToast({ message: msg, variant: 'error' })
+          setTimeout(() => setToast({ message: '', variant: 'success' }), 4000)
+        })
+        .finally(() => {
+          setDeleting(false)
+          setConfirmModal({ isOpen: false, type: null, user: null });
         });
+      return
     }
     
     setConfirmModal({ isOpen: false, type: null, user: null });
@@ -328,7 +355,16 @@ const Users = () => {
         description={getConfirmMessage()}
         confirmText={confirmModal.type === 'delete' ? 'Delete Account' : 'Confirm'}
         confirmVariant={confirmModal.type === 'delete' ? 'danger' : 'primary'}
+        loading={deleting}
       />
+
+      {!!toast.message && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast({ message: '', variant: 'success' })}
+        />
+      )}
     </div>
   );
 };

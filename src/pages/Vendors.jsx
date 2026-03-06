@@ -76,6 +76,7 @@ function Vendors() {
   const authUser = useSelector((s) => s.auth.user)
   const adminId =
     (authUser && (authUser.id || authUser._id || authUser.uuid || authUser.user_id)) || null
+  const isAdmin = String(authUser?.role || '').toLowerCase() === 'admin'
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [toast, setToast] = useState('')
@@ -120,14 +121,14 @@ function Vendors() {
       setTimeout(() => setToast(''), 3000)
       return
     }
-    const nextStatus = row.validated ? 'rejected' : 'approved'
+    const nextAction = row.validated ? 'reject' : 'approve'
     dispatch(setVendorValidatedOptimistic({ id: row.id, validated: !row.validated }))
     try {
       await dispatch(
         processVendorProfile({
           id: row.id,
-          status: nextStatus,
-          rejection_reason: nextStatus === 'rejected' ? 'Admin unvalidated' : undefined,
+          action: nextAction,
+          rejection_reason: nextAction === 'reject' ? 'Admin unvalidated' : undefined,
         })
       ).unwrap()
       setToast(row.validated ? 'Vendor unvalidated' : 'Vendor validated')
@@ -207,7 +208,7 @@ function Vendors() {
             variant={row.validated ? 'secondary' : 'primary'}
             size="sm"
             onClick={() => handleToggle(row)}
-            disabled={!adminId || !!updating[row.id] || status === 'loading' || (!row.isProfileComplete && !row.validated)}
+            disabled={!adminId || !isAdmin || !!updating[row.id] || status === 'loading' || (!row.isProfileComplete && !row.validated)}
             title={!row.isProfileComplete && !row.validated ? `Missing: ${row.missingFields.join(', ')}` : ''}
           >
             {row.validated ? 'Unvalidate' : 'Validate'}

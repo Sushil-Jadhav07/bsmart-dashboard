@@ -131,21 +131,30 @@ export const submitVendorProfile = createAsyncThunk(
 
 export const processVendorProfile = createAsyncThunk(
   'vendors/processVendorProfile',
-  async ({ id, status, rejection_reason }, { getState, rejectWithValue }) => {
+  async ({ id, action, status, rejection_reason }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
+      // Support both new 'action' API and legacy 'status' mapping
+      const mappedAction =
+        action ||
+        (status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status) ||
+        'approve'
       const res = await fetch(`${baseUrl}/api/vendors/profile/${id}/admin-process`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ status, rejection_reason }),
+        body: JSON.stringify({ action: mappedAction, rejection_reason }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         return rejectWithValue(data?.message || 'Failed to process vendor profile')
       }
-      return { id, status, data: data?.data || data || {} }
+      const resultStatus =
+        data?.data?.status ||
+        data?.status ||
+        (mappedAction === 'approve' ? 'approved' : mappedAction === 'reject' ? 'rejected' : mappedAction)
+      return { id, action: mappedAction, status: resultStatus, data: data?.data || data || {} }
     } catch (e) {
       return rejectWithValue(e.message || 'Network error')
     }
@@ -359,9 +368,9 @@ const slice = createSlice({
         }
       })
       .addCase(processVendorProfile.fulfilled, (state, action) => {
-        const { id, status, data } = action.payload
+        const { id, status, action: actionName, data } = action.payload
         if (state.currentProfile && (state.currentProfile._id === id || state.currentProfile.id === id)) {
-          state.currentProfile = { ...state.currentProfile, ...data, status }
+          state.currentProfile = { ...state.currentProfile, ...data, status, validated: status === 'approved' }
         }
         // Update list item as well
         const idx = state.items.findIndex((v) => v._id === id || v.id === id)

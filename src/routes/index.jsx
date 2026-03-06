@@ -17,6 +17,12 @@ import PostDetails from '../pages/PostDetails.jsx';
 import UserDetails from '../pages/UserDetails.jsx';
 import Ads from '../pages/Ads.jsx';
 import AdDetails from '../pages/AdDetails.jsx';
+import AdminDashboard from '../pages/AdminDashboard.jsx';
+import AdminUsers from '../pages/AdminUsers.jsx';
+import AdminPosts from '../pages/AdminPosts.jsx';
+import AdminVendors from '../pages/AdminVendors.jsx';
+import AdminProducts from '../pages/AdminProducts.jsx';
+import AdminAds from '../pages/AdminAds.jsx';
 
 export const router = createBrowserRouter([
   {
@@ -77,6 +83,31 @@ export const router = createBrowserRouter([
       {
         path: '/settings',
         element: <Settings />
+      }
+      ,
+      {
+        path: '/admin/dashboard',
+        element: <AdminDashboard />
+      },
+      {
+        path: '/admin/users',
+        element: <AdminUsers />
+      },
+      {
+        path: '/admin/posts',
+        element: <AdminPosts />
+      },
+      {
+        path: '/admin/vendors',
+        element: <AdminVendors />
+      },
+      {
+        path: '/admin/products',
+        element: <AdminProducts />
+      },
+      {
+        path: '/admin/ads',
+        element: <AdminAds />
       }
     ]
   },
