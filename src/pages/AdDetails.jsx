@@ -185,6 +185,7 @@ export default function AdDetails() {
       category,
       coinsReward: a.coins_reward ?? a.reward_config?.coins_per_view ?? 0,
       totalBudgetCoins: a.total_budget_coins ?? a.budget?.total_budget_coins ?? 0,
+      likes: a.likes_count ?? a.likes ?? a.likesCount ?? a.like_count ?? 0,
       createdAt: a.createdAt || a.created_at || '',
       status: a.status || 'pending',
       tags: Array.isArray(a.targeting_tags) ? a.targeting_tags : [],
@@ -323,6 +324,10 @@ export default function AdDetails() {
             <Divider />
 
             <div className="px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-neutral-500">Likes</p>
+                <p className="text-sm font-semibold text-neutral-900">{formatNumber(ad.likes)}</p>
+              </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-neutral-500">Reward coins</p>
                 <p className="text-sm font-semibold text-neutral-900">{formatNumber(ad.coinsReward)}</p>
