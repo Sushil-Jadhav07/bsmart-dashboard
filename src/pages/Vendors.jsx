@@ -89,7 +89,7 @@ function Vendors() {
 
   const data = useMemo(() => {
     const rows = (items || []).map((v) => {
-      const id = v._id
+      const vendorId = v._id
       const validated = !!v.validated
       const business = v.business_name || ''
       const user = v.user || {}
@@ -100,7 +100,10 @@ function Vendors() {
       const fullName = user.full_name || ''
       const phone = user.phone || ''
       const role = user.role || 'vendor'
-      return { id, validated, business, username, fullName, phone, role, isProfileComplete, missingFields }
+      const userId = user._id || user.id || null
+      // Use userId for details and admin-process endpoint; keep vendorId for optimistic/local updates and delete
+      const id = userId || vendorId
+      return { id, vendorId, validated, business, username, fullName, phone, role, isProfileComplete, missingFields }
     })
     
     // Filter by tab
@@ -122,7 +125,8 @@ function Vendors() {
       return
     }
     const nextAction = row.validated ? 'reject' : 'approve'
-    dispatch(setVendorValidatedOptimistic({ id: row.id, validated: !row.validated }))
+    // optimistic update uses vendorId
+    dispatch(setVendorValidatedOptimistic({ id: row.vendorId, validated: !row.validated }))
     try {
       await dispatch(
         processVendorProfile({
@@ -134,7 +138,7 @@ function Vendors() {
       setToast(row.validated ? 'Vendor unvalidated' : 'Vendor validated')
       setTimeout(() => setToast(''), 2500)
     } catch {
-      dispatch(setVendorValidatedOptimistic({ id: row.id, validated: row.validated }))
+      dispatch(setVendorValidatedOptimistic({ id: row.vendorId, validated: row.validated }))
     }
   }
 
@@ -145,7 +149,8 @@ function Vendors() {
   const handleConfirmDelete = () => {
     const { vendor } = confirmModal
     if (vendor) {
-      dispatch(deleteVendorById(vendor.id))
+      // permanent delete uses vendorId
+      dispatch(deleteVendorById(vendor.vendorId || vendor.id))
         .unwrap()
         .then(() => {
           setToast('Vendor deleted successfully')
@@ -208,7 +213,7 @@ function Vendors() {
             variant={row.validated ? 'secondary' : 'primary'}
             size="sm"
             onClick={() => handleToggle(row)}
-            disabled={!adminId || !isAdmin || !!updating[row.id] || status === 'loading' || (!row.isProfileComplete && !row.validated)}
+            disabled={!adminId || !isAdmin || !!updating[row.vendorId] || status === 'loading' || (!row.isProfileComplete && !row.validated)}
             title={!row.isProfileComplete && !row.validated ? `Missing: ${row.missingFields.join(', ')}` : ''}
           >
             {row.validated ? 'Unvalidate' : 'Validate'}

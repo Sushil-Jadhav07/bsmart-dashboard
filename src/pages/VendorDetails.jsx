@@ -40,8 +40,32 @@ const isEmptyValue = (value) => {
 const getMissingFields = (profile) => {
   if (!profile) return ['profile']
 
+  // Handle nested structure from API
+  const flatProfile = {
+    ...profile,
+    ...(profile.company_details || {}),
+    ...(profile.business_details || {}),
+    ...(profile.online_presence || {}),
+    ...(profile.online_presence?.address || {}),
+    website: profile.online_presence?.website_url,
+    business_email: profile.online_presence?.company_email,
+    business_phone: profile.online_presence?.phone_number,
+    address: profile.online_presence?.address?.address_line1,
+    registration_number: profile.company_details?.registration_number,
+    tax_id_or_vat: profile.company_details?.tax_id,
+    company_type: profile.company_details?.company_type,
+    year_established: profile.company_details?.year_established,
+    legal_business_name: profile.company_details?.registered_name,
+    company_name: profile.company_details?.company_name || profile.business_name,
+    industry_category: profile.business_details?.industry_category,
+    business_nature: profile.business_details?.business_nature,
+    service_coverage: profile.business_details?.service_coverage,
+    country: profile.business_details?.country || profile.online_presence?.address?.country,
+    city: profile.online_presence?.address?.city,
+  }
+
   const missing = REQUIRED_PROFILE_FIELDS
-    .filter((key) => isEmptyValue(profile?.[key]))
+    .filter((key) => isEmptyValue(flatProfile?.[key]))
     .map((key) => key.replaceAll('_', ' '))
 
   return missing
@@ -71,14 +95,19 @@ export default function VendorDetails() {
   const [actionError, setActionError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
 
-  useEffect(() => {
-    if (id) dispatch(fetchVendorProfileById(id))
-  }, [dispatch, id])
-
   const vendorListItem = useMemo(
     () => (items || []).find((v) => v?._id === id || v?.user?._id === id || v?.user?.id === id),
     [items, id]
   )
+
+  const resolvedUserId = useMemo(() => {
+    return vendorListItem?.user?._id || vendorListItem?.user?.id || id
+  }, [vendorListItem, id])
+
+  useEffect(() => {
+    if (!resolvedUserId) return
+    dispatch(fetchVendorProfileById(resolvedUserId))
+  }, [dispatch, resolvedUserId])
 
   const profile = useMemo(() => currentProfile || null, [currentProfile])
 
@@ -92,15 +121,13 @@ export default function VendorDetails() {
   
   const handleAdminProcess = async (action) => {
     setActionError('')
-    if (action === 'approve' && !isProfileComplete) {
-      setActionError(`Cannot approve. Missing fields: ${missingFields.join(', ')}`)
-      return
-    }
-
+    
+    // Removed validation block: admins can approve incomplete profiles if needed
+    
     try {
       await dispatch(
         processVendorProfile({
-          id,
+          id: resolvedUserId,
           action,
           rejection_reason: action === 'reject' ? 'Admin rejected' : undefined,
         })
@@ -113,7 +140,7 @@ export default function VendorDetails() {
   const handleSubmit = async () => {
     setActionError('')
     try {
-      await dispatch(submitVendorProfile(id)).unwrap()
+      await dispatch(submitVendorProfile(resolvedUserId)).unwrap()
     } catch (e) {
       setActionError(e || 'Failed to submit profile')
     }
@@ -121,25 +148,36 @@ export default function VendorDetails() {
 
   const fields = useMemo(() => {
     const p = profile || {}
+    const cd = p.company_details || {}
+    const bd = p.business_details || {}
+    const op = p.online_presence || {}
+    const addr = op.address || {}
+    const sm = p.social_media_links || {}
+
     return [
-      ['Company Name', p.company_name || p.business_name],
-      ['Legal Business Name', p.legal_business_name],
-      ['Registration Number', p.registration_number],
-      ['Tax ID / VAT', p.tax_id_or_vat],
-      ['Year Established', p.year_established],
-      ['Company Type', p.company_type],
-      ['Industry Category', p.industry_category],
-      ['Business Nature', p.business_nature],
-      ['Website', p.website],
-      ['Business Email', p.business_email || p.email],
-      ['Business Phone', p.business_phone || p.phone],
-      ['Address', p.address],
-      ['Country', p.country],
-      ['Service Coverage', p.service_coverage],
+      ['Company Name', cd.company_name || p.company_name || p.business_name],
+      ['Legal Business Name', cd.registered_name || p.legal_business_name],
+      ['Registration Number', cd.registration_number || p.registration_number],
+      ['Tax ID / VAT', cd.tax_id || p.tax_id_or_vat],
+      ['Year Established', cd.year_established || p.year_established],
+      ['Company Type', cd.company_type || p.company_type],
+      ['Industry', cd.industry],
+      ['Industry Category', bd.industry_category || p.industry_category],
+      ['Business Nature', bd.business_nature || p.business_nature],
+      ['Website', op.website_url || p.website],
+      ['Business Email', op.company_email || p.business_email || p.email],
+      ['Business Phone', op.phone_number || p.business_phone || p.phone],
+      ['Address', addr.address_line1 ? `${addr.address_line1}${addr.address_line2 ? ', ' + addr.address_line2 : ''}` : p.address],
+      ['City', addr.city || p.city],
+      ['State', addr.state],
+      ['Pincode', addr.pincode],
+      ['Country', addr.country || bd.country || p.country],
+      ['Service Coverage', bd.service_coverage || p.service_coverage],
       ['Company Description', p.company_description || p.description],
-      ['Social Media Links', Array.isArray(p.social_media_links) ? p.social_media_links.join(', ') : ''],
+      ['Social Media Links', [sm.instagram, sm.facebook, sm.linkedin, sm.twitter].filter(Boolean).join(', ') || (Array.isArray(p.social_media_links) ? p.social_media_links.join(', ') : '')],
       ['Logo URL', p.logo_url || p.logo?.fileUrl || p.logo?.url],
-      ['City', p.city],
+      ['Credits', p.credits],
+      ['Credits Expires', p.credits_expires_at ? new Date(p.credits_expires_at).toLocaleDateString() : undefined],
       ['Note', p.note],
       ['Submitted', p.submitted ?? p.is_submitted ?? p.submission_status ?? (p.submitted_at ? 'yes' : undefined)],
     ]
@@ -219,11 +257,11 @@ export default function VendorDetails() {
           </div>
 
           {!isProfileComplete && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 hidden">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
                 <div>
-                  <p className="text-amber-800 text-sm font-semibold">Profile incomplete. Validation is blocked.</p>
+                  <p className="text-amber-800 text-sm font-semibold">Profile incomplete</p>
                   <p className="text-amber-700 text-sm mt-1">Missing fields: {missingFields.join(', ')}</p>
                 </div>
               </div>

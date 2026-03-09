@@ -29,6 +29,7 @@ import {
 import Card, { CardHeader, CardTitle, CardDescription } from '../components/Card.jsx';
 import Badge from '../components/Badge.jsx';
 import Button from '../components/Button.jsx';
+import LoginAlertPanel from '../components/LoginAlertPanel.jsx';
 import {
   kpiData,
   newUsersData,
@@ -299,7 +300,8 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* reports section removed */}
+        {/* Login Alert Panel */}
+        <LoginAlertPanel />
       </div>
     </div>
   );

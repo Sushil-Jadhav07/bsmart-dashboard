@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { login } from '../store/authSlice.js'
+import { connectSocket } from '../store/notificationsSlice.js'
+import { fetchNotifications } from '../store/notificationsSlice.js'
 import Input from '../components/Input.jsx'
 import Button from '../components/Button.jsx'
 import { Eye, EyeOff } from 'lucide-react'
@@ -24,7 +26,14 @@ function Login() {
     }
     dispatch(login({ email, password }))
       .unwrap()
-      .then(() => navigate('/dashboard', { replace: true }))
+      .then((result) => {
+        const userId = result?.user?.id || result?.user?._id
+        if (userId) {
+          connectSocket(String(userId), dispatch)
+        }
+        dispatch(fetchNotifications())
+        navigate('/dashboard', { replace: true })
+      })
       .catch(() => {})
   }
 

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Save, Settings as SettingsIcon, Coins, User, Globe } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Save, Settings as SettingsIcon, Coins, User, Globe, Shield } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
@@ -7,10 +8,38 @@ import Input from '../components/Input.jsx';
 import Badge from '../components/Badge.jsx';
 import { defaultSettings } from '../data/settingsData.jsx';
 
+const BASE_URL = 'https://api.bebsmart.in';
+
 const Settings = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
   const [settings, setSettings] = useState(defaultSettings);
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || 'general');
   const [saved, setSaved] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const authState = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('auth_state')) || {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const user = authState.user || null;
+  const token = authState.token || null;
+  const displayName =
+    user?.full_name ||
+    user?.name ||
+    user?.username ||
+    (user?.email ? user.email.split('@')[0] : 'Admin User');
+  const displayEmail = user?.email || 'No email';
 
   const handleSave = () => {
     setSaved(true);
@@ -37,12 +66,78 @@ const Settings = () => {
     }));
   };
 
+  const handleTabChange = (tabValue) => {
+    setActiveTab(tabValue);
+    setSearchParams({ tab: tabValue });
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordStatus({ type: '', message: '' });
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'Please fill all password fields.' });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordStatus({ type: 'error', message: 'New password must be at least 6 characters.' });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'New password and confirm password do not match.' });
+      return;
+    }
+
+    if (!token) {
+      setPasswordStatus({ type: 'error', message: 'Session expired. Please login again.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPasswordStatus({ type: 'error', message: data?.message || 'Failed to change password.' });
+        return;
+      }
+
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordStatus({ type: 'success', message: data?.message || 'Password changed successfully.' });
+    } catch (error) {
+      setPasswordStatus({ type: 'error', message: error.message || 'Network error while changing password.' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const tabs = [
+    { value: 'profile', label: 'Profile', icon: Shield },
     { value: 'general', label: 'General', icon: SettingsIcon },
     { value: 'rewards', label: 'Coin Rewards', icon: Coins },
     { value: 'wallet', label: 'Wallet', icon: User },
     { value: 'features', label: 'Features', icon: Globe }
   ];
+
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
 
   return (
     <div className="space-y-6">
@@ -80,7 +175,7 @@ const Settings = () => {
                 return (
                   <button
                     key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
+                    onClick={() => handleTabChange(tab.value)}
                     className={clsx(
                       'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
                       activeTab === tab.value
@@ -99,6 +194,88 @@ const Settings = () => {
 
         {/* Content */}
         <div className="flex-1">
+          {/* General Settings */}
+          {activeTab === 'profile' && (
+            <Card>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-neutral-800">Profile Settings</h3>
+                  <p className="text-sm text-neutral-500">Manage your account and password</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Name"
+                    value={displayName}
+                    readOnly
+                    helperText="This is your current logged-in profile name"
+                  />
+                  <Input
+                    label="Email"
+                    value={displayEmail}
+                    readOnly
+                    helperText="This is your current logged-in email"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-neutral-100">
+                  <h4 className="font-medium text-neutral-800 mb-3">Password</h4>
+                  <Input
+                    label="Current Password (hidden)"
+                    type="password"
+                    value="********"
+                    readOnly
+                    helperText="For security, your existing password is never visible."
+                  />
+                </div>
+
+                <form onSubmit={handlePasswordChange} className="pt-4 border-t border-neutral-100 space-y-4">
+                  <h4 className="font-medium text-neutral-800">Change Password</h4>
+                  <Input
+                    label="Current Password"
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                    autoComplete="current-password"
+                  />
+                  <Input
+                    label="New Password"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                    autoComplete="new-password"
+                  />
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    autoComplete="new-password"
+                  />
+
+                  {passwordStatus.message && (
+                    <div
+                      className={clsx(
+                        'text-sm rounded-lg px-3 py-2 border',
+                        passwordStatus.type === 'success'
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      )}
+                    >
+                      {passwordStatus.message}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="primary" loading={passwordLoading}>
+                      Change Password
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </Card>
+          )}
+
           {/* General Settings */}
           {activeTab === 'general' && (
             <Card>

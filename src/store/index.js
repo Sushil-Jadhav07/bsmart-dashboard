@@ -6,9 +6,10 @@ import vendors from './vendorsSlice.js'
 import ads from './adsSlice.js'
 import products from './productsSlice.js'
 import analytics from './analyticsSlice.js'
+import notifications from './notificationsSlice.js'
 
 const store = configureStore({
-  reducer: { auth, posts, users, vendors, ads, products, analytics },
+  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications },
 })
 
 export default store

@@ -13,8 +13,10 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Instagram
+  Instagram,
+  Bell
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,12 +25,28 @@ const navItems = [
   { path: '/ads', label: 'Ads', icon: Megaphone },
   { path: '/vendors', label: 'Vendors', icon: Briefcase },
   { path: '/wallets', label: 'Wallets', icon: Wallet },
+  { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/settings', label: 'Settings', icon: Settings }
 ];
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const unreadCount = useSelector((s) => s.notifications.unreadCount);
+  const authUser = useSelector((s) => s.auth.user);
+
+  const displayName =
+    authUser?.full_name ||
+    authUser?.name ||
+    authUser?.username ||
+    (authUser?.email ? authUser.email.split('@')[0] : 'Admin User');
+  const displayEmail = authUser?.email || 'No email';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'AD';
 
   const toggleMobile = () => setMobileOpen(!mobileOpen);
   const toggleCollapse = () => setCollapsed(!collapsed);
@@ -101,7 +119,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                   !isActive && 'group-hover:scale-110 transition-transform'
                 )} />
                 {!collapsed && (
-                  <span className="font-medium whitespace-nowrap">{item.label}</span>
+                  <span className="font-medium whitespace-nowrap flex-1">{item.label}</span>
+                )}
+                {!collapsed && item.path === '/notifications' && unreadCount > 0 && (
+                  <span className="ml-auto text-[10px] font-bold bg-primary text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-tight">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
                 )}
               </NavLink>
             );
@@ -132,12 +155,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             collapsed && 'justify-center'
           )}>
             <div className="w-10 h-10 rounded-full bg-gradient-brand flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-semibold text-sm">AD</span>
+              <span className="text-white font-semibold text-sm">{initials}</span>
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <p className="font-medium text-sm text-neutral-800 truncate">Admin User</p>
-                <p className="text-xs text-neutral-500 truncate">admin@instagram.com</p>
+                <p className="font-medium text-sm text-neutral-800 truncate">{displayName}</p>
+                <p className="text-xs text-neutral-500 truncate">{displayEmail}</p>
               </div>
             )}
           </div>
