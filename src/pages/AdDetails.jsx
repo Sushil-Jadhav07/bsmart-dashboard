@@ -185,6 +185,7 @@ export default function AdDetails() {
       category,
       coinsReward: a.coins_reward ?? a.reward_config?.coins_per_view ?? 0,
       totalBudgetCoins: a.total_budget_coins ?? a.budget?.total_budget_coins ?? 0,
+      totalCoinsSpent: a.total_coins_spent ?? a.coins_spent ?? a.totalCoinsSpent ?? 0,
       likes: a.likes_count ?? a.likes ?? a.likesCount ?? a.like_count ?? 0,
       createdAt: a.createdAt || a.created_at || '',
       status: a.status || 'pending',
@@ -361,6 +362,37 @@ export default function AdDetails() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <Divider />
+
+            <div className="px-5 py-5 space-y-4">
+              <SectionLabel>Budget &amp; Coin Rewards</SectionLabel>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-amber-50 rounded-xl p-4">
+                  <p className="text-xs text-amber-600 font-medium mb-1">Coins Per Engagement</p>
+                  <p className="text-2xl font-bold text-amber-700">🪙 {formatNumber(ad.coinsReward || 0)}</p>
+                  <p className="text-xs text-amber-500 mt-1">Per view / like / comment / reply</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4">
+                  <p className="text-xs text-green-600 font-medium mb-1">Budget Used</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {formatNumber(ad.totalCoinsSpent || 0)}
+                    <span className="text-sm font-normal text-green-500"> / {formatNumber(ad.totalBudgetCoins || 0)}</span>
+                  </p>
+                  {(ad.totalBudgetCoins || 0) > 0 && (
+                    <div className="mt-2 h-1.5 bg-green-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full"
+                        style={{ width: `${Math.min(100, Math.round(((ad.totalCoinsSpent || 0) / ad.totalBudgetCoins) * 100))}%` }}
+                      />
+                    </div>
+                  )}
+                  {(ad.totalCoinsSpent || 0) >= (ad.totalBudgetCoins || 0) && (ad.totalBudgetCoins || 0) > 0 && (
+                    <p className="text-xs font-semibold text-red-500 mt-1">⚠️ Budget Exhausted</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <Divider />

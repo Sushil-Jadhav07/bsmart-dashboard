@@ -32,14 +32,25 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
   </Card>
 );
 
+// Transaction type labels per Admin Dashboard Ad Engagement Coins docs
 const TYPE_CONFIG = {
-  LIKE:                { icon: Heart,           color: 'text-red-500 bg-red-50',       label: 'Like'           },
-  COMMENT:             { icon: MessageCircle,   color: 'text-blue-500 bg-blue-50',     label: 'Comment'        },
-  REPLY:               { icon: MessageCircle,   color: 'text-indigo-500 bg-indigo-50', label: 'Reply'          },
-  SAVE:                { icon: Bookmark,        color: 'text-yellow-500 bg-yellow-50', label: 'Save'           },
-  REEL_VIEW_REWARD:    { icon: Eye,             color: 'text-purple-500 bg-purple-50', label: 'Reel View'      },
-  AD_REWARD:           { icon: Star,            color: 'text-green-500 bg-green-50',   label: 'Ad Reward'      },
-  AD_BUDGET_DEDUCTION: { icon: TrendingDown,    color: 'text-orange-500 bg-orange-50', label: 'Ad Deduction'   },
+  LIKE:                  { icon: Heart,           color: 'text-red-500 bg-red-50',       label: 'Post Like'                    },
+  COMMENT:               { icon: MessageCircle,   color: 'text-blue-500 bg-blue-50',     label: 'Post Comment'                 },
+  REPLY:                 { icon: MessageCircle,   color: 'text-indigo-500 bg-indigo-50', label: 'Post Reply'                   },
+  SAVE:                  { icon: Bookmark,        color: 'text-yellow-500 bg-yellow-50', label: 'Post Save'                    },
+  REEL_VIEW_REWARD:      { icon: Eye,             color: 'text-purple-500 bg-purple-50', label: 'Reel View Reward'             },
+  AD_REWARD:             { icon: Star,            color: 'text-green-500 bg-green-50',   label: 'Ad Reward'                    },
+  AD_BUDGET_DEDUCTION:   { icon: TrendingDown,    color: 'text-orange-500 bg-orange-50', label: 'Ad Budget (Vendor Spend)'     },
+  AD_VIEW_REWARD:        { icon: Eye,             color: 'text-cyan-500 bg-cyan-50',     label: 'Ad View Complete (User Reward)'   },
+  AD_VIEW_DEDUCTION:     { icon: TrendingDown,    color: 'text-red-400 bg-red-50',       label: 'Ad View Complete (Creator Deduction)' },
+  AD_LIKE_REWARD:        { icon: Heart,           color: 'text-pink-500 bg-pink-50',     label: 'Ad Like (User Reward)'        },
+  AD_LIKE_DEDUCTION:     { icon: TrendingDown,    color: 'text-red-400 bg-red-50',       label: 'Ad Like (Creator Deduction)'  },
+  AD_COMMENT_REWARD:     { icon: MessageCircle,   color: 'text-blue-500 bg-blue-50',     label: 'Ad Comment (User Reward)'     },
+  AD_COMMENT_DEDUCTION:  { icon: TrendingDown,    color: 'text-red-400 bg-red-50',       label: 'Ad Comment (Creator Deduction)' },
+  AD_REPLY_REWARD:       { icon: MessageCircle,   color: 'text-indigo-500 bg-indigo-50', label: 'Ad Reply (User Reward)'       },
+  AD_REPLY_DEDUCTION:    { icon: TrendingDown,    color: 'text-red-400 bg-red-50',       label: 'Ad Reply (Creator Deduction)' },
+  AD_SAVE_REWARD:        { icon: Bookmark,        color: 'text-amber-500 bg-amber-50',   label: 'Ad Save (User Reward)'        },
+  AD_SAVE_DEDUCTION:     { icon: TrendingDown,    color: 'text-red-400 bg-red-50',       label: 'Ad Save (Creator Deduction)'  },
 };
 
 const normalizeType = (value) =>
@@ -67,14 +78,24 @@ const buildChartData = (transactions) => {
 };
 
 const TYPE_OPTIONS = [
-  { value: 'all',                label: 'All Types'         },
-  { value: 'LIKE',               label: 'Like'              },
-  { value: 'COMMENT',            label: 'Comment'           },
-  { value: 'REPLY',              label: 'Reply'             },
-  { value: 'SAVE',               label: 'Save'              },
-  { value: 'REEL_VIEW_REWARD',   label: 'Reel View Reward'  },
-  { value: 'AD_REWARD',          label: 'Ad Reward'         },
-  { value: 'AD_BUDGET_DEDUCTION',label: 'Ad Deduction'      },
+  { value: 'all',                 label: 'All Types'                      },
+  { value: 'LIKE',                label: 'Post Like'                      },
+  { value: 'COMMENT',             label: 'Post Comment'                   },
+  { value: 'REPLY',               label: 'Post Reply'                     },
+  { value: 'SAVE',                label: 'Post Save'                      },
+  { value: 'REEL_VIEW_REWARD',    label: 'Reel View Reward'               },
+  { value: 'AD_REWARD',           label: 'Ad Reward'                      },
+  { value: 'AD_BUDGET_DEDUCTION', label: 'Ad Budget (Vendor Spend)'       },
+  { value: 'AD_VIEW_REWARD',      label: 'Ad View (User Reward)'          },
+  { value: 'AD_VIEW_DEDUCTION',   label: 'Ad View (Creator Deduction)'    },
+  { value: 'AD_LIKE_REWARD',      label: 'Ad Like (User Reward)'          },
+  { value: 'AD_LIKE_DEDUCTION',   label: 'Ad Like (Creator Deduction)'    },
+  { value: 'AD_COMMENT_REWARD',   label: 'Ad Comment (User Reward)'       },
+  { value: 'AD_COMMENT_DEDUCTION',label: 'Ad Comment (Creator Deduction)' },
+  { value: 'AD_REPLY_REWARD',     label: 'Ad Reply (User Reward)'         },
+  { value: 'AD_REPLY_DEDUCTION',  label: 'Ad Reply (Creator Deduction)'   },
+  { value: 'AD_SAVE_REWARD',      label: 'Ad Save (User Reward)'          },
+  { value: 'AD_SAVE_DEDUCTION',   label: 'Ad Save (Creator Deduction)'    },
 ];
 
 const Wallets = () => {
@@ -88,6 +109,10 @@ const Wallets = () => {
     error = null,
   } = walletState;
   const [typeFilter, setTypeFilter] = useState('all');
+  const [directionFilter, setDirectionFilter] = useState('all'); // credits | debits | all
+  const [sourceFilter, setSourceFilter] = useState('all');      // ad | post | all
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     if (status === 'idle') dispatch(fetchAllWallets());
@@ -95,10 +120,41 @@ const Wallets = () => {
 
   const handleRefresh = () => dispatch(fetchAllWallets());
 
+  const DEDUCTION_TYPES = ['AD_BUDGET_DEDUCTION', 'AD_VIEW_DEDUCTION', 'AD_LIKE_DEDUCTION', 'AD_COMMENT_DEDUCTION', 'AD_REPLY_DEDUCTION', 'AD_SAVE_DEDUCTION'];
+
   const filteredTransactions = useMemo(() => {
-    if (typeFilter === 'all') return transactions;
-    return transactions.filter((t) => normalizeType(t.type) === normalizeType(typeFilter));
-  }, [transactions, typeFilter]);
+    let list = transactions;
+    if (typeFilter !== 'all') {
+      list = list.filter((t) => normalizeType(t.type) === normalizeType(typeFilter));
+    }
+    if (directionFilter === 'credits') {
+      list = list.filter((t) => (t.amount ?? 0) > 0);
+    } else if (directionFilter === 'debits') {
+      list = list.filter((t) => (t.amount ?? 0) < 0);
+    }
+    if (sourceFilter === 'ad') {
+      list = list.filter((t) => t.ad_id != null);
+    } else if (sourceFilter === 'post') {
+      list = list.filter((t) => t.post_id != null);
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      list = list.filter((t) => {
+        const d = new Date(t.createdAt || t.transactionDate);
+        return !isNaN(d) && d >= from;
+      });
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      list = list.filter((t) => {
+        const d = new Date(t.createdAt || t.transactionDate);
+        return !isNaN(d) && d <= to;
+      });
+    }
+    return list;
+  }, [transactions, typeFilter, directionFilter, sourceFilter, dateFrom, dateTo]);
 
   const chartData = useMemo(() => buildChartData(transactions), [transactions]);
 
@@ -157,7 +213,7 @@ const Wallets = () => {
       key: 'amount',
       title: 'Coins',
       render: (value, row) => {
-        const isDeduction = normalizeType(row.type) === 'AD_BUDGET_DEDUCTION';
+        const isDeduction = DEDUCTION_TYPES.includes(normalizeType(row.type));
         return (
           <span className={`font-semibold ${isDeduction ? 'text-red-500' : 'text-green-600'}`}>
             {isDeduction ? '-' : '+'}{formatNumber(value ?? 0)}
@@ -214,7 +270,7 @@ const Wallets = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Coins Minted"   value={formatCompactNumber(totalCoinsMinted)}    icon={Wallet}          color="bg-gradient-brand" subtitle="AD_REWARD + REEL_VIEW_REWARD" />
-        <StatCard title="Coins from Ads"        value={formatCompactNumber(totalCoinsFromAds)}   icon={Star}            color="bg-green-500"      subtitle="AD_REWARD transactions" />
+        <StatCard title="Coins from Ads"        value={formatCompactNumber(totalCoinsFromAds)}   icon={Star}            color="bg-green-500"      subtitle="View + Like + Comment + Reply rewards" />
         <StatCard title="Coins from Reels"      value={formatCompactNumber(totalCoinsFromReels)} icon={Eye}             color="bg-purple-500"     subtitle="REEL_VIEW_REWARD transactions" />
         <StatCard title="Total Transactions"    value={formatCompactNumber(totalTxCount)}         icon={ArrowRightLeft}  color="bg-orange-500"     subtitle="All time" />
       </div>
@@ -251,12 +307,50 @@ const Wallets = () => {
       </Card>
 
       <Card>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-neutral-800">All Transactions</h3>
-            <p className="text-sm text-neutral-500">{filteredTransactions.length} of {transactions.length} transactions</p>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-800">All Transactions</h3>
+              <p className="text-sm text-neutral-500">{filteredTransactions.length} of {transactions.length} transactions</p>
+            </div>
+            <div className="flex flex-wrap gap-3 items-center">
+              <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} options={TYPE_OPTIONS} className="w-56" />
+              <select
+                value={directionFilter}
+                onChange={(e) => setDirectionFilter(e.target.value)}
+                className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="all">All (Credits + Debits)</option>
+                <option value="credits">Credits (+) only</option>
+                <option value="debits">Debits (−) only</option>
+              </select>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="all">All (Ad + Post)</option>
+                <option value="ad">Ad only</option>
+                <option value="post">Post only</option>
+              </select>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+                placeholder="From"
+                title="From date"
+              />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+                placeholder="To"
+                title="To date"
+              />
+            </div>
           </div>
-          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} options={TYPE_OPTIONS} className="w-48" />
         </div>
         <Table
           columns={columns}

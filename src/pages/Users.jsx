@@ -14,6 +14,22 @@ import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { formatNumber, formatDate, getStatusColor, getRoleColor, capitalize } from '../utils/helpers.jsx';
 import { clsx } from 'clsx';
 
+const normalizeRole = (value) => {
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (!key) return 'member'
+  if (key.includes('admin')) return 'admin'
+  if (key.includes('vendor')) return 'vendor'
+  return 'member'
+}
+
+const normalizeStatus = (value) => {
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (!key) return 'active'
+  if (key.includes('suspend')) return 'suspended'
+  if (key.includes('inactive') || key.includes('disabled') || key.includes('blocked')) return 'inactive'
+  return 'active'
+}
+
 const Toast = ({ message, onClose, variant = 'success' }) => (
   <div
     className={clsx(
@@ -90,8 +106,8 @@ const Users = () => {
         'Unknown';
       const email = base.email || '';
       const avatar = base.avatar_url || base.avatar || base.image || base.photo || AVATAR_PLACEHOLDER;
-      const role = base.role || base.type || 'member';
-      const status = base.status || (base.active === false ? 'suspended' : 'active');
+      const role = normalizeRole(base.role || base.type || base.user_type || base.accountType);
+      const status = normalizeStatus(base.status || (base.active === false ? 'suspended' : 'active'));
       const coins =
         (base.wallet && typeof base.wallet.balance === 'number' ? base.wallet.balance : undefined) ||
         base.coins ||
@@ -108,8 +124,8 @@ const Users = () => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    const matchesRole = roleFilter === 'all' || normalizeRole(user.role) === normalizeRole(roleFilter);
+    const matchesStatus = statusFilter === 'all' || normalizeStatus(user.status) === normalizeStatus(statusFilter);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
