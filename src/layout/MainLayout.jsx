@@ -4,23 +4,27 @@ import { clsx } from 'clsx';
 import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './Sidebar.jsx';
 import Header from './Header.jsx';
-import { connectSocket } from '../store/notificationsSlice.js';
-import { fetchNotifications } from '../store/notificationsSlice.js';
+import { connectSocket, disconnectSocket, fetchNotifications, fetchUnreadCount } from '../store/notificationsSlice.js';
 
 const MainLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const dispatch = useDispatch();
   const user = useSelector((s) => s.auth.user);
+  const token = useSelector((s) => s.auth.token);
 
   useEffect(() => {
-    if (user) {
-      const userId = user.id || user._id;
-      if (userId) {
-        connectSocket(String(userId), dispatch);
-      }
-      dispatch(fetchNotifications());
+    const userId = user?.id || user?._id || null
+    if (!token || !userId) {
+      disconnectSocket()
+      return
     }
-  }, [user]);
+    connectSocket(String(userId), dispatch)
+    dispatch(fetchNotifications())
+    dispatch(fetchUnreadCount())
+    return () => {
+      disconnectSocket()
+    }
+  }, [dispatch, token, user]);
 
   return (
     <div className="min-h-screen bg-neutral-50">

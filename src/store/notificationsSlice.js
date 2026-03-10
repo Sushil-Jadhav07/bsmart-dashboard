@@ -16,6 +16,51 @@ const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`
 })
 
+const normalizeNotificationType = (type) => {
+  const key = String(type || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  const aliases = {
+    reply: 'comment_reply',
+    new_reply: 'comment_reply',
+    like_notification: 'like',
+    comment_notification: 'comment',
+    reply_notification: 'comment_reply',
+  }
+  return aliases[key] || key || 'admin'
+}
+
+const resolveNotificationObject = (payload) => {
+  if (!payload || typeof payload !== 'object') return null
+  return payload?.notification || payload?.data?.notification || payload?.data || payload
+}
+
+const resolveNotificationMessage = (obj) => {
+  if (!obj || typeof obj !== 'object') return ''
+  const msg =
+    obj.message ||
+    obj.text ||
+    obj.body ||
+    obj.title ||
+    obj.notification_message ||
+    obj.notification_text ||
+    ''
+  if (typeof msg === 'string') return msg
+  return ''
+}
+
+const normalizeNotificationPayload = (payload, fallbackType) => {
+  const obj = resolveNotificationObject(payload)
+  if (!obj || typeof obj !== 'object') return null
+  const message = resolveNotificationMessage(obj)
+  return {
+    ...obj,
+    message,
+    _id: obj._id || obj.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: normalizeNotificationType(obj.type || fallbackType),
+    isRead: obj.isRead ?? obj.read ?? false,
+    createdAt: obj.createdAt || obj.updatedAt || obj.timestamp || new Date().toISOString(),
+  }
+}
+
 // ─── Thunks ────────────────────────────────────────────────────────────────
 
 export const fetchNotifications = createAsyncThunk(
@@ -23,9 +68,18 @@ export const fetchNotifications = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await fetch(`${BASE_URL}/api/notifications`, { headers: authHeaders() })
-      const data = await res.json().catch(() => [])
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch')
-      return data
+      const items = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : []
+      return (items || [])
+        .map((n) => normalizeNotificationPayload(n, n?.type))
+        .filter(Boolean)
     } catch (e) {
       return rejectWithValue(e.message)
     }
@@ -107,15 +161,24 @@ const notificationsSlice = createSlice({
   reducers: {
     // Called when a real-time socket notification arrives
     addRealtimeNotification(state, action) {
-      state.items.unshift(action.payload)
-      state.unreadCount += 1
+      const incoming = action.payload
+      if (!incoming?._id) return
+      const existing = state.items.find((n) => n._id === incoming._id)
+      if (existing) {
+        Object.assign(existing, incoming)
+        return
+      }
+      state.items.unshift(incoming)
+      if (!incoming.isRead) {
+        state.unreadCount += 1
+      }
     }
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchNotifications.fulfilled, (state, action) => {
-        state.items = action.payload
-        state.unreadCount = action.payload.filter(n => !n.isRead).length
+        state.items = Array.isArray(action.payload) ? action.payload : []
+        state.unreadCount = state.items.filter(n => !n.isRead).length
         state.status = 'succeeded'
       })
       .addCase(fetchNotifications.pending, (state) => {
@@ -159,10 +222,14 @@ let _socket = null
 export const connectSocket = (userId, dispatch) => {
   if (_socket) return _socket
 
+  const token = getToken()
   _socket = io('https://api.bebsmart.in', {
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
-    reconnectionDelay: 2000
+    reconnectionDelay: 2000,
+    withCredentials: true,
+    auth: token ? { token } : undefined,
+    query: token ? { token } : undefined,
   })
 
   _socket.on('connect', () => {
@@ -170,8 +237,29 @@ export const connectSocket = (userId, dispatch) => {
     _socket.emit('register', userId)
   })
 
-  _socket.on('new_notification', (notif) => {
-    dispatch(addRealtimeNotification(notif))
+  const socketEvents = [
+    'new_notification',
+    'notification',
+    'newNotification',
+    'receive_notification',
+    'like',
+    'comment',
+    'reply',
+    'comment_reply',
+  ]
+
+  const handleSocketNotification = (fallbackType) => (payload) => {
+    const normalized = normalizeNotificationPayload(payload, fallbackType)
+    if (normalized?.message) {
+      dispatch(addRealtimeNotification(normalized))
+      return
+    }
+    dispatch(fetchNotifications())
+    dispatch(fetchUnreadCount())
+  }
+
+  socketEvents.forEach((eventName) => {
+    _socket.on(eventName, handleSocketNotification(eventName))
   })
 
   _socket.on('disconnect', () => {
