@@ -82,6 +82,64 @@ const toDisplayValue = (value) => {
   return String(value)
 }
 
+const stringifyLocation = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  const parts = []
+  const keys = ['city', 'region', 'state', 'province', 'district', 'country', 'country_code', 'name', 'label', 'address_line1']
+  for (const k of keys) {
+    const v = value?.[k]
+    if (typeof v === 'string' && v.trim()) parts.push(v.trim())
+  }
+  // include line2 if present
+  if (value?.address_line2 && String(value.address_line2).trim()) {
+    parts.push(String(value.address_line2).trim())
+  }
+  return parts.filter(Boolean).join(', ')
+}
+
+const pickGender = (...objs) => {
+  const candidates = []
+  objs.forEach((o) => {
+    if (!o) return
+    candidates.push(
+      o.gender,
+      o.sex,
+      o.owner_gender,
+      o?.representative?.gender,
+      o?.personal?.gender,
+      o?.profile?.gender,
+      o?.profile?.sex
+    )
+  })
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim()
+  }
+  return ''
+}
+
+const pickLocation = (...objs) => {
+  const candidates = []
+  objs.forEach((o) => {
+    if (!o) return
+    candidates.push(
+      o.location,
+      o.location_name,
+      o.city,
+      o.address,
+      o?.online_presence?.address,
+      o?.profile?.location,
+      o?.profile?.city,
+      o?.profile?.address
+    )
+  })
+  for (const c of candidates) {
+    const s = stringifyLocation(c)
+    if (s) return s
+  }
+  return ''
+}
+
 export default function VendorDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -153,8 +211,13 @@ export default function VendorDetails() {
     const op = p.online_presence || {}
     const addr = op.address || {}
     const sm = p.social_media_links || {}
+    const owner = vendorListItem?.user || p.user || {}
+    const gender = pickGender(owner, p)
+    const location = pickLocation(owner, p, addr)
 
     return [
+      ['Gender', gender],
+      ['Location', location],
       ['Company Name', cd.company_name || p.company_name || p.business_name],
       ['Legal Business Name', cd.registered_name || p.legal_business_name],
       ['Registration Number', cd.registration_number || p.registration_number],

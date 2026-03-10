@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchUserById, fetchUsers, deleteUserById } from '../store/usersSlice.js'
+import { fetchUsers, deleteUserById } from '../store/usersSlice.js'
 import { formatDateTime, capitalize } from '../utils/helpers.jsx'
 import {
   ChevronLeft, Mail, Phone, Calendar, Users, Image as ImageIcon,
-  Film, Heart, MessageCircle, ShieldCheck, UserCircle,
+  Film, Heart, MessageCircle, ShieldCheck, UserCircle, MapPin,
   CheckCircle, XCircle, Trash2
 } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -86,6 +86,61 @@ function PostCard({ post, onClick }) {
   )
 }
 
+function stringifyLocation(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  const parts = []
+  const keys = ['city', 'region', 'state', 'province', 'district', 'country', 'country_code', 'name', 'label']
+  for (const k of keys) {
+    const v = value?.[k]
+    if (typeof v === 'string' && v.trim()) parts.push(v.trim())
+  }
+  return parts.filter(Boolean).join(', ')
+}
+
+function pickLocation(u) {
+  const candidates = [
+    u?.location,
+    u?.location_name,
+    u?.city,
+    u?.address,
+    u?.profile?.location,
+    u?.profile?.city,
+    u?.profile?.address,
+    u?.vendor?.location,
+    u?.vendor?.city,
+    u?.vendor?.address,
+    u?.vendor?.online_presence?.address,
+    u?.vendor_profile?.location,
+    u?.vendor_profile?.city,
+    u?.vendor_profile?.address,
+    u?.vendor_profile?.online_presence?.address,
+  ]
+  for (const c of candidates) {
+    const s = stringifyLocation(c)
+    if (s) return s
+  }
+  return ''
+}
+
+function pickGender(u) {
+  const candidates = [
+    u?.gender,
+    u?.sex,
+    u?.profile?.gender,
+    u?.profile?.sex,
+    u?.vendor?.gender,
+    u?.vendor_profile?.gender,
+    u?.vendor?.profile?.gender,
+    u?.vendor?.representative?.gender,
+    u?.vendor_profile?.representative?.gender,
+  ]
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim()
+  }
+  return ''
+}
+
 export default function UserDetails() {
   const { id } = useParams()
   const dispatch = useDispatch()
@@ -120,9 +175,15 @@ export default function UserDetails() {
     fetch(`${baseUrl}/api/users/${id}`, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data?.message || `HTTP ${res.status}`)
+        }
+        return data?.data || data?.user || data
+      })
       .then((data) => {
-        setUserDetail(data?.data || data)
+        setUserDetail(data)
         setUserDetailLoading(false)
       })
       .catch((e) => {
@@ -147,6 +208,8 @@ export default function UserDetails() {
       username: u.username || listUser.username || '',
       email: u.email || '',
       phone: u.phone || listUser.phone || '',
+      gender: pickGender(u) || pickGender(listUser) || '',
+      location: pickLocation(u) || pickLocation(listUser) || '',
       bio: u.bio || '',
       role: u.role || listUser.role || 'member',
       avatar_url: u.avatar_url || listUser.avatar_url || '',
@@ -358,11 +421,25 @@ export default function UserDetails() {
                 ) : (
                     <p className="text-xs text-neutral-300 italic">No phone provided</p>
                 )}
+                {profile.location ? (
+                  <div className="flex items-center gap-3 text-sm text-neutral-600">
+                    <div className="w-8 h-8 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0 text-neutral-400">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <span className="truncate">{profile.location}</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-300 italic">No location provided</p>
+                )}
               </div>
 
               <div className="space-y-3 pt-2">
                  <SectionLabel>Metadata</SectionLabel>
                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-neutral-500">
+                      <UserCircle className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0" />
+                      Gender: <span className="font-medium text-neutral-700">{profile.gender ? capitalize(profile.gender) : 'Not provided'}</span>
+                    </div>
                     {profile.createdAt && (
                         <div className="flex items-center gap-2 text-xs text-neutral-500">
                         <Calendar className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0" />
