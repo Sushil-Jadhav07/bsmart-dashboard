@@ -13,8 +13,13 @@ const MainLayout = () => {
   const token = useSelector((s) => s.auth.token);
 
   useEffect(() => {
-    const userId = user?.id || user?._id || null
-    if (!token || !userId) {
+    const userId = user?._id || user?.id
+    if (!token) {
+      disconnectSocket()
+      return
+    }
+    if (!userId) {
+      console.warn('[Socket] No userId found in auth state', user)
       disconnectSocket()
       return
     }
