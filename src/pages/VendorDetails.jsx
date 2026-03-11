@@ -264,28 +264,8 @@ export default function VendorDetails() {
     const op = p.online_presence || {}
     const addr = op.address || {}
     const sm = p.social_media_links || {}
-    const owner = vendorListItem?.user || p.user || {}
-    const gender = pickGender(owner, p)
-    const location = pickLocation(owner, p, addr)
-    const walletBalance =
-      walletInfo?.balance ??
-      owner?.wallet?.balance ??
-      p?.wallet?.balance ??
-      null
-    const walletCurrency =
-      walletInfo?.currency ||
-      owner?.wallet?.currency ||
-      p?.wallet?.currency ||
-      'Coins'
-    const walletLabel =
-      walletBalance === null || walletBalance === undefined
-        ? (walletLoading ? 'Loading…' : undefined)
-        : `${formatNumber(walletBalance)} ${walletCurrency}`
 
     return [
-      ['Gender', gender],
-      ['Location', location],
-      ['Wallet Balance', walletLabel],
       ['Company Name', cd.company_name || p.company_name || p.business_name],
       ['Legal Business Name', cd.registered_name || p.legal_business_name],
       ['Registration Number', cd.registration_number || p.registration_number],
@@ -312,13 +292,43 @@ export default function VendorDetails() {
       ['Note', p.note],
       ['Submitted', p.submitted ?? p.is_submitted ?? p.submission_status ?? (p.submitted_at ? 'yes' : undefined)],
     ]
-  }, [profile, vendorListItem, walletInfo, walletLoading])
+  }, [profile])
 
   const isLoading = currentProfileStatus === 'loading'
 
+  const derived = useMemo(() => {
+    const p = profile || {}
+    const cd = p.company_details || {}
+    const bd = p.business_details || {}
+    const op = p.online_presence || {}
+    const addr = op.address || {}
+    const owner = vendorListItem?.user || p.user || {}
+
+    const companyName = cd.company_name || p.company_name || p.business_name || vendorListItem?.business_name || 'Vendor Profile'
+    const logoUrl = p.logo_url || p.logo?.fileUrl || p.logo?.url || ''
+
+    const walletBalance = walletInfo?.balance ?? owner?.wallet?.balance ?? p?.wallet?.balance ?? null
+    const walletCurrency = walletInfo?.currency || owner?.wallet?.currency || p?.wallet?.currency || 'Coins'
+
+    return {
+      companyName,
+      logoUrl,
+      owner,
+      gender: pickGender(owner, p),
+      location: pickLocation(owner, p, addr),
+      walletBalance,
+      walletCurrency,
+      businessEmail: op.company_email || p.business_email || p.email || owner?.email || '',
+      businessPhone: op.phone_number || p.business_phone || p.phone || owner?.phone || '',
+      website: op.website_url || p.website || '',
+      city: addr.city || p.city || '',
+      country: addr.country || bd.country || p.country || '',
+    }
+  }, [profile, vendorListItem, walletInfo])
+
   return (
-    <div className="max-w-6xl mx-auto pb-10 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-7xl mx-auto pb-10">
+      <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => navigate('/vendors')}
           className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group"
@@ -327,16 +337,6 @@ export default function VendorDetails() {
           Back to Vendors
         </button>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            icon={RefreshCw}
-            onClick={fetchWallet}
-            loading={walletLoading}
-            disabled={!resolvedUserId || !token}
-          >
-            Refresh Wallet
-          </Button>
           {isAdmin ? (
             <>
               <Button
@@ -377,73 +377,151 @@ export default function VendorDetails() {
       )}
 
       {!isLoading && !currentProfileError && profile && (
-        <>
-          <div className="bg-white border border-neutral-200 rounded-2xl p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-neutral-900">
-                  <Building2 className="w-5 h-5" />
-                  <h1 className="text-xl font-bold">{profile.company_name || profile.business_name || vendorListItem?.business_name || 'Vendor Profile'}</h1>
-                </div>
-                <p className="text-sm text-neutral-500 mt-1">Vendor ID: {id}</p>
-              </div>
-              <span className={clsx(
-                'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full',
-                isValidated ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              )}>
-                {isValidated ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                {isValidated ? 'Validated' : 'Not Validated'}
-              </span>
-            </div>
-          </div>
-
-          {!isProfileComplete && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 hidden">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                <div>
-                  <p className="text-amber-800 text-sm font-semibold">Profile incomplete</p>
-                  <p className="text-amber-700 text-sm mt-1">Missing fields: {missingFields.join(', ')}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {actionError && (
-            <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-600">
-              {actionError}
-            </div>
-          )}
-          {!isAdmin && (
-            <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-sm text-neutral-600">
-              Admin-only page: approve/reject actions are hidden for non-admin users.
-            </div>
-          )}
-          {saveMessage && (
-            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-green-700">
-              {saveMessage}
-            </div>
-          )}
-
-          <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-neutral-100">
-              <h2 className="text-sm font-semibold text-neutral-800">Vendor Profile Fields</h2>
-            </div>
-            <div className="divide-y divide-neutral-100">
-              {fields.map(([label, value]) => {
-                const empty = value === null || value === undefined || value === ''
-                return (
-                  <div key={label} className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2 px-6 py-3">
-                    <p className="text-sm text-neutral-500">{label}</p>
-                    <p className={clsx('text-sm break-all', empty ? 'text-red-500 italic' : 'text-neutral-800')}>
-                      {toDisplayValue(value)}
-                    </p>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
+          <div className="space-y-6">
+            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+              <div className="px-6 py-6 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {derived.logoUrl ? (
+                      <img src={derived.logoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Building2 className="w-6 h-6 text-neutral-400" />
+                    )}
                   </div>
-                )
-              })}
+                  <div className="min-w-0">
+                    <h1 className="text-xl font-bold text-neutral-900 truncate">{derived.companyName}</h1>
+                    <p className="text-sm text-neutral-400 mt-1">Vendor ID: {id}</p>
+                    {!!derived.owner?.username && (
+                      <p className="text-sm text-neutral-500 mt-1 truncate">@{derived.owner.username}</p>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full flex-shrink-0',
+                    isValidated ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  )}
+                >
+                  {isValidated ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                  {isValidated ? 'Validated' : 'Not Validated'}
+                </span>
+              </div>
+            </div>
+
+            {!isProfileComplete && (
+              <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-amber-900 text-sm font-semibold">Profile incomplete</p>
+                    <p className="text-amber-800 text-sm mt-1 break-words">Missing fields: {missingFields.join(', ')}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {actionError && (
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600">
+                {actionError}
+              </div>
+            )}
+
+            {!isAdmin && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 text-sm text-neutral-600">
+                Admin-only page: approve/reject actions are hidden for non-admin users.
+              </div>
+            )}
+
+            {saveMessage && (
+              <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-sm text-green-700">
+                {saveMessage}
+              </div>
+            )}
+
+            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+              <div className="px-6 py-5 border-b border-neutral-100">
+                <h2 className="text-sm font-semibold text-neutral-800">Vendor Profile Fields</h2>
+              </div>
+              <div className="divide-y divide-neutral-100">
+                {fields.map(([label, value]) => {
+                  const empty = value === null || value === undefined || value === ''
+                  return (
+                    <div key={label} className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2 px-6 py-3">
+                      <p className="text-sm text-neutral-500">{label}</p>
+                      <p className={clsx('text-sm break-all', empty ? 'text-red-500 italic' : 'text-neutral-800')}>
+                        {toDisplayValue(value)}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </>
+
+          <div className="space-y-6 lg:sticky lg:top-6">
+            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+              <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between">
+                <p className="text-sm font-semibold text-neutral-800">Wallet</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={fetchWallet}
+                  loading={walletLoading}
+                  disabled={!resolvedUserId || !token}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className="px-6 py-6">
+                <p className="text-xs text-neutral-400">Balance</p>
+                <p className="text-2xl font-bold text-neutral-900 mt-1">
+                  {derived.walletBalance === null || derived.walletBalance === undefined
+                    ? (walletLoading ? 'Loading…' : 'Not provided')
+                    : formatNumber(derived.walletBalance)}
+                </p>
+                <p className="text-xs text-neutral-400 mt-1">{derived.walletCurrency}</p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+              <div className="px-6 py-5 border-b border-neutral-100">
+                <p className="text-sm font-semibold text-neutral-800">Quick Info</p>
+              </div>
+              <div className="px-6 py-5 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Gender</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.gender ? derived.gender : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Location</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.location ? derived.location : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Email</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.businessEmail ? derived.businessEmail : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Phone</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.businessPhone ? derived.businessPhone : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Website</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.website ? derived.website : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">City</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.city ? derived.city : 'Not provided'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-neutral-500">Country</span>
+                  <span className="text-sm text-neutral-800 truncate">{derived.country ? derived.country : 'Not provided'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
