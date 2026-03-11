@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clsx } from 'clsx'
-import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Building2 } from 'lucide-react'
+import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Building2, RefreshCw } from 'lucide-react'
 import Button from '../components/Button.jsx'
 import { fetchVendorProfileById, submitVendorProfile, processVendorProfile } from '../store/vendorsSlice.js'
+import { formatNumber } from '../utils/helpers.jsx'
+
+const baseUrl = 'https://api.bebsmart.in'
 
 const REQUIRED_PROFILE_FIELDS = [
   'company_name',
@@ -146,12 +149,16 @@ export default function VendorDetails() {
   const dispatch = useDispatch()
   const { currentProfile, currentProfileStatus, currentProfileError, items, updating } = useSelector((s) => s.vendors)
   const authUser = useSelector((s) => s.auth.user)
+  const token = useSelector((s) => s.auth.token)
   const adminId =
     (authUser && (authUser.id || authUser._id || authUser.uuid || authUser.user_id)) || null
   const isAdmin = String(authUser?.role || '').toLowerCase() === 'admin'
 
   const [actionError, setActionError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
+  const [walletInfo, setWalletInfo] = useState(null)
+  const [walletLoading, setWalletLoading] = useState(false)
+  const walletAbortRef = useRef(null)
 
   const vendorListItem = useMemo(
     () => (items || []).find((v) => v?._id === id || v?.user?._id === id || v?.user?.id === id),
@@ -162,10 +169,56 @@ export default function VendorDetails() {
     return vendorListItem?.user?._id || vendorListItem?.user?.id || id
   }, [vendorListItem, id])
 
+  const fetchWallet = async () => {
+    if (!resolvedUserId || !token) return
+    if (walletAbortRef.current) {
+      walletAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    walletAbortRef.current = controller
+    setWalletLoading(true)
+    try {
+      const res = await fetch(`${baseUrl}/api/wallet/vendor/${resolvedUserId}/history`, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.message || `HTTP ${res.status}`)
+      }
+      const payload = data?.data || data
+      const wallet =
+        payload?.wallet ||
+        payload?.data?.wallet ||
+        payload?.user?.wallet ||
+        payload?.vendor?.wallet ||
+        null
+      setWalletInfo(wallet)
+    } catch (_) {
+      setWalletInfo(null)
+    } finally {
+      setWalletLoading(false)
+      if (walletAbortRef.current === controller) {
+        walletAbortRef.current = null
+      }
+    }
+  }
+
   useEffect(() => {
     if (!resolvedUserId) return
     dispatch(fetchVendorProfileById(resolvedUserId))
   }, [dispatch, resolvedUserId])
+
+  useEffect(() => {
+    if (!resolvedUserId || !token) return
+    fetchWallet()
+    return () => {
+      if (walletAbortRef.current) {
+        walletAbortRef.current.abort()
+        walletAbortRef.current = null
+      }
+    }
+  }, [resolvedUserId, token])
 
   const profile = useMemo(() => currentProfile || null, [currentProfile])
 
@@ -214,10 +267,25 @@ export default function VendorDetails() {
     const owner = vendorListItem?.user || p.user || {}
     const gender = pickGender(owner, p)
     const location = pickLocation(owner, p, addr)
+    const walletBalance =
+      walletInfo?.balance ??
+      owner?.wallet?.balance ??
+      p?.wallet?.balance ??
+      null
+    const walletCurrency =
+      walletInfo?.currency ||
+      owner?.wallet?.currency ||
+      p?.wallet?.currency ||
+      'Coins'
+    const walletLabel =
+      walletBalance === null || walletBalance === undefined
+        ? (walletLoading ? 'Loading…' : undefined)
+        : `${formatNumber(walletBalance)} ${walletCurrency}`
 
     return [
       ['Gender', gender],
       ['Location', location],
+      ['Wallet Balance', walletLabel],
       ['Company Name', cd.company_name || p.company_name || p.business_name],
       ['Legal Business Name', cd.registered_name || p.legal_business_name],
       ['Registration Number', cd.registration_number || p.registration_number],
@@ -244,7 +312,7 @@ export default function VendorDetails() {
       ['Note', p.note],
       ['Submitted', p.submitted ?? p.is_submitted ?? p.submission_status ?? (p.submitted_at ? 'yes' : undefined)],
     ]
-  }, [profile])
+  }, [profile, vendorListItem, walletInfo, walletLoading])
 
   const isLoading = currentProfileStatus === 'loading'
 
@@ -259,6 +327,16 @@ export default function VendorDetails() {
           Back to Vendors
         </button>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
+            onClick={fetchWallet}
+            loading={walletLoading}
+            disabled={!resolvedUserId || !token}
+          >
+            Refresh Wallet
+          </Button>
           {isAdmin ? (
             <>
               <Button
