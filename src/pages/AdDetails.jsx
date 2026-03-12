@@ -46,6 +46,17 @@ const getThumbnailUrl = (m) => {
   return ''
 }
 
+const normalizeType = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase()
+
+const toNumber = (value) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 function Divider() {
   return <div className="h-px bg-neutral-100 mx-6" />
 }
@@ -202,9 +213,27 @@ export default function AdDetails() {
       caption: a.caption || '',
       location: a.location || a.location_name || '',
       category,
-      coinsReward: a.coins_reward ?? a.reward_config?.coins_per_view ?? 0,
-      totalBudgetCoins: a.total_budget_coins ?? a.budget?.total_budget_coins ?? 0,
-      totalCoinsSpent: a.total_coins_spent ?? a.coins_spent ?? a.totalCoinsSpent ?? 0,
+      coinsReward:
+        a.coins_reward ??
+        a.coins_per_engagement ??
+        a.coinsPerEngagement ??
+        a.reward_config?.coins_per_engagement ??
+        a.reward_config?.coins_per_view ??
+        a.reward_config?.coins_per_like ??
+        0,
+      totalBudgetCoins:
+        a.total_budget_coins ??
+        a.totalBudgetCoins ??
+        a.budget?.total_budget_coins ??
+        a.budget?.totalBudgetCoins ??
+        0,
+      totalCoinsSpent:
+        a.total_coins_spent ??
+        a.totalCoinsSpent ??
+        a.total_coins_used ??
+        a.coins_spent ??
+        a.coinsSpent ??
+        0,
       likes: a.likes_count ?? a.likes ?? a.likesCount ?? a.like_count ?? 0,
       createdAt: a.createdAt || a.created_at || '',
       status: a.status || 'pending',
@@ -214,6 +243,67 @@ export default function AdDetails() {
       isVideo,
     }
   }, [current, id])
+
+  const walletStats = useMemo(() => {
+    const history = Array.isArray(adHistory) ? adHistory : []
+
+    const totalBudgetCoins = toNumber(
+      ad.totalBudgetCoins ||
+        adWallet?.total_budget_coins ||
+        adWallet?.totalBudgetCoins ||
+        adWallet?.budget?.total_budget_coins ||
+        adWallet?.budget?.totalBudgetCoins ||
+        0
+    )
+
+    const budgetFunded = history
+      .filter((t) => normalizeType(t?.type) === 'AD_BUDGET_DEDUCTION')
+      .reduce((sum, t) => sum + Math.abs(toNumber(t?.amount)), 0)
+
+    const engagementDeductions = history
+      .filter((t) => {
+        const type = normalizeType(t?.type)
+        return type.endsWith('_DEDUCTION') && type !== 'AD_BUDGET_DEDUCTION'
+      })
+      .reduce((sum, t) => sum + Math.abs(toNumber(t?.amount)), 0)
+
+    const budgetRefunds = history
+      .filter((t) => normalizeType(t?.type).includes('BUDGET_REFUND'))
+      .reduce((sum, t) => sum + Math.abs(toNumber(t?.amount)), 0)
+
+    const engagementSpent = Math.max(0, engagementDeductions - budgetRefunds)
+
+    const spentCandidate = toNumber(adWallet?.total_coins_spent ?? adWallet?.totalCoinsSpent ?? ad.totalCoinsSpent ?? 0)
+    const totalCoinsSpent = Math.max(spentCandidate, engagementSpent)
+
+    const rewardsPaid = history
+      .filter((t) => normalizeType(t?.type).endsWith('_REWARD') && toNumber(t?.amount) > 0)
+      .reduce((sum, t) => sum + toNumber(t?.amount), 0)
+
+    const coinsRewardCandidate = toNumber(
+      ad.coinsReward || adWallet?.coins_reward || adWallet?.coinsReward || adWallet?.reward_config?.coins_per_engagement || 0
+    )
+
+    const inferredCoinsPerEngagement =
+      coinsRewardCandidate > 0
+        ? 0
+        : history
+            .filter((t) => normalizeType(t?.type).endsWith('_REWARD') && toNumber(t?.amount) > 0)
+            .reduce((mx, t) => Math.max(mx, toNumber(t?.amount)), 0)
+
+    const coinsPerEngagement = coinsRewardCandidate > 0 ? coinsRewardCandidate : inferredCoinsPerEngagement
+    const remainingBudget = Math.max(0, totalBudgetCoins - totalCoinsSpent)
+
+    return {
+      totalBudgetCoins,
+      budgetFunded,
+      engagementSpent,
+      totalCoinsSpent,
+      rewardsPaid,
+      coinsPerEngagement,
+      remainingBudget,
+    }
+  }, [ad.totalBudgetCoins, ad.totalCoinsSpent, ad.coinsReward, adHistory, adWallet])
 
   const handleDeleteAd = () => {
     setDeleting(true)
@@ -350,11 +440,11 @@ export default function AdDetails() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-neutral-500">Reward coins</p>
-                <p className="text-sm font-semibold text-neutral-900">{formatNumber(ad.coinsReward)}</p>
+                <p className="text-sm font-semibold text-neutral-900">{formatNumber(walletStats.coinsPerEngagement)}</p>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-neutral-500">Total budget coins</p>
-                <p className="text-sm font-semibold text-neutral-900">{formatNumber(ad.totalBudgetCoins)}</p>
+                <p className="text-sm font-semibold text-neutral-900">{formatNumber(walletStats.totalBudgetCoins)}</p>
               </div>
               {ad.targeting && Object.keys(ad.targeting || {}).length > 0 && (
                 <div className="pt-2">
@@ -390,24 +480,29 @@ export default function AdDetails() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-amber-50 rounded-xl p-4">
                   <p className="text-xs text-amber-600 font-medium mb-1">Coins Per Engagement</p>
-                  <p className="text-2xl font-bold text-amber-700">🪙 {formatNumber(ad.coinsReward || 0)}</p>
+                  <p className="text-2xl font-bold text-amber-700">🪙 {formatNumber(walletStats.coinsPerEngagement || 0)}</p>
                   <p className="text-xs text-amber-500 mt-1">Per view / like / comment / reply</p>
                 </div>
                 <div className="bg-green-50 rounded-xl p-4">
                   <p className="text-xs text-green-600 font-medium mb-1">Budget Used</p>
                   <p className="text-2xl font-bold text-green-700">
-                    {formatNumber(ad.totalCoinsSpent || 0)}
-                    <span className="text-sm font-normal text-green-500"> / {formatNumber(ad.totalBudgetCoins || 0)}</span>
+                    {formatNumber(walletStats.totalCoinsSpent || 0)}
+                    <span className="text-sm font-normal text-green-500"> / {formatNumber(walletStats.totalBudgetCoins || 0)}</span>
                   </p>
-                  {(ad.totalBudgetCoins || 0) > 0 && (
+                  {(walletStats.totalBudgetCoins || 0) > 0 && (
+                    <p className="text-xs text-green-500 mt-1">
+                      Left {formatNumber(walletStats.remainingBudget || 0)}
+                    </p>
+                  )}
+                  {(walletStats.totalBudgetCoins || 0) > 0 && (
                     <div className="mt-2 h-1.5 bg-green-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-green-500 rounded-full"
-                        style={{ width: `${Math.min(100, Math.round(((ad.totalCoinsSpent || 0) / ad.totalBudgetCoins) * 100))}%` }}
+                        style={{ width: `${Math.min(100, Math.round(((walletStats.totalCoinsSpent || 0) / walletStats.totalBudgetCoins) * 100))}%` }}
                       />
                     </div>
                   )}
-                  {(ad.totalCoinsSpent || 0) >= (ad.totalBudgetCoins || 0) && (ad.totalBudgetCoins || 0) > 0 && (
+                  {(walletStats.totalCoinsSpent || 0) >= (walletStats.totalBudgetCoins || 0) && (walletStats.totalBudgetCoins || 0) > 0 && (
                     <p className="text-xs font-semibold text-red-500 mt-1">⚠️ Budget Exhausted</p>
                   )}
                 </div>
@@ -469,15 +564,15 @@ export default function AdDetails() {
               {adHistory.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="bg-amber-50 rounded-xl p-3">
-                    <p className="text-[10px] text-amber-500 font-medium">Total Deducted</p>
+                    <p className="text-[10px] text-amber-500 font-medium">Spent</p>
                     <p className="text-base font-bold text-amber-700">
-                      {formatNumber(adHistory.filter(t => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0))}
+                      {formatNumber(walletStats.engagementSpent)}
                     </p>
                   </div>
                   <div className="bg-green-50 rounded-xl p-3">
                     <p className="text-[10px] text-green-500 font-medium">Rewarded</p>
                     <p className="text-base font-bold text-green-700">
-                      {formatNumber(adHistory.filter(t => (t.amount ?? 0) > 0).reduce((s, t) => s + (t.amount ?? 0), 0))}
+                      {formatNumber(walletStats.rewardsPaid)}
                     </p>
                   </div>
                 </div>
