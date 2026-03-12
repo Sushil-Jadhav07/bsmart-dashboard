@@ -15,12 +15,24 @@ import {
   Play,
   XCircle,
   MessageCircle,
+  Wallet,
+  TrendingDown,
+  TrendingUp,
+  RefreshCw,
+  Loader2,
+  Eye,
+  Heart,
+  Bookmark,
+  Star,
+  ArrowRightLeft,
 } from 'lucide-react'
 import Button from '../components/Button.jsx'
 import Input from '../components/Input.jsx'
 import Modal, { ConfirmModal } from '../components/Modal.jsx'
+import Badge from '../components/Badge.jsx'
 import { formatDateTime, getStatusColor, capitalize, formatNumber } from '../utils/helpers.jsx'
 import { fetchAdById, patchAdStatus, deleteAdById, fetchAdComments, deleteAdComment } from '../store/adsSlice.js'
+import { fetchAdWalletHistory, resetAdHistory } from '../store/walletSlice.js'
 
 const THUMB_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+QWQ8L3RleHQ+PC9zdmc+'
 
@@ -151,6 +163,8 @@ export default function AdDetails() {
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [commentDeleting, setCommentDeleting] = useState(false)
 
+  const { adHistory, adWallet, adStatus, adError } = useSelector((s) => s.wallet)
+
   useEffect(() => {
     if (id) dispatch(fetchAdById(id))
   }, [dispatch, id])
@@ -163,6 +177,11 @@ export default function AdDetails() {
       .then((payload) => setComments(payload?.items || []))
       .catch(() => setComments([]))
       .finally(() => setCommentsLoading(false))
+  }, [dispatch, id])
+
+  useEffect(() => {
+    if (id) dispatch(fetchAdWalletHistory(id))
+    return () => { dispatch(resetAdHistory()) }
   }, [dispatch, id])
 
   const ad = useMemo(() => {
@@ -428,6 +447,80 @@ export default function AdDetails() {
                   Reject
                 </Button>
               </div>
+            </div>
+
+            <Divider />
+
+            {/* Wallet / Transaction History */}
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Wallet className="w-3 h-3 text-amber-400" />
+                <SectionLabel>Coin Transaction History</SectionLabel>
+                <button
+                  onClick={() => dispatch(fetchAdWalletHistory(id))}
+                  className="ml-auto p-1 rounded text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Summary stats */}
+              {adHistory.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-amber-50 rounded-xl p-3">
+                    <p className="text-[10px] text-amber-500 font-medium">Total Deducted</p>
+                    <p className="text-base font-bold text-amber-700">
+                      {formatNumber(adHistory.filter(t => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0))}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-3">
+                    <p className="text-[10px] text-green-500 font-medium">Rewarded</p>
+                    <p className="text-base font-bold text-green-700">
+                      {formatNumber(adHistory.filter(t => (t.amount ?? 0) > 0).reduce((s, t) => s + (t.amount ?? 0), 0))}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {adStatus === 'loading' ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                  <span className="text-xs text-neutral-400">Loading transactions…</span>
+                </div>
+              ) : adStatus === 'failed' ? (
+                <div className="py-6 text-center">
+                  <p className="text-xs text-red-400">{adError || 'Failed to load'}</p>
+                </div>
+              ) : adHistory.length === 0 ? (
+                <p className="text-sm text-neutral-300 text-center py-6">No transactions found</p>
+              ) : (
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {adHistory.map((tx, i) => {
+                    const isDeduction = (tx.amount ?? 0) < 0
+                    const typeLabel = String(tx.type || 'Transaction').replace(/_/g, ' ')
+                    return (
+                      <div key={tx._id || i} className="flex items-center gap-2.5 py-2 border-b border-neutral-50 last:border-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDeduction ? 'bg-red-50 text-red-400' : 'bg-green-50 text-green-500'}`}>
+                          {isDeduction ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-neutral-700 truncate capitalize">{typeLabel.toLowerCase()}</p>
+                          <p className="text-[10px] text-neutral-400">{formatDateTime(tx.createdAt || tx.transactionDate)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className={`text-xs font-bold ${isDeduction ? 'text-red-500' : 'text-green-600'}`}>
+                            {isDeduction ? '' : '+'}{formatNumber(tx.amount ?? 0)}
+                          </p>
+                          {tx.status && (
+                            <p className={`text-[9px] ${tx.status === 'SUCCESS' ? 'text-green-400' : 'text-neutral-400'}`}>{tx.status}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <Divider />

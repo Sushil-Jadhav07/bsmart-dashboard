@@ -2,10 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clsx } from 'clsx'
-import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Building2, RefreshCw } from 'lucide-react'
+import {
+  ChevronLeft, CheckCircle, XCircle, AlertCircle, Building2, RefreshCw,
+  TrendingDown, TrendingUp, Wallet, Eye, Heart, MessageCircle, Bookmark,
+  Star, ArrowRightLeft, Loader2
+} from 'lucide-react'
 import Button from '../components/Button.jsx'
+import Badge from '../components/Badge.jsx'
 import { fetchVendorProfileById, submitVendorProfile, processVendorProfile } from '../store/vendorsSlice.js'
-import { formatNumber } from '../utils/helpers.jsx'
+import { fetchVendorWalletHistory, resetVendorHistory } from '../store/walletSlice.js'
+import { formatNumber, formatDateTime } from '../utils/helpers.jsx'
 
 const baseUrl = 'https://api.bebsmart.in'
 
@@ -156,9 +162,10 @@ export default function VendorDetails() {
 
   const [actionError, setActionError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
-  const [walletInfo, setWalletInfo] = useState(null)
-  const [walletLoading, setWalletLoading] = useState(false)
-  const walletAbortRef = useRef(null)
+  const [walletTab, setWalletTab] = useState('balance')
+
+  const { vendorHistory, vendorWallet, vendorStatus, vendorError } = useSelector((s) => s.wallet)
+  const walletLoading = vendorStatus === 'loading'
 
   const vendorListItem = useMemo(
     () => (items || []).find((v) => v?._id === id || v?.user?._id === id || v?.user?.id === id),
@@ -169,39 +176,8 @@ export default function VendorDetails() {
     return vendorListItem?.user?._id || vendorListItem?.user?.id || id
   }, [vendorListItem, id])
 
-  const fetchWallet = async () => {
-    if (!resolvedUserId || !token) return
-    if (walletAbortRef.current) {
-      walletAbortRef.current.abort()
-    }
-    const controller = new AbortController()
-    walletAbortRef.current = controller
-    setWalletLoading(true)
-    try {
-      const res = await fetch(`${baseUrl}/api/wallet/vendor/${resolvedUserId}/history`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`)
-      }
-      const payload = data?.data || data
-      const wallet =
-        payload?.wallet ||
-        payload?.data?.wallet ||
-        payload?.user?.wallet ||
-        payload?.vendor?.wallet ||
-        null
-      setWalletInfo(wallet)
-    } catch (_) {
-      setWalletInfo(null)
-    } finally {
-      setWalletLoading(false)
-      if (walletAbortRef.current === controller) {
-        walletAbortRef.current = null
-      }
-    }
+  const fetchWallet = () => {
+    if (resolvedUserId) dispatch(fetchVendorWalletHistory(resolvedUserId))
   }
 
   useEffect(() => {
@@ -212,12 +188,7 @@ export default function VendorDetails() {
   useEffect(() => {
     if (!resolvedUserId || !token) return
     fetchWallet()
-    return () => {
-      if (walletAbortRef.current) {
-        walletAbortRef.current.abort()
-        walletAbortRef.current = null
-      }
-    }
+    return () => { dispatch(resetVendorHistory()) }
   }, [resolvedUserId, token])
 
   const profile = useMemo(() => currentProfile || null, [currentProfile])
@@ -307,8 +278,8 @@ export default function VendorDetails() {
     const companyName = cd.company_name || p.company_name || p.business_name || vendorListItem?.business_name || 'Vendor Profile'
     const logoUrl = p.logo_url || p.logo?.fileUrl || p.logo?.url || ''
 
-    const walletBalance = walletInfo?.balance ?? owner?.wallet?.balance ?? p?.wallet?.balance ?? null
-    const walletCurrency = walletInfo?.currency || owner?.wallet?.currency || p?.wallet?.currency || 'Coins'
+    const walletBalance = vendorWallet?.balance ?? owner?.wallet?.balance ?? p?.wallet?.balance ?? null
+    const walletCurrency = vendorWallet?.currency || owner?.wallet?.currency || p?.wallet?.currency || 'Coins'
 
     return {
       companyName,
@@ -324,7 +295,7 @@ export default function VendorDetails() {
       city: addr.city || p.city || '',
       country: addr.country || bd.country || p.country || '',
     }
-  }, [profile, vendorListItem, walletInfo])
+  }, [profile, vendorListItem, vendorWallet])
 
   return (
     <div className="max-w-7xl mx-auto pb-10">
@@ -461,28 +432,94 @@ export default function VendorDetails() {
 
           <div className="space-y-6 lg:sticky lg:top-6">
             <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-              <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between">
-                <p className="text-sm font-semibold text-neutral-800">Wallet</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={RefreshCw}
-                  onClick={fetchWallet}
-                  loading={walletLoading}
-                  disabled={!resolvedUserId || !token}
-                >
+              <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                <div className="flex gap-1 bg-neutral-100 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setWalletTab('balance')}
+                    className={clsx('px-3 py-1.5 text-xs font-medium rounded-md transition-colors', walletTab === 'balance' ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500')}
+                  >
+                    Balance
+                  </button>
+                  <button
+                    onClick={() => setWalletTab('history')}
+                    className={clsx('px-3 py-1.5 text-xs font-medium rounded-md transition-colors', walletTab === 'history' ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500')}
+                  >
+                    History
+                  </button>
+                </div>
+                <Button variant="ghost" size="sm" icon={RefreshCw} onClick={fetchWallet} loading={walletLoading} disabled={!resolvedUserId || !token}>
                   Refresh
                 </Button>
               </div>
-              <div className="px-6 py-6">
-                <p className="text-xs text-neutral-400">Balance</p>
-                <p className="text-2xl font-bold text-neutral-900 mt-1">
-                  {derived.walletBalance === null || derived.walletBalance === undefined
-                    ? (walletLoading ? 'Loading…' : 'Not provided')
-                    : formatNumber(derived.walletBalance)}
-                </p>
-                <p className="text-xs text-neutral-400 mt-1">{derived.walletCurrency}</p>
-              </div>
+
+              {walletTab === 'balance' && (
+                <div className="px-6 py-6">
+                  <p className="text-xs text-neutral-400">Balance</p>
+                  <p className="text-2xl font-bold text-neutral-900 mt-1">
+                    {derived.walletBalance === null || derived.walletBalance === undefined
+                      ? (walletLoading ? 'Loading…' : 'Not provided')
+                      : formatNumber(derived.walletBalance)}
+                  </p>
+                  <p className="text-xs text-neutral-400 mt-1">{derived.walletCurrency}</p>
+                  {vendorHistory.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="bg-orange-50 rounded-xl p-3">
+                        <p className="text-[10px] text-orange-500 font-medium mb-1">Total Spent</p>
+                        <p className="text-lg font-bold text-orange-700">
+                          {formatNumber(vendorHistory.filter(t => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0))}
+                        </p>
+                      </div>
+                      <div className="bg-blue-50 rounded-xl p-3">
+                        <p className="text-[10px] text-blue-500 font-medium mb-1">Transactions</p>
+                        <p className="text-lg font-bold text-blue-700">{vendorHistory.length}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {walletTab === 'history' && (
+                <div>
+                  {walletLoading && (
+                    <div className="flex items-center justify-center py-12 gap-2">
+                      <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+                      <span className="text-sm text-neutral-400">Loading…</span>
+                    </div>
+                  )}
+                  {!walletLoading && vendorError && (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-red-500">{vendorError}</p>
+                    </div>
+                  )}
+                  {!walletLoading && !vendorError && vendorHistory.length === 0 && (
+                    <div className="py-12 text-center">
+                      <Wallet className="w-8 h-8 text-neutral-200 mx-auto mb-2" />
+                      <p className="text-sm text-neutral-300">No transactions yet</p>
+                    </div>
+                  )}
+                  {!walletLoading && vendorHistory.length > 0 && (
+                    <div className="divide-y divide-neutral-50 max-h-72 overflow-y-auto">
+                      {vendorHistory.map((tx, i) => {
+                        const isDeduction = (tx.amount ?? 0) < 0
+                        return (
+                          <div key={tx._id || i} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isDeduction ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                              {isDeduction ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-neutral-700 truncate">{String(tx.type || 'Transaction').replace(/_/g, ' ')}</p>
+                              <p className="text-[10px] text-neutral-400">{formatDateTime(tx.createdAt || tx.transactionDate)}</p>
+                            </div>
+                            <p className={`text-sm font-bold flex-shrink-0 ${isDeduction ? 'text-red-500' : 'text-green-600'}`}>
+                              {isDeduction ? '' : '+'}{formatNumber(tx.amount ?? 0)}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
