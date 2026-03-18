@@ -24,6 +24,8 @@ import AdminVendors from '../pages/AdminVendors.jsx';
 import AdminProducts from '../pages/AdminProducts.jsx';
 import AdminAds from '../pages/AdminAds.jsx';
 import Notifications from '../pages/Notifications.jsx';
+import SalesOfficers from '../pages/SalesOfficers.jsx';
+
 
 export const router = createBrowserRouter([
   {
@@ -113,7 +115,11 @@ export const router = createBrowserRouter([
       {
         path: '/notifications',
         element: <Notifications />
-      }
+      },
+      {
+        path: '/sales',
+        element: <SalesOfficers />
+      },
     ]
   },
   {

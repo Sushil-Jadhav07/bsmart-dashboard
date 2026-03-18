@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Instagram,
-  Bell
+  Bell,
+  TrendingUp
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
@@ -24,6 +25,7 @@ const navItems = [
   { path: '/posts', label: 'Posts', icon: Image },
   { path: '/ads', label: 'Ads', icon: Megaphone },
   { path: '/vendors', label: 'Vendors', icon: Briefcase },
+  { path: '/sales', label: 'Sales', icon: TrendingUp },
   { path: '/wallets', label: 'Wallets', icon: Wallet },
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/settings', label: 'Settings', icon: Settings }

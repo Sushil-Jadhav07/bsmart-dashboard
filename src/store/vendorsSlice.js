@@ -42,19 +42,10 @@ export const fetchVendors = createAsyncThunk(
 export const fetchVendorProfiles = createAsyncThunk(
   'vendors/fetchVendorProfiles',
   async (_, { getState, rejectWithValue }) => {
-    try {
-      const token = getState().auth.token
-      const headers = { Accept: 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/profiles`, { headers })
-      const data = await res.json().catch(() => [])
-      if (!res.ok) {
-        return rejectWithValue(data?.message || 'Failed to load vendor profiles')
-      }
-      return Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : [])
-    } catch (e) {
-      return rejectWithValue(e.message || 'Network error')
-    }
+    // /api/vendors/profiles does not exist on the server.
+    // Profiles are fetched individually via fetchVendorProfileById.
+    // This thunk is kept to avoid breaking imports but returns empty array.
+    return []
   }
 )
 

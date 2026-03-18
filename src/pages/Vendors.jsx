@@ -84,7 +84,6 @@ function Vendors() {
 
   useEffect(() => {
     dispatch(fetchVendors())
-    dispatch(fetchVendorProfiles())
   }, [dispatch])
 
   const data = useMemo(() => {
