@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Instagram,
   Bell,
-  TrendingUp
+  TrendingUp,
+  PackageCheck
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
@@ -25,6 +26,7 @@ const navItems = [
   { path: '/posts', label: 'Posts', icon: Image },
   { path: '/ads', label: 'Ads', icon: Megaphone },
   { path: '/vendors', label: 'Vendors', icon: Briefcase },
+  { path: '/vendor-packages', label: 'Vendor Packages', icon: PackageCheck },
   { path: '/sales', label: 'Sales', icon: TrendingUp },
   { path: '/wallets', label: 'Wallets', icon: Wallet },
   { path: '/notifications', label: 'Notifications', icon: Bell },
