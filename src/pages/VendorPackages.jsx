@@ -585,7 +585,7 @@ const CoinPreviewPanel = ({ activePackage }) => {
 
 // ─── Package Card (All Packages tab) ─────────────────────────────────────────
 
-const PackageCard = ({ pkg, onEdit, onDeactivate }) => {
+const PackageCard = ({ pkg, onEdit, onDeactivate, canManage = true }) => {
   const isPremiumTier = ['premium', 'enterprise'].includes(pkg.tier);
   const tierCfg = TIER_CONFIG[pkg.tier] || TIER_CONFIG.basic;
 
@@ -608,18 +608,20 @@ const PackageCard = ({ pkg, onEdit, onDeactivate }) => {
               <p className="text-xs text-neutral-400 mt-0.5 line-clamp-1">{pkg.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-            <button onClick={() => onEdit(pkg)}
-              className="w-8 h-8 rounded-lg bg-neutral-50 hover:bg-primary/10 hover:text-primary
-                flex items-center justify-center text-neutral-400 transition-colors border border-neutral-100">
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => onDeactivate(pkg._id || pkg.id)}
-              className="w-8 h-8 rounded-lg bg-neutral-50 hover:bg-red-50 hover:text-red-500
-                flex items-center justify-center text-neutral-400 transition-colors border border-neutral-100">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {canManage && (
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+              <button onClick={() => onEdit(pkg)}
+                className="w-8 h-8 rounded-lg bg-neutral-50 hover:bg-primary/10 hover:text-primary
+                  flex items-center justify-center text-neutral-400 transition-colors border border-neutral-100">
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => onDeactivate(pkg._id || pkg.id)}
+                className="w-8 h-8 rounded-lg bg-neutral-50 hover:bg-red-50 hover:text-red-500
+                  flex items-center justify-center text-neutral-400 transition-colors border border-neutral-100">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Pricing */}
@@ -695,14 +697,27 @@ const TABS = [
   { id: 'my-txn',     label: 'Transactions',      icon: ArrowRightLeft },
 ];
 
+const ADMIN_TABS = TABS.filter((tab) => tab.id === 'packages' || tab.id === 'purchases');
+const VENDOR_TABS = TABS.filter((tab) => tab.id !== 'purchases');
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const VendorPackages = () => {
   const dispatch = useDispatch();
+  const authUser = useSelector(s => s.auth.user);
   const vp = useSelector(s => s.vendorPackages);
   const [activeTab, setActiveTab] = useState('packages');
   const [showModal, setShowModal] = useState(false);
   const [editPkg, setEditPkg]     = useState(null);
+  const role = authUser?.role || authUser?.user?.role || '';
+  const isAdmin = role === 'admin';
+  const visibleTabs = isAdmin ? ADMIN_TABS : VENDOR_TABS;
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(visibleTabs[0]?.id || 'packages');
+    }
+  }, [activeTab, visibleTabs]);
 
   // ── Lazy fetch on tab switch ─────────────────────────────────────────────────
   useEffect(() => {
@@ -845,12 +860,12 @@ const VendorPackages = () => {
     if (vp.packagesStatus === 'failed')  return <ErrorState msg={vp.packagesError} onRetry={() => dispatch(fetchAllPackages())} />;
     if (!vp.packages.length) return (
       <EmptyState icon={Package} title="No packages yet"
-        subtitle='Click "Create Package" to add your first vendor package.' />
+        subtitle={isAdmin ? 'Click "Create Package" to add your first vendor package.' : 'No active packages are available right now.'} />
     );
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {vp.packages.map(pkg => (
-          <PackageCard key={pkg._id || pkg.id} pkg={pkg} onEdit={openEdit} onDeactivate={handleDeactivate} />
+          <PackageCard key={pkg._id || pkg.id} pkg={pkg} onEdit={openEdit} onDeactivate={handleDeactivate} canManage={isAdmin} />
         ))}
       </div>
     );
@@ -999,6 +1014,7 @@ const VendorPackages = () => {
 
   const activeCount   = vp.packages.filter(p => p.is_active).length;
   const inactiveCount = vp.packages.length - activeCount;
+  const totalPackageRevenue = vp.packages.reduce((sum, pkg) => sum + Number(pkg?.final_price || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -1008,7 +1024,9 @@ const VendorPackages = () => {
         <div>
           <h1 className="text-2xl font-black text-neutral-800">Vendor Packages</h1>
           <p className="text-neutral-500 text-sm mt-1">
-            Manage packages, coin allocation &amp; purchase history
+            {isAdmin
+              ? 'Manage package pricing, tiers, coin rules and vendor purchases'
+              : 'Browse packages, active plan details and transaction history'}
           </p>
           {activeTab === 'packages' && vp.packages.length > 0 && (
             <div className="flex items-center gap-3 mt-2">
@@ -1017,10 +1035,16 @@ const VendorPackages = () => {
               <span className="text-xs text-neutral-400">{inactiveCount} inactive</span>
               <span className="text-neutral-200">·</span>
               <span className="text-xs text-neutral-400">{vp.packages.length} total</span>
+              {isAdmin && (
+                <>
+                  <span className="text-neutral-200">|</span>
+                  <span className="text-xs text-neutral-400">{fmtINR(totalPackageRevenue)} listed value</span>
+                </>
+              )}
             </div>
           )}
         </div>
-        {activeTab === 'packages' && (
+        {isAdmin && activeTab === 'packages' && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => dispatch(fetchAllPackages())}
@@ -1042,7 +1066,7 @@ const VendorPackages = () => {
 
       {/* Tab bar */}
       <div className="bg-white rounded-2xl border border-neutral-200 shadow-soft p-1 flex gap-1 overflow-x-auto">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {visibleTabs.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap
               transition-all flex-1 justify-center ${
@@ -1062,7 +1086,7 @@ const VendorPackages = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
+      {isAdmin && showModal && (
         <PackageFormModal
           pkg={editPkg}
           onClose={closeModal}

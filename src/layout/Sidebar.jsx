@@ -22,8 +22,8 @@ import { useSelector } from 'react-redux';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/users', label: 'Usersssss', icon: Users },
-  { path: '/posts', label: 'Postsssss', icon: Image },
+  { path: '/users', label: 'Users', icon: Users },
+  { path: '/posts', label: 'Posts', icon: Image },
   { path: '/ads', label: 'Ads', icon: Megaphone },
   { path: '/vendors', label: 'Vendors', icon: Briefcase },
   { path: '/vendor-packages', label: 'Vendor Packages', icon: PackageCheck },
