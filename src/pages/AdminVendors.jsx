@@ -1,25 +1,86 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Button from '../components/Button.jsx'
-import { vendorsMock } from '../data/admin/vendors.mock.js'
-import { CheckCircle2, XCircle, Trash2, Eye } from 'lucide-react'
+import { CheckCircle2, XCircle, Trash2, Eye, RefreshCw } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { deleteVendorById, fetchVendors, processVendorProfile } from '../store/vendorsSlice.js'
+
+const normalizeVendorStatus = (vendor) => {
+  const raw = String(vendor?.status || '').toLowerCase()
+  if (raw) return raw
+  if (vendor?.validated) return 'approved'
+  return 'pending'
+}
 
 export default function AdminVendors() {
+  const dispatch = useDispatch()
   const navigate = useNavigate()
+  const { items, status: fetchStatus, error } = useSelector((s) => s.vendors)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
+  const [busyId, setBusyId] = useState('')
+
+  useEffect(() => {
+    dispatch(fetchVendors())
+  }, [dispatch])
+
   const data = useMemo(() => {
-    let rows = vendorsMock
-    if (status !== 'all') rows = rows.filter((v) => String(v.status).toLowerCase() === status)
-    if (search.trim()) {
+    const rows = (items || []).map((vendor) => {
+      const user = vendor?.user || {}
+      return {
+        id: user._id || user.id || vendor._id || vendor.id || '',
+        vendor_id: vendor._id || vendor.id || '',
+        business_name: vendor.business_name || vendor.company_name || '-',
+        owner_name: user.full_name || user.username || '-',
+        email: user.email || '-',
+        phone: user.phone || user.mobile || '-',
+        category: vendor.category || vendor.industry_category || '-',
+        address:
+          vendor.address ||
+          vendor.location ||
+          vendor.city ||
+          vendor?.online_presence?.address?.address_line1 ||
+          '-',
+        status: normalizeVendorStatus(vendor),
+        rating: vendor.rating || vendor.average_rating || 0,
+        sales: vendor.sales || vendor.total_sales || 0,
+      }
+    })
+
+    return rows.filter((vendor) => {
+      if (status !== 'all' && String(vendor.status).toLowerCase() !== status) return false
+      if (!search.trim()) return true
       const q = search.toLowerCase()
-      rows = rows.filter((v) => v.business_name.toLowerCase().includes(q) || v.id.toLowerCase().includes(q))
+      return (
+        String(vendor.business_name).toLowerCase().includes(q) ||
+        String(vendor.owner_name).toLowerCase().includes(q) ||
+        String(vendor.id).toLowerCase().includes(q)
+      )
+    })
+  }, [items, search, status])
+
+  const handleProcess = async (id, action) => {
+    if (!id || busyId) return
+    setBusyId(id)
+    try {
+      await dispatch(processVendorProfile({ id, action })).unwrap()
+    } finally {
+      setBusyId('')
     }
-    return rows
-  }, [search, status])
+  }
+
+  const handleDelete = async (id) => {
+    if (!id || busyId) return
+    setBusyId(id)
+    try {
+      await dispatch(deleteVendorById(id)).unwrap()
+    } finally {
+      setBusyId('')
+    }
+  }
 
   const columns = [
     { key: 'id', title: 'Vendor ID' },
@@ -45,13 +106,38 @@ export default function AdminVendors() {
           <Button variant="ghost" size="sm" icon={Eye} onClick={() => navigate(`/vendors/${row.id}`)}>
             View
           </Button>
-          <Button variant="ghost" size="sm" icon={CheckCircle2} className="text-emerald-600">
-            Approve
-          </Button>
-          <Button variant="ghost" size="sm" icon={XCircle} className="text-amber-600">
-            Reject
-          </Button>
-          <Button variant="ghost" size="sm" icon={Trash2} className="text-red-600">
+          {row.status !== 'approved' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={CheckCircle2}
+              className="text-emerald-600"
+              disabled={busyId === row.id}
+              onClick={() => handleProcess(row.id, 'approve')}
+            >
+              Approve
+            </Button>
+          )}
+          {row.status !== 'rejected' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={XCircle}
+              className="text-amber-600"
+              disabled={busyId === row.id}
+              onClick={() => handleProcess(row.id, 'reject')}
+            >
+              Reject
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Trash2}
+            className="text-red-600"
+            disabled={busyId === row.id}
+            onClick={() => handleDelete(row.vendor_id)}
+          >
             Delete
           </Button>
         </div>
@@ -61,7 +147,12 @@ export default function AdminVendors() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-neutral-900">Vendors</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-neutral-900">Vendors</h1>
+        <Button variant="outline" size="sm" icon={RefreshCw} onClick={() => dispatch(fetchVendors())}>
+          Refresh
+        </Button>
+      </div>
       <div className="bg-white rounded-2xl border border-neutral-200 p-5 space-y-4">
         <FilterBar search={search} onSearch={setSearch}>
           <select
@@ -72,12 +163,18 @@ export default function AdminVendors() {
             <option value="all">All</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
             <option value="suspended">Suspended</option>
           </select>
         </FilterBar>
-        <DataTable columns={columns} data={data} />
+        {fetchStatus === 'loading' ? (
+          <div className="py-16 text-center text-sm text-neutral-400">Loading vendors...</div>
+        ) : fetchStatus === 'failed' ? (
+          <div className="py-16 text-center text-sm text-red-500">{error || 'Failed to load vendors'}</div>
+        ) : (
+          <DataTable columns={columns} data={data} emptyMessage="No vendors found" />
+        )}
       </div>
     </div>
   )
 }
-

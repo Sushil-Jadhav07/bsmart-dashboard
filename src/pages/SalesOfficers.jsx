@@ -61,7 +61,7 @@ function CreateOfficerModal({ open, onClose }) {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-neutral-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center">
               <UserPlus className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -77,9 +77,9 @@ function CreateOfficerModal({ open, onClose }) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Success */}
           {success && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <p className="text-sm text-green-700 font-medium">Sales officer created!</p>
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3">
+              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+              <p className="text-sm text-primary font-medium">Sales officer created!</p>
             </div>
           )}
 
@@ -105,7 +105,7 @@ function CreateOfficerModal({ open, onClose }) {
           <button
             type="submit"
             disabled={createStatus === 'loading' || success}
-            className="w-full h-10 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+            className="w-full h-10 bg-gradient-brand text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
           >
             {createStatus === 'loading' ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
@@ -123,7 +123,7 @@ function Field({ label, ...props }) {
       <label className="block text-xs font-medium text-neutral-600 mb-1">{label}</label>
       <input
         {...props}
-        className="w-full h-9 px-3 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-colors"
+        className="w-full h-9 px-3 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-colors"
       />
     </div>
   )
@@ -134,8 +134,8 @@ function VendorChip({ vendor }) {
   const name = vendor?.business_name || vendor?.user_id?.username || 'Vendor'
   return (
     <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2">
-      <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0">
-        <Building2 className="w-3 h-3 text-violet-600" />
+      <div className="w-6 h-6 rounded-md bg-secondary/10 flex items-center justify-center flex-shrink-0">
+        <Building2 className="w-3 h-3 text-secondary" />
       </div>
       <span className="text-xs font-medium text-neutral-700 truncate">{name}</span>
     </div>
@@ -160,11 +160,11 @@ function OfficerRow({ officer }) {
   const vendorCount = vendorData?.total ?? '—'
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden hover:border-violet-200 transition-colors">
+    <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden hover:border-primary/30 transition-colors">
       {/* Main row */}
       <div className="flex items-center gap-4 px-5 py-4">
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0">
           {officer.avatar_url ? (
             <img src={officer.avatar_url} alt="" className="w-full h-full object-cover rounded-xl" />
           ) : (
@@ -194,9 +194,9 @@ function OfficerRow({ officer }) {
 
         {/* Vendor count + expand */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="flex items-center gap-1.5 bg-violet-50 px-2.5 py-1 rounded-lg">
-            <Building2 className="w-3.5 h-3.5 text-violet-500" />
-            <span className="text-xs font-semibold text-violet-700">{vendorCount}</span>
+          <div className="flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-lg">
+            <Building2 className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold text-primary">{vendorCount}</span>
           </div>
           <button
             onClick={toggle}
@@ -272,7 +272,7 @@ export default function SalesOfficers() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+          className="inline-flex items-center gap-2 h-9 px-4 bg-gradient-brand text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-sm"
         >
           <UserPlus className="w-4 h-4" />
           Add Sales Officer
@@ -283,8 +283,8 @@ export default function SalesOfficers() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-neutral-200 rounded-2xl px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
-              <Users className="w-4 h-4 text-violet-600" />
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold text-neutral-900">{officers.length}</p>
@@ -294,8 +294,8 @@ export default function SalesOfficers() {
         </div>
         <div className="bg-white border border-neutral-200 rounded-2xl px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <div className="w-9 h-9 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-secondary" />
             </div>
             <div>
               <p className="text-2xl font-bold text-neutral-900">
@@ -313,14 +313,14 @@ export default function SalesOfficers() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, email, location…"
-          className="w-full h-10 pl-4 pr-4 text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-colors"
+          className="w-full h-10 pl-4 pr-4 text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-colors"
         />
       </div>
 
       {/* List */}
       {officersStatus === 'loading' && (
         <div className="flex items-center justify-center py-16 gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
           <span className="text-sm text-neutral-400">Loading sales officers…</span>
         </div>
       )}

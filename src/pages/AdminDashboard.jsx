@@ -1,20 +1,118 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Users, Store, Activity, ShoppingBag, DollarSign, ShieldAlert, Flag, Inbox, Megaphone } from 'lucide-react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useNavigate } from 'react-router-dom'
+import { Users, Store, Activity, ShoppingBag, ShieldAlert, Flag, Inbox, Megaphone } from 'lucide-react'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
 import StatsCard from '../components/StatsCard.jsx'
 import ChartCard from '../components/ChartCard.jsx'
 import Button from '../components/Button.jsx'
-import { fetchAnalytics, setRange } from '../store/analyticsSlice.js'
+import { fetchUsers } from '../store/usersSlice.js'
+import { fetchVendors } from '../store/vendorsSlice.js'
+import { fetchPosts } from '../store/postsSlice.js'
+import { fetchAdsAdmin } from '../store/adsSlice.js'
+
+const RANGE_TO_DAYS = { '7d': 7, '30d': 30, '90d': 90 }
+
+const withinRange = (value, range) => {
+  const days = RANGE_TO_DAYS[range] || 30
+  if (!value) return false
+  const ts = new Date(value).getTime()
+  if (Number.isNaN(ts)) return false
+  return ts >= Date.now() - days * 24 * 60 * 60 * 1000
+}
+
+const dateKey = (value) => {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
+const labelForKey = (key) => {
+  if (!key) return ''
+  const d = new Date(key)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 export default function AdminDashboard() {
   const dispatch = useDispatch()
-  const { data, status, range } = useSelector((s) => s.analytics)
-  useEffect(() => {
-    dispatch(fetchAnalytics(range))
-  }, [dispatch, range])
+  const navigate = useNavigate()
+  const [range, setRange] = useState('30d')
+  const users = useSelector((s) => s.users.items)
+  const vendors = useSelector((s) => s.vendors.items)
+  const posts = useSelector((s) => s.posts.items)
+  const ads = useSelector((s) => s.ads.items)
 
-  const colors = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#ef4444', '#8b5cf6']
+  useEffect(() => {
+    dispatch(fetchUsers())
+    dispatch(fetchVendors())
+    dispatch(fetchPosts())
+    dispatch(fetchAdsAdmin({}))
+  }, [dispatch])
+
+  const dashboard = useMemo(() => {
+    const filteredUsers = (users || []).filter((entry) => withinRange((entry?.user || entry)?.createdAt || (entry?.user || entry)?.created_at, range))
+    const filteredVendors = (vendors || []).filter((entry) => withinRange(entry?.createdAt || entry?.created_at || entry?.user?.createdAt, range))
+    const filteredPosts = (posts || []).filter((entry) => withinRange(entry?.createdAt || entry?.created_at, range))
+    const filteredAds = (ads || []).filter((entry) => withinRange(entry?.createdAt || entry?.created_at, range))
+
+    const userGrowthMap = new Map()
+    filteredUsers.forEach((entry) => {
+      const key = dateKey((entry?.user || entry)?.createdAt || (entry?.user || entry)?.created_at)
+      if (!key) return
+      userGrowthMap.set(key, (userGrowthMap.get(key) || 0) + 1)
+    })
+
+    const vendorGrowthMap = new Map()
+    filteredVendors.forEach((entry) => {
+      const key = dateKey(entry?.createdAt || entry?.created_at || entry?.user?.createdAt)
+      if (!key) return
+      vendorGrowthMap.set(key, (vendorGrowthMap.get(key) || 0) + 1)
+    })
+
+    const revenueMap = new Map()
+    filteredAds.forEach((entry) => {
+      const key = dateKey(entry?.createdAt || entry?.created_at)
+      if (!key) return
+      revenueMap.set(key, (revenueMap.get(key) || 0) + Number(entry?.total_coins_spent || 0))
+    })
+
+    const userGrowth = Array.from(userGrowthMap.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-8).map(([key, count]) => ({ name: labelForKey(key), count }))
+    const vendorGrowth = Array.from(vendorGrowthMap.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-8).map(([key, count]) => ({ name: labelForKey(key), count }))
+    const revenue = Array.from(revenueMap.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-8).map(([key, value]) => ({ name: labelForKey(key), value }))
+
+    const engagement = filteredPosts.slice(0, 6).map((post, index) => ({
+      name: post?.caption?.slice(0, 12) || `Post ${index + 1}`,
+      likes: Number(post?.likes_count || post?.likes?.length || post?.likes || 0),
+      comments: Number(Array.isArray(post?.comments) ? post.comments.length : post?.comments_count || 0),
+    }))
+
+    const adPerformance = filteredAds.slice(0, 6).map((ad, index) => ({
+      name: ad?.caption?.slice(0, 12) || `Ad ${index + 1}`,
+      impressions: Number(ad?.views_count || 0),
+      clicks: Number(ad?.likes_count || 0),
+    }))
+
+    return {
+      totals: {
+        users: users?.length || 0,
+        vendors: vendors?.length || 0,
+        posts: posts?.length || 0,
+        ads: ads?.length || 0,
+        pendingVendors: (vendors || []).filter((vendor) => !vendor?.validated || String(vendor?.status || '').toLowerCase() === 'pending').length,
+        reportedPosts: (posts || []).reduce((sum, post) => sum + Number(post?.reports_count || post?.report_count || 0), 0),
+        tickets: 0,
+        alerts: 0,
+      },
+      userGrowth,
+      vendorGrowth,
+      revenue,
+      engagement,
+      ads: {
+        impressions: (filteredAds || []).reduce((sum, ad) => sum + Number(ad?.views_count || 0), 0),
+        performance: adPerformance,
+      },
+    }
+  }, [users, vendors, posts, ads, range])
 
   return (
     <div className="space-y-6">
@@ -23,28 +121,35 @@ export default function AdminDashboard() {
         <div className="flex gap-2">
           <select
             value={range}
-            onChange={(e) => dispatch(setRange(e.target.value))}
+            onChange={(e) => setRange(e.target.value)}
             className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <Button variant="primary">Export Reports</Button>
+          <Button variant="primary" onClick={() => {
+            dispatch(fetchUsers())
+            dispatch(fetchVendors())
+            dispatch(fetchPosts())
+            dispatch(fetchAdsAdmin({}))
+          }}>
+            Refresh
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard label="Total Users" value={data?.totals.users || 0} icon={Users} color="blue" />
-        <StatsCard label="Total Vendors" value={data?.totals.vendors || 0} icon={Store} color="violet" />
-        <StatsCard label="Total Posts" value={data?.totals.posts || 0} icon={Activity} color="green" />
-        <StatsCard label="Total Ads" value={data?.totals.ads || 0} icon={Megaphone} color="rose" />
+        <StatsCard label="Total Users" value={dashboard.totals.users || 0} icon={Users} color="blue" />
+        <StatsCard label="Total Vendors" value={dashboard.totals.vendors || 0} icon={Store} color="violet" />
+        <StatsCard label="Total Posts" value={dashboard.totals.posts || 0} icon={Activity} color="green" />
+        <StatsCard label="Total Ads" value={dashboard.totals.ads || 0} icon={Megaphone} color="rose" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ChartCard title="User Growth">
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={data?.userGrowth || []}>
+            <LineChart data={dashboard.userGrowth || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -55,7 +160,7 @@ export default function AdminDashboard() {
         </ChartCard>
         <ChartCard title="Vendor Growth">
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data?.vendorGrowth || []}>
+            <BarChart data={dashboard.vendorGrowth || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -66,7 +171,7 @@ export default function AdminDashboard() {
         </ChartCard>
         <ChartCard title="Revenue">
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={data?.revenue || []}>
+            <LineChart data={dashboard.revenue || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -80,7 +185,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ChartCard title="Post Engagement">
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data?.engagement || []}>
+            <BarChart data={dashboard.engagement || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -90,9 +195,9 @@ export default function AdminDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Ad Performance" subtitle={`${data?.ads.impressions || 0} impressions`}>
+        <ChartCard title="Ad Performance" subtitle={`${dashboard.ads.impressions || 0} impressions`}>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data?.ads.performance || []}>
+            <BarChart data={dashboard.ads.performance || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -103,20 +208,19 @@ export default function AdminDashboard() {
           </ResponsiveContainer>
         </ChartCard>
         <div className="grid grid-cols-2 gap-4">
-          <StatsCard label="Pending Vendor Approvals" value={data?.totals.pendingVendors || 0} icon={ShoppingBag} />
-          <StatsCard label="Reported Posts" value={data?.totals.reportedPosts || 0} icon={Flag} />
-          <StatsCard label="Support Tickets" value={data?.totals.tickets || 0} icon={Inbox} />
-          <StatsCard label="System Alerts" value={data?.totals.alerts || 0} icon={ShieldAlert} />
+          <StatsCard label="Pending Vendor Approvals" value={dashboard.totals.pendingVendors || 0} icon={ShoppingBag} />
+          <StatsCard label="Reported Posts" value={dashboard.totals.reportedPosts || 0} icon={Flag} />
+          <StatsCard label="Support Tickets" value={dashboard.totals.tickets || 0} icon={Inbox} />
+          <StatsCard label="System Alerts" value={dashboard.totals.alerts || 0} icon={ShieldAlert} />
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Button>Approve Vendors</Button>
-        <Button>Review Reported Posts</Button>
-        <Button>Send Announcement</Button>
-        <Button>Manage Ads</Button>
+        <Button onClick={() => navigate('/admin/vendors')}>Approve Vendors</Button>
+        <Button onClick={() => navigate('/admin/posts')}>Review Posts</Button>
+        <Button onClick={() => navigate('/admin/ads')}>Manage Ads</Button>
+        <Button onClick={() => navigate('/vendor-packages')}>Vendor Packages</Button>
       </div>
     </div>
   )
 }
-
