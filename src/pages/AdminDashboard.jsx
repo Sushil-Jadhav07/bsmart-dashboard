@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { Users, Store, Activity, ShoppingBag, ShieldAlert, Flag, Inbox, Megaphone } from 'lucide-react'
+import { Users, Activity, ShoppingBag, ShieldAlert, Flag, Inbox, Eye, MousePointerClick, Heart, Coins } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
 import StatsCard from '../components/StatsCard.jsx'
 import ChartCard from '../components/ChartCard.jsx'
@@ -12,6 +12,7 @@ import { fetchPosts } from '../store/postsSlice.js'
 import { fetchAdsAdmin } from '../store/adsSlice.js'
 
 const RANGE_TO_DAYS = { '7d': 7, '30d': 30, '90d': 90 }
+const baseUrl = 'https://api.bebsmart.in'
 
 const withinRange = (value, range) => {
   const days = RANGE_TO_DAYS[range] || 30
@@ -37,10 +38,21 @@ export default function AdminDashboard() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const [range, setRange] = useState('30d')
+  const [summaryReloadKey, setSummaryReloadKey] = useState(0)
+  const [summaryOverview, setSummaryOverview] = useState({
+    total_impressions: 0,
+    total_clicks: 0,
+    engagement_rate: 0,
+    total_spend: 0,
+    conversions: 0,
+    reach: 0,
+  })
+  const [summaryStatus, setSummaryStatus] = useState('idle')
   const users = useSelector((s) => s.users.items)
   const vendors = useSelector((s) => s.vendors.items)
   const posts = useSelector((s) => s.posts.items)
   const ads = useSelector((s) => s.ads.items)
+  const token = useSelector((s) => s.auth.token)
 
   useEffect(() => {
     dispatch(fetchUsers())
@@ -48,6 +60,57 @@ export default function AdminDashboard() {
     dispatch(fetchPosts())
     dispatch(fetchAdsAdmin({}))
   }, [dispatch])
+
+  useEffect(() => {
+    if (!token) return
+
+    const controller = new AbortController()
+    const days = RANGE_TO_DAYS[range] || 30
+    const endDate = new Date()
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const params = new URLSearchParams({
+      startDate: startDate.toISOString().slice(0, 10),
+      endDate: endDate.toISOString().slice(0, 10),
+    })
+
+    const loadSummary = async () => {
+      setSummaryStatus('loading')
+      try {
+        const res = await fetch(`${baseUrl}/api/reports/summary?${params.toString()}`, {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data?.message || 'Failed to load report summary')
+        setSummaryOverview({
+          total_impressions: data?.overview?.total_impressions || 0,
+          total_clicks: data?.overview?.total_clicks || 0,
+          engagement_rate: data?.overview?.engagement_rate || 0,
+          total_spend: data?.overview?.total_spend || 0,
+          conversions: data?.overview?.conversions || 0,
+          reach: data?.overview?.reach || 0,
+        })
+        setSummaryStatus('succeeded')
+      } catch (error) {
+        if (error.name === 'AbortError') return
+        setSummaryOverview({
+          total_impressions: 0,
+          total_clicks: 0,
+          engagement_rate: 0,
+          total_spend: 0,
+          conversions: 0,
+          reach: 0,
+        })
+        setSummaryStatus('failed')
+      }
+    }
+
+    loadSummary()
+    return () => controller.abort()
+  }, [token, range, summaryReloadKey])
 
   const dashboard = useMemo(() => {
     const filteredUsers = (users || []).filter((entry) => withinRange((entry?.user || entry)?.createdAt || (entry?.user || entry)?.created_at, range))
@@ -133,6 +196,7 @@ export default function AdminDashboard() {
             dispatch(fetchVendors())
             dispatch(fetchPosts())
             dispatch(fetchAdsAdmin({}))
+            setSummaryReloadKey((value) => value + 1)
           }}>
             Refresh
           </Button>
@@ -140,11 +204,19 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard label="Total Users" value={dashboard.totals.users || 0} icon={Users} color="blue" />
-        <StatsCard label="Total Vendors" value={dashboard.totals.vendors || 0} icon={Store} color="violet" />
-        <StatsCard label="Total Posts" value={dashboard.totals.posts || 0} icon={Activity} color="green" />
-        <StatsCard label="Total Ads" value={dashboard.totals.ads || 0} icon={Megaphone} color="rose" />
+        <StatsCard label="Total Impressions" value={summaryOverview.total_impressions || 0} icon={Eye} color="blue" />
+        <StatsCard label="Total Clicks" value={summaryOverview.total_clicks || 0} icon={MousePointerClick} color="violet" />
+        <StatsCard label="Engagement Rate" value={`${Number(summaryOverview.engagement_rate || 0).toFixed(2)}%`} icon={Heart} color="green" />
+        <StatsCard label="Total Spend" value={summaryOverview.total_spend || 0} icon={Coins} color="rose" />
+        <StatsCard label="Conversions" value={summaryOverview.conversions || 0} icon={Activity} color="blue" />
+        <StatsCard label="Reach" value={summaryOverview.reach || 0} icon={Users} color="violet" />
       </div>
+
+      {summaryStatus === 'failed' && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+          Failed to load reports summary overview.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ChartCard title="User Growth">
