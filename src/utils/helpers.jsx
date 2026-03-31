@@ -78,6 +78,8 @@ export const getStatusColor = (status) => {
     inactive: 'bg-gray-100 text-gray-700 border-gray-200',
     suspended: 'bg-red-100 text-red-700 border-red-200',
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    paused: 'bg-blue-100 text-blue-700 border-blue-200',
+    draft: 'bg-neutral-100 text-neutral-700 border-neutral-200',
     resolved: 'bg-blue-100 text-blue-700 border-blue-200',
     hidden: 'bg-orange-100 text-orange-700 border-orange-200'
   };

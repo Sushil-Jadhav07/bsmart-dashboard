@@ -63,6 +63,7 @@ export default function AdminAds() {
     active: 'success',
     pending: 'warning',
     paused: 'secondary',
+    draft: 'secondary',
     rejected: 'danger',
   }
 
@@ -225,6 +226,7 @@ export default function AdminAds() {
             <option value="pending">Pending</option>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
+            <option value="draft">Draft</option>
             <option value="rejected">Rejected</option>
           </select>
         </FilterBar>

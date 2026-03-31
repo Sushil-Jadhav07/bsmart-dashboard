@@ -11,8 +11,10 @@ export default function StatusBadge({ value, map = {}, className = '' }) {
   }
   const v =
     map[String(value)?.toLowerCase()] ||
+    (String(value).toLowerCase().includes('draft') ? 'neutral' : undefined) ||
     (String(value).toLowerCase().includes('active') ? 'success' : undefined) ||
     (String(value).toLowerCase().includes('pending') ? 'warning' : undefined) ||
+    (String(value).toLowerCase().includes('paused') ? 'info' : undefined) ||
     (String(value).toLowerCase().includes('reject') ? 'danger' : undefined) ||
     'neutral'
   return (

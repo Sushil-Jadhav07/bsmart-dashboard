@@ -28,6 +28,7 @@ const Ads = () => {
 
   const statusChips = [
     { value: 'all', label: 'All' },
+    { value: 'draft', label: 'Draft' },
     { value: 'pending', label: 'Pending' },
     { value: 'active', label: 'Active' },
     { value: 'paused', label: 'Paused' },
