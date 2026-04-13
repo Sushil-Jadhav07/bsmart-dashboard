@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const persisted = (() => {
   try {
@@ -28,7 +27,7 @@ function persist(state) {
 
 export const login = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -47,10 +46,22 @@ export const login = createAsyncThunk('auth/login', async ({ email, password }, 
 
 export const register = createAsyncThunk('auth/register', async ({ name, email, password }, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${baseUrl}/api/auth/register`, {
+    const normalizedName = String(name || '').trim()
+    const username = normalizedName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      || email.split('@')[0]
+
+    const res = await fetch(`${API_BASE_WITH_PATH}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({
+        email,
+        password,
+        username,
+        full_name: normalizedName,
+      }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -71,7 +82,7 @@ export const registerAdmin = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/auth/register`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/auth/register`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

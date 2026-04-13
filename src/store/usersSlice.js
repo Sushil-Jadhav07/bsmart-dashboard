@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const initialState = {
   items: [],
@@ -15,7 +14,7 @@ export const fetchUsers = createAsyncThunk('users/fetch', async (_, { getState, 
   const token = getState().auth.token
   if (!token) return rejectWithValue('No token')
   try {
-    const res = await fetch(`${baseUrl}/api/users`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/users`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))
@@ -31,7 +30,7 @@ export const fetchUserById = createAsyncThunk('users/fetchById', async (id, { ge
   const token = getState().auth.token
   if (!token) return rejectWithValue('No token')
   try {
-    const res = await fetch(`${baseUrl}/api/users/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/users/${id}`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))
@@ -55,10 +54,10 @@ export const deleteUserById = createAsyncThunk('users/deleteById', async (id, { 
       return { ok: false, status: res.status, message: data?.message }
     }
 
-    const adminAttempt = await tryDelete(`${baseUrl}/api/admin/users/${id}`)
+    const adminAttempt = await tryDelete(`${API_BASE_WITH_PATH}/admin/users/${id}`)
     if (adminAttempt.ok) return id
 
-    const userAttempt = await tryDelete(`${baseUrl}/api/users/${id}`)
+    const userAttempt = await tryDelete(`${API_BASE_WITH_PATH}/users/${id}`)
     if (userAttempt.ok) return id
 
     const adminMsg = adminAttempt.message || `HTTP ${adminAttempt.status || 'error'}`

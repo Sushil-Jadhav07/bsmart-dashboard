@@ -448,14 +448,34 @@ export default function VendorDetails() {
                   <UserCheck className="w-3.5 h-3.5 mr-1" />
                   {assignedOfficer ? 'Reassign Officer' : 'Assign Sales Officer'}
                 </Button>
-                <Button
-                  variant={isValidated ? 'secondary' : 'primary'}
-                  size="sm"
-                  onClick={() => handleAdminProcess(isValidated ? 'reject' : 'approve')}
-                  disabled={!adminId || !!updating[id]}
-                >
-                  {isValidated ? 'Reject' : 'Approve'}
-                </Button>
+                {isValidated ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled
+                    >
+                      Approved
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAdminProcess('reject')}
+                      disabled={!adminId || !!updating[id]}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleAdminProcess('approve')}
+                    disabled={!adminId || !!updating[id]}
+                  >
+                    Approve
+                  </Button>
+                )}
                 {!isSubmitted && !isValidated && (
                   <Button variant="secondary" size="sm" onClick={handleSubmit} disabled={!!updating[id]}>
                     Submit Profile
@@ -507,7 +527,7 @@ export default function VendorDetails() {
                     isValidated ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   )}>
                     {isValidated ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                    {isValidated ? 'Validated' : 'Not Validated'}
+                    {isValidated ? 'Approved' : 'Not Approved'}
                   </span>
                 </div>
               </div>

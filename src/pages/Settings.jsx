@@ -1,14 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Save, Settings as SettingsIcon, Coins, User, Globe, Shield } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Coins, User, Globe, Shield, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
 import Badge from '../components/Badge.jsx';
 import { defaultSettings } from '../data/settingsData.jsx';
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js';
 
-const BASE_URL = 'https://api.bebsmart.in';
+const PasswordField = ({ label, value, onChange, autoComplete, visible, onToggle }) => (
+  <div>
+    <label className="block text-sm font-medium text-neutral-700 mb-1.5">{label}</label>
+    <div className="relative">
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        className="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2.5 pr-11 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors duration-200"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-neutral-400 hover:text-neutral-600"
+        aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+      >
+        {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
+    </div>
+  </div>
+);
 
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,6 +45,11 @@ const Settings = () => {
   });
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
 
   const authState = (() => {
     try {
@@ -71,6 +98,13 @@ const Settings = () => {
     setSearchParams({ tab: tabValue });
   };
 
+  const togglePasswordVisibility = (key) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPasswordStatus({ type: '', message: '' });
@@ -97,7 +131,7 @@ const Settings = () => {
 
     setPasswordLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/auth/change-password`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,39 +252,31 @@ const Settings = () => {
                   />
                 </div>
 
-                <div className="pt-4 border-t border-neutral-100">
-                  <h4 className="font-medium text-neutral-800 mb-3">Password</h4>
-                  <Input
-                    label="Current Password (hidden)"
-                    type="password"
-                    value="********"
-                    readOnly
-                    helperText="For security, your existing password is never visible."
-                  />
-                </div>
-
                 <form onSubmit={handlePasswordChange} className="pt-4 border-t border-neutral-100 space-y-4">
                   <h4 className="font-medium text-neutral-800">Change Password</h4>
-                  <Input
+                  <PasswordField
                     label="Current Password"
-                    type="password"
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
                     autoComplete="current-password"
+                    visible={showPasswords.current}
+                    onToggle={() => togglePasswordVisibility('current')}
                   />
-                  <Input
+                  <PasswordField
                     label="New Password"
-                    type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                     autoComplete="new-password"
+                    visible={showPasswords.next}
+                    onToggle={() => togglePasswordVisibility('next')}
                   />
-                  <Input
+                  <PasswordField
                     label="Confirm New Password"
-                    type="password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                     autoComplete="new-password"
+                    visible={showPasswords.confirm}
+                    onToggle={() => togglePasswordVisibility('confirm')}
                   />
 
                   {passwordStatus.message && (

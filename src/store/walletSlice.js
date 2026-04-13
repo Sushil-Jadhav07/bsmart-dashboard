@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const initialState = {
   transactions: [],
@@ -31,7 +30,7 @@ export const fetchAllWallets = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/wallet`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet`, {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))
@@ -49,7 +48,7 @@ export const fetchMemberWalletHistory = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/wallet/member/${userId}/history`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet/member/${userId}/history`, {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))
@@ -67,7 +66,7 @@ export const fetchVendorWalletHistory = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/wallet/vendor/${userId}/history`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet/vendor/${userId}/history`, {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))
@@ -85,7 +84,7 @@ export const fetchAdWalletHistory = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/wallet/ads/${adId}/history`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet/ads/${adId}/history`, {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))

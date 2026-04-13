@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const extractLogoUrl = (payload) => {
   return (
@@ -20,6 +19,39 @@ const extractLogoUrl = (payload) => {
   )
 }
 
+const matchesEntityId = (entity, id) => {
+  if (!entity || !id) return false
+  const normalizedId = String(id)
+  const candidates = [
+    entity?._id,
+    entity?.id,
+    entity?.user_id,
+    entity?.vendor_id,
+    entity?.user?._id,
+    entity?.user?.id,
+    entity?.vendor?._id,
+    entity?.vendor?.id,
+  ]
+
+  return candidates.some((value) => value !== undefined && value !== null && String(value) === normalizedId)
+}
+
+const mergeProfileState = (state, id, patch) => {
+  if (!id || !patch) return
+
+  if (state.currentProfile && matchesEntityId(state.currentProfile, id)) {
+    state.currentProfile = { ...state.currentProfile, ...patch }
+  }
+
+  const existingProfileKeys = Object.keys(state.profilesByVendorId || {})
+  existingProfileKeys.forEach((key) => {
+    const profile = state.profilesByVendorId[key]
+    if (matchesEntityId(profile, id)) {
+      state.profilesByVendorId[key] = { ...profile, ...patch }
+    }
+  })
+}
+
 export const fetchVendors = createAsyncThunk(
   'vendors/fetchVendors',
   async (_, { getState, rejectWithValue }) => {
@@ -27,7 +59,7 @@ export const fetchVendors = createAsyncThunk(
       const token = getState().auth.token
       const headers = { Accept: 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors`, { headers })
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors`, { headers })
       const data = await res.json().catch(() => [])
       if (!res.ok) {
         return rejectWithValue(data?.message || 'Failed to load vendors')
@@ -57,7 +89,7 @@ export const fetchVendorProfileById = createAsyncThunk(
       const headers = { Accept: 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
       // Use the new endpoint for fetching vendor profile
-      const res = await fetch(`${baseUrl}/api/vendors/profile/${id}`, { headers })
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/${id}`, { headers })
       const data = await res.json().catch(() => ({}))
       
       // Handle 404 gracefully - treat as empty profile
@@ -82,7 +114,7 @@ export const patchVendorProfile = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/profile/${id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/${id}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(payload),
@@ -105,7 +137,7 @@ export const submitVendorProfile = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/profile/${id}/submit`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/${id}/submit`, {
         method: 'POST',
         headers,
       })
@@ -132,7 +164,7 @@ export const processVendorProfile = createAsyncThunk(
         action ||
         (status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status) ||
         'approve'
-      const res = await fetch(`${baseUrl}/api/vendors/profile/${id}/admin-process`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/${id}/admin-process`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ action: mappedAction, rejection_reason }),
@@ -163,7 +195,7 @@ export const uploadVendorProfileLogo = createAsyncThunk(
       const formData = new FormData()
       formData.append('logo', file)
 
-      const res = await fetch(`${baseUrl}/api/vendors/profile/me/logo`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/me/logo`, {
         method: 'POST',
         headers,
         body: formData,
@@ -188,7 +220,7 @@ export const patchVendorValidation = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/${id}/validation`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/${id}/validation`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ admin_user_id, validated }),
@@ -211,7 +243,7 @@ export const patchVendorProfileApproval = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/profile/${id}/approval`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/${id}/approval`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ admin_user_id, validated }),
@@ -234,7 +266,7 @@ export const updateVendorProfileById = createAsyncThunk(
       const token = getState().auth.token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${baseUrl}/api/vendors/profile/me`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendors/profile/me`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(payload || {}),
@@ -256,7 +288,7 @@ export const deleteVendorById = createAsyncThunk(
     try {
       const token = getState().auth.token
       if (!token) return rejectWithValue('No token')
-      const res = await fetch(`${baseUrl}/api/admin/vendors/${id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/admin/vendors/${id}`, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
@@ -348,23 +380,17 @@ const slice = createSlice({
       })
       .addCase(patchVendorProfile.fulfilled, (state, action) => {
         const { id, data } = action.payload
-        if (state.currentProfile && (state.currentProfile._id === id || state.currentProfile.id === id)) {
-          state.currentProfile = { ...state.currentProfile, ...data }
-        }
+        mergeProfileState(state, id, data)
       })
       .addCase(submitVendorProfile.fulfilled, (state, action) => {
         const { id, data } = action.payload
-        if (state.currentProfile && (state.currentProfile._id === id || state.currentProfile.id === id)) {
-          state.currentProfile = { ...state.currentProfile, ...data, status: 'submitted' }
-        }
+        mergeProfileState(state, id, { ...data, status: 'submitted' })
       })
       .addCase(processVendorProfile.fulfilled, (state, action) => {
-        const { id, status, action: actionName, data } = action.payload
-        if (state.currentProfile && (state.currentProfile._id === id || state.currentProfile.id === id)) {
-          state.currentProfile = { ...state.currentProfile, ...data, status, validated: status === 'approved' }
-        }
+        const { id, status, data } = action.payload
+        mergeProfileState(state, id, { ...data, status, validated: status === 'approved' })
         // Update list item as well
-        const idx = state.items.findIndex((v) => v._id === id || v.id === id)
+        const idx = state.items.findIndex((v) => matchesEntityId(v, id))
         if (idx !== -1) {
           state.items[idx].validated = status === 'approved'
           state.items[idx].status = status

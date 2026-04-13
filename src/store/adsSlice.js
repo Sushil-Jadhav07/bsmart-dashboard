@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const initialState = {
   items: [],
@@ -19,7 +18,7 @@ const initialState = {
 
 export const fetchAdCategories = createAsyncThunk('ads/fetchCategories', async (_, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${baseUrl}/api/ads/categories`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/ads/categories`, {
       headers: { 'Accept': 'application/json' },
     })
     const data = await res.json().catch(() => ({}))
@@ -51,7 +50,7 @@ export const fetchAdsAdmin = createAsyncThunk(
       if (status && status !== 'all') params.set('status', status)
       if (category && category !== 'all') params.set('category', category)
 
-      const res = await fetch(`${baseUrl}/api/ads${params.toString() ? `?${params.toString()}` : ''}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/ads${params.toString() ? `?${params.toString()}` : ''}`, {
         headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))
@@ -82,7 +81,7 @@ export const fetchAdById = createAsyncThunk('ads/fetchById', async (id, { getSta
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/ads/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/ads/${id}`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))
@@ -101,7 +100,7 @@ export const fetchAdStats = createAsyncThunk('ads/fetchStats', async (id, { getS
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/ads/${id}/stats`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/ads/${id}/stats`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))
@@ -125,7 +124,7 @@ export const patchAdStatus = createAsyncThunk(
       const body = { status }
       if (rejection_reason) body.rejection_reason = rejection_reason
 
-      const res = await fetch(`${baseUrl}/api/admin/ads/${id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/admin/ads/${id}`, {
         method: 'PATCH',
         headers: {
           'Accept': 'application/json',
@@ -151,7 +150,7 @@ export const deleteAdById = createAsyncThunk('ads/deleteById', async (id, { getS
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/admin/ads/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/admin/ads/${id}`, {
       method: 'DELETE',
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
@@ -171,7 +170,7 @@ export const fetchAdComments = createAsyncThunk('ads/fetchComments', async (adId
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/ads/${adId}/comments`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/ads/${adId}/comments`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))
@@ -197,7 +196,7 @@ export const deleteAdComment = createAsyncThunk('ads/deleteComment', async (comm
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/ads/comments/${commentId}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/ads/comments/${commentId}`, {
       method: 'DELETE',
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })

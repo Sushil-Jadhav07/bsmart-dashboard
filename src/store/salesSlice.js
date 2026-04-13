@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 // GET /api/sales/officers — all users with role 'sales' (admin)
 export const fetchSalesOfficers = createAsyncThunk(
@@ -8,7 +7,7 @@ export const fetchSalesOfficers = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/sales/officers`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/sales/officers`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       })
       const data = await res.json().catch(() => ({}))
@@ -27,7 +26,7 @@ export const fetchSalesOfficerById = createAsyncThunk(
   async (id, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/sales/users/${id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/sales/users/${id}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       })
       const data = await res.json().catch(() => ({}))
@@ -47,7 +46,7 @@ export const fetchVendorsByOfficer = createAsyncThunk(
   async (salesUserId, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/sales/officers/${salesUserId}/vendors`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/sales/officers/${salesUserId}/vendors`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       })
       const data = await res.json().catch(() => ({}))
@@ -65,7 +64,7 @@ export const createSalesOfficer = createAsyncThunk(
   async (payload, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/auth/register`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/auth/register`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -89,7 +88,7 @@ export const assignSalesOfficer = createAsyncThunk(
   async ({ vendor_user_id, sales_user_id }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/sales/assign`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/sales/assign`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -113,7 +112,7 @@ export const unassignSalesOfficer = createAsyncThunk(
   async (vendor_user_id, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token
-      const res = await fetch(`${baseUrl}/api/sales/assign/${vendor_user_id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/sales/assign/${vendor_user_id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       })

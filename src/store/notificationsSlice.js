@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { io } from 'socket.io-client'
-
-const BASE_URL = 'https://api.bebsmart.in'
+import { API_BASE_URL, API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const getToken = () => {
   try {
@@ -67,7 +66,7 @@ export const fetchNotifications = createAsyncThunk(
   'notifications/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/notifications`, { headers: authHeaders() })
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications`, { headers: authHeaders() })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch')
       const items = Array.isArray(data?.data)
@@ -90,7 +89,7 @@ export const fetchUnreadCount = createAsyncThunk(
   'notifications/fetchUnreadCount',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/notifications/unread-count`, { headers: authHeaders() })
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications/unread-count`, { headers: authHeaders() })
       const data = await res.json().catch(() => ({ count: 0 }))
       if (!res.ok) return rejectWithValue(data?.message || 'Failed')
       return data.count
@@ -104,7 +103,7 @@ export const markAllRead = createAsyncThunk(
   'notifications/markAllRead',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/notifications/mark-all-read`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications/mark-all-read`, {
         method: 'PATCH',
         headers: authHeaders()
       })
@@ -120,7 +119,7 @@ export const markOneRead = createAsyncThunk(
   'notifications/markOneRead',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/notifications/${id}/read`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications/${id}/read`, {
         method: 'PATCH',
         headers: authHeaders()
       })
@@ -136,7 +135,7 @@ export const deleteNotification = createAsyncThunk(
   'notifications/deleteOne',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/notifications/${id}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications/${id}`, {
         method: 'DELETE',
         headers: authHeaders()
       })
@@ -223,7 +222,7 @@ export const connectSocket = (userId, dispatch) => {
   if (_socket) return _socket
 
   const token = getToken()
-  _socket = io('https://api.bebsmart.in', {
+  _socket = io(API_BASE_URL, {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
     reconnectionDelay: 2000,

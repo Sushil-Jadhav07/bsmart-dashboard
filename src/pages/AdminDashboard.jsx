@@ -10,9 +10,9 @@ import { fetchUsers } from '../store/usersSlice.js'
 import { fetchVendors } from '../store/vendorsSlice.js'
 import { fetchPosts } from '../store/postsSlice.js'
 import { fetchAdsAdmin } from '../store/adsSlice.js'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const RANGE_TO_DAYS = { '7d': 7, '30d': 30, '90d': 90 }
-const baseUrl = 'https://api.bebsmart.in'
 
 const withinRange = (value, range) => {
   const days = RANGE_TO_DAYS[range] || 30
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
     const loadSummary = async () => {
       setSummaryStatus('loading')
       try {
-        const res = await fetch(`${baseUrl}/api/reports/summary?${params.toString()}`, {
+        const res = await fetch(`${API_BASE_WITH_PATH}/reports/summary?${params.toString()}`, {
           headers: {
             Accept: 'application/json',
             Authorization: `Bearer ${token}`,

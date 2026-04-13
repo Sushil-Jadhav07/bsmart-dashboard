@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const initialState = {
   items: [],
@@ -17,7 +16,7 @@ export const fetchPosts = createAsyncThunk('posts/fetch', async (_, { getState, 
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/posts/feed`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/posts/feed`, {
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -40,7 +39,7 @@ export const fetchPostById = createAsyncThunk('posts/fetchById', async (id, { ge
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/posts/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/posts/${id}`, {
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -62,7 +61,7 @@ export const deletePostById = createAsyncThunk('posts/deleteById', async (id, { 
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/admin/posts/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/admin/posts/${id}`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
@@ -85,7 +84,7 @@ export const deleteCommentById = createAsyncThunk('posts/deleteCommentById', asy
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/admin/comments/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/admin/comments/${id}`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
@@ -108,7 +107,7 @@ export const deleteReplyById = createAsyncThunk('posts/deleteReplyById', async (
     return rejectWithValue('No token')
   }
   try {
-    const res = await fetch(`${baseUrl}/api/admin/replies/${id}`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/admin/replies/${id}`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',

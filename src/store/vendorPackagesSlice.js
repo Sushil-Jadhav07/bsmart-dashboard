@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-const baseUrl = 'https://api.bebsmart.in'
+import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const authHeaders = (token, json = false) => {
   const h = { Accept: 'application/json', Authorization: `Bearer ${token}` }
@@ -22,7 +21,7 @@ export const adminCreatePackage = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/admin`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/admin`, {
         method: 'POST',
         headers: authHeaders(token, true),
         body: JSON.stringify(payload),
@@ -49,7 +48,7 @@ export const adminFetchAllPurchases = createAsyncThunk(
       const params = new URLSearchParams({ page, limit })
       if (vendorId) params.set('vendorId', vendorId)
       if (status)   params.set('status', status)
-      const res = await fetch(`${baseUrl}/api/vendor-packages/admin/purchases?${params}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/admin/purchases?${params}`, {
         headers: authHeaders(token),
       })
       const data = await res.json().catch(() => ({}))
@@ -71,7 +70,7 @@ export const adminUpdatePackage = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/admin/${packageId}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/admin/${packageId}`, {
         method: 'PUT',
         headers: authHeaders(token, true),
         body: JSON.stringify(payload),
@@ -95,7 +94,7 @@ export const adminDeactivatePackage = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/admin/${packageId}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/admin/${packageId}`, {
         method: 'DELETE',
         headers: authHeaders(token),
       })
@@ -121,7 +120,7 @@ export const fetchMyActivePackage = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/my/active`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/my/active`, {
         headers: authHeaders(token),
       })
       const data = await res.json().catch(() => ({}))
@@ -145,7 +144,7 @@ export const fetchMyCoinPreview = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/my/coin-preview`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/my/coin-preview`, {
         method: 'POST',
         headers: authHeaders(token, true),
         body: JSON.stringify({ budget_inr: budgetInr }),
@@ -170,7 +169,7 @@ export const fetchMyPackageHistory = createAsyncThunk(
     if (!token) return rejectWithValue('No token')
     try {
       const res = await fetch(
-        `${baseUrl}/api/vendor-packages/my/history?page=${page}&limit=${limit}`,
+        `${API_BASE_WITH_PATH}/vendor-packages/my/history?page=${page}&limit=${limit}`,
         { headers: authHeaders(token) }
       )
       const data = await res.json().catch(() => ({}))
@@ -194,7 +193,7 @@ export const fetchMyTransactions = createAsyncThunk(
     if (!token) return rejectWithValue('No token')
     try {
       const res = await fetch(
-        `${baseUrl}/api/vendor-packages/my/transactions?page=${page}&limit=${limit}`,
+        `${API_BASE_WITH_PATH}/vendor-packages/my/transactions?page=${page}&limit=${limit}`,
         { headers: authHeaders(token) }
       )
       const data = await res.json().catch(() => ({}))
@@ -218,7 +217,7 @@ export const fetchAllPackages = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages`, {
         headers: authHeaders(token),
       })
       const data = await res.json().catch(() => ({}))
@@ -242,7 +241,7 @@ export const fetchPackagePreview = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/${packageId}/preview`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/${packageId}/preview`, {
         headers: authHeaders(token),
       })
       const data = await res.json().catch(() => ({}))
@@ -266,7 +265,7 @@ export const buyPackage = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/${packageId}/buy`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/${packageId}/buy`, {
         method: 'POST',
         headers: authHeaders(token, true),
         body: JSON.stringify({}),
@@ -290,7 +289,7 @@ export const fetchPackageById = createAsyncThunk(
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${baseUrl}/api/vendor-packages/${packageId}`, {
+      const res = await fetch(`${API_BASE_WITH_PATH}/vendor-packages/${packageId}`, {
         headers: authHeaders(token),
       })
       const data = await res.json().catch(() => ({}))
