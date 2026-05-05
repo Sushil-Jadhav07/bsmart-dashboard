@@ -9,20 +9,51 @@ import { formatNumber, formatDateTime, getStatusColor, capitalize } from '../uti
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPosts, deletePostById } from '../store/postsSlice.js';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/apiBase.js';
 
-const Posts = () => {
+const Posts = ({ forcedType = null, title = 'Posts' }) => {
   const THUMB_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+UG9zdDwvdGV4dD48L3N2Zz4='
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, status, error } = useSelector((s) => s.posts);
   const [posts, setPosts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(forcedType || 'all');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null, post: null });
 
   useEffect(() => {
     dispatch(fetchPosts());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (forcedType) setFilter(forcedType);
+  }, [forcedType]);
+
+  const toAbsoluteMediaUrl = (value = '') => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('/uploads/')) return `${API_BASE_URL}${raw}`;
+    if (raw.startsWith('uploads/')) return `${API_BASE_URL}/${raw}`;
+    if (!raw.includes('/') && raw.includes('.')) return `${API_BASE_URL}/uploads/${raw}`;
+    if (raw.startsWith('/')) return `${API_BASE_URL}${raw}`;
+    return `${API_BASE_URL}/${raw}`;
+  };
+
+  const getThumbnailUrl = (m) => {
+    if (!m) return '';
+    const candidates = [];
+    if (Array.isArray(m.thumbnail)) candidates.push(...m.thumbnail);
+    else if (m.thumbnail && typeof m.thumbnail === 'object') candidates.push(m.thumbnail);
+    if (Array.isArray(m.thumbnails)) candidates.push(...m.thumbnails);
+
+    for (const t of candidates) {
+      const resolved = toAbsoluteMediaUrl(t?.fileUrl || t?.url || t?.fileName);
+      if (resolved) return resolved;
+    }
+
+    return toAbsoluteMediaUrl(m.fileUrl || m.url || m.fileName);
+  };
 
   useEffect(() => {
     const mapped = (items || []).map((p) => {
@@ -33,17 +64,11 @@ const Posts = () => {
         'Unknown';
       const mediaItem = Array.isArray(p.media) ? p.media[0] : null;
       const isVideo = !!(mediaItem && mediaItem.type === 'video');
-      const videoUrl = isVideo ? (mediaItem?.fileUrl || '') : '';
-      const getThumbnailUrl = (m) => {
-        if (!m) return '';
-        if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl;
-        if (m.thumbnail?.fileUrl) return m.thumbnail.fileUrl;
-        return '';
-      };
+      const videoUrl = isVideo ? toAbsoluteMediaUrl(mediaItem?.fileUrl || mediaItem?.url || mediaItem?.fileName) : '';
       const videoThumb = isVideo ? getThumbnailUrl(mediaItem) : '';
       const thumbnail = isVideo
         ? (videoThumb || THUMB_PLACEHOLDER)
-        : (getThumbnailUrl(mediaItem) || mediaItem?.fileUrl || THUMB_PLACEHOLDER);
+        : (getThumbnailUrl(mediaItem) || toAbsoluteMediaUrl(mediaItem?.fileUrl || mediaItem?.url || mediaItem?.fileName) || THUMB_PLACEHOLDER);
       const type = isVideo ? 'reel' : 'post';
       const likes = p.likes_count ?? p.likes ?? p.likesCount ?? 0;
       const comments = Array.isArray(p.comments) ? p.comments.length : (p.commentsCount ?? 0);
@@ -76,7 +101,7 @@ const Posts = () => {
 
   const handleAction = (type, post) => {
     if (type === 'view') {
-      navigate(`/posts/${post.id}`);
+      navigate(post.type === 'reel' ? `/reels/${post.id}` : `/posts/${post.id}`);
       return;
     }
     setConfirmModal({ isOpen: true, type, post });
@@ -204,7 +229,7 @@ const Posts = () => {
     <div className="space-y-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">Posts & Reels</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight">{title}</h1>
           <p className="text-neutral-500 mt-2 text-sm max-w-md leading-relaxed">
             Review content performance, spot trends, and take action quickly across the platform.
           </p>
@@ -268,22 +293,24 @@ const Posts = () => {
 
       <div className="bg-white rounded-3xl border border-neutral-200/60 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-neutral-100 bg-neutral-50/30 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-            {filterOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setFilter(option.value)}
-                className={clsx(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
-                  filter === option.value
-                    ? 'bg-gradient-brand text-white shadow-soft'
-                    : 'bg-white text-neutral-600 border border-neutral-200 hover:border-primary hover:text-primary'
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          {!forcedType && (
+            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={clsx(
+                    'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                    filter === option.value
+                      ? 'bg-gradient-brand text-white shadow-soft'
+                      : 'bg-white text-neutral-600 border border-neutral-200 hover:border-primary hover:text-primary'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="relative w-full lg:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />

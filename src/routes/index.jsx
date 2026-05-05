@@ -3,6 +3,11 @@ import MainLayout from '../layout/MainLayout.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import Users from '../pages/Users.jsx';
 import Posts from '../pages/Posts.jsx';
+import Reels from '../pages/Reels.jsx';
+import Tweets from '../pages/Tweets.jsx';
+import TweetDetails from '../pages/TweetDetails.jsx';
+import Prompts from '../pages/Prompts.jsx';
+import PromoteDetails from '../pages/PromoteDetails.jsx';
 import Wallets from '../pages/Wallets.jsx';
 import Settings from '../pages/Settings.jsx';
 import ProtectedLayout from '../layout/ProtectedLayout.jsx';
@@ -55,11 +60,39 @@ export const router = createBrowserRouter([
       },
       {
         path: '/posts',
-        element: <Posts />
+        element: <Posts forcedType="post" title="Posts" />
       },
       {
         path: '/posts/:id',
         element: <PostDetails />
+      },
+      {
+        path: '/reels',
+        element: <Reels />
+      },
+      {
+        path: '/reels/:id',
+        element: <PostDetails />
+      },
+      {
+        path: '/tweets',
+        element: <Tweets />
+      },
+      {
+        path: '/tweets/:id',
+        element: <TweetDetails />
+      },
+      {
+        path: '/promote',
+        element: <Prompts />
+      },
+      {
+        path: '/promote/:id',
+        element: <PromoteDetails />
+      },
+      {
+        path: '/prompts',
+        element: <Prompts />
       },
       {
         path: '/ads',

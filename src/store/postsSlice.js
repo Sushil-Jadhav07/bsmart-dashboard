@@ -27,7 +27,13 @@ export const fetchPosts = createAsyncThunk('posts/fetch', async (_, { getState, 
       return rejectWithValue(data?.message || 'Failed to fetch posts')
     }
     const items = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : data?.items || []
-    return items
+    const normalized = items.filter((item) => {
+      const itemType = String(item?.item_type || '').toLowerCase()
+      if (itemType === 'post' || itemType === 'reel') return true
+      // Legacy compatibility: keep only payloads that explicitly carry post_id.
+      return !!item?.post_id
+    })
+    return normalized
   } catch (e) {
     return rejectWithValue(e.message || 'Network error')
   }
@@ -39,17 +45,32 @@ export const fetchPostById = createAsyncThunk('posts/fetchById', async (id, { ge
     return rejectWithValue('No token')
   }
   try {
+    const headers = {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    }
+
     const res = await fetch(`${API_BASE_WITH_PATH}/posts/${id}`, {
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      return rejectWithValue(data?.message || 'Failed to fetch post')
+    if (res.ok) {
+      return data?.data || data
     }
-    return data?.data || data
+
+    // Some rows are reels; their dedicated endpoint is /posts/reels/:id.
+    if (res.status === 404) {
+      const reelRes = await fetch(`${API_BASE_WITH_PATH}/posts/reels/${id}`, {
+        headers,
+      })
+      const reelData = await reelRes.json().catch(() => ({}))
+      if (reelRes.ok) {
+        return reelData?.data || reelData
+      }
+      return rejectWithValue(reelData?.message || 'Failed to fetch post')
+    }
+
+    return rejectWithValue(data?.message || 'Failed to fetch post')
   } catch (e) {
     return rejectWithValue(e.message || 'Network error')
   }

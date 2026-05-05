@@ -16,7 +16,10 @@ import {
   Instagram,
   Bell,
   TrendingUp,
-  PackageCheck
+  PackageCheck,
+  MessagesSquare,
+  Film,
+  Sparkles
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
@@ -24,6 +27,9 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/posts', label: 'Posts', icon: Image },
+  { path: '/reels', label: 'Reels', icon: Film },
+  { path: '/tweets', label: 'Tweets', icon: MessagesSquare },
+  { path: '/promote', label: 'Promote', icon: Sparkles },
   { path: '/ads', label: 'Ads', icon: Megaphone },
   { path: '/vendors', label: 'Vendors', icon: Briefcase },
   { path: '/vendor-packages', label: 'Vendor Packages', icon: PackageCheck },
@@ -102,7 +108,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         <nav className="p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
             
             return (
               <NavLink
