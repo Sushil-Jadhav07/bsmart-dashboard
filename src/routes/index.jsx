@@ -19,6 +19,7 @@ import AdminCreate from '../pages/AdminCreate.jsx';
 import Vendors from '../pages/Vendors.jsx';
 import VendorDetails from '../pages/VendorDetails.jsx';
 import PostDetails from '../pages/PostDetails.jsx';
+import ReelDetails from '../pages/ReelDetails.jsx';
 import UserDetails from '../pages/UserDetails.jsx';
 import Ads from '../pages/Ads.jsx';
 import AdDetails from '../pages/AdDetails.jsx';
@@ -72,7 +73,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/reels/:id',
-        element: <PostDetails />
+        element: <ReelDetails />
       },
       {
         path: '/tweets',
