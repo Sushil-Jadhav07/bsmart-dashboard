@@ -720,7 +720,50 @@ export default function AdDetails() {
         <div className="space-y-8">
           {/* Row 1: media + sidebar */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-            {ad.isVideo ? <VideoMediaPanel item={ad.media[0]} /> : <ImageMediaPanel media={ad.media} />}
+            <div className="space-y-6">
+              {ad.isVideo ? <VideoMediaPanel item={ad.media[0]} /> : <ImageMediaPanel media={ad.media} />}
+
+              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" style={{ color: C.purple }} />
+                  <p className="text-[10px] font-bold tracking-[0.14em] text-neutral-400 uppercase">Comments</p>
+                  <span className="ml-auto text-xs text-neutral-300 font-semibold">{comments.length}</span>
+                </div>
+                <div className="px-6 py-5">
+                  {commentsLoading ? (
+                    <div className="space-y-2">
+                      <div className="h-12 bg-neutral-100 rounded-xl animate-pulse" />
+                      <div className="h-12 bg-neutral-100 rounded-xl animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {comments.length === 0 && <p className="text-sm text-neutral-300 text-center py-8">No comments</p>}
+                      {comments.map((c, i) => {
+                        const cid = c.comment_id || c._id || c.id || i
+                        const username = c.user?.username || c.username || 'user'
+                        return (
+                          <div key={cid} className="flex items-start gap-3 group/comment rounded-xl border border-neutral-100 bg-neutral-50/40 p-3">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0" style={{ background: BRAND_GRADIENT }}>
+                              {(username[0] || 'U').toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xs font-semibold text-neutral-800">@{username}</span>
+                                <span className="text-[10px] text-neutral-300">{c.createdAt ? formatDateTime(c.createdAt) : ''}</span>
+                                <button onClick={() => setCommentToDelete(c)} className="ml-auto opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <p className="text-sm text-neutral-600 mt-1 leading-relaxed">{c.text || c.comment || ''}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
               <div className="px-5 py-5">
@@ -839,41 +882,6 @@ export default function AdDetails() {
                             {tx.status && (
                               <p className="text-[9px]" style={{ color: tx.status === 'SUCCESS' ? C.purple : '#94a3b8' }}>{tx.status}</p>
                             )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-              <Divider />
-              <div className="px-5 py-4">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <MessageCircle className="w-3 h-3" style={{ color: C.purple }} />
-                  <SectionLabel>Comments</SectionLabel>
-                  <span className="ml-auto text-[10px] text-neutral-300 font-medium">{comments.length}</span>
-                </div>
-                {commentsLoading ? (
-                  <div className="space-y-2"><div className="h-10 bg-neutral-100 rounded-xl animate-pulse" /><div className="h-10 bg-neutral-100 rounded-xl animate-pulse" /></div>
-                ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                    {comments.length === 0 && <p className="text-sm text-neutral-300 text-center py-6">No comments</p>}
-                    {comments.map((c, i) => {
-                      const cid = c.comment_id || c._id || c.id || i
-                      const username = c.user?.username || c.username || 'user'
-                      return (
-                        <div key={cid} className="flex items-start gap-2.5 group/comment">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0"
-                            style={{ background: BRAND_GRADIENT }}>
-                            {(username[0] || 'U').toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-xs font-semibold text-neutral-800">@{username}</span>
-                              <span className="text-[10px] text-neutral-300">{c.createdAt ? formatDateTime(c.createdAt) : ''}</span>
-                              <button onClick={() => setCommentToDelete(c)} className="ml-auto opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></button>
-                            </div>
-                            <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">{c.text || c.comment || ''}</p>
                           </div>
                         </div>
                       )

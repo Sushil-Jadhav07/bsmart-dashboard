@@ -174,6 +174,41 @@ function PostMediaPanel({ media, onOpenViewer }) {
   )
 }
 
+function PostMediaPanelInline({ media, onOpenViewer }) {
+  const items = Array.isArray(media) ? media : []
+  const imageUrls = items
+    .map((m) => getThumbnailUrl(m) || toAbsoluteMediaUrl(m?.fileUrl || m?.url || m?.fileName))
+    .filter(Boolean)
+
+  const slots = Math.max(3, imageUrls.length)
+  const gridItems = Array.from({ length: slots }, (_, i) => imageUrls[i] || null)
+
+  return (
+    <div className="max-h-[420px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-3 gap-3">
+        {gridItems.map((url, i) => (
+          <div key={i} className="w-full aspect-square rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100">
+            {url ? (
+              <button type="button" onClick={() => onOpenViewer?.(i)} className="w-full h-full">
+                <SafeMediaImage
+                  src={url}
+                  alt="post"
+                  className="w-full h-full object-cover"
+                  fallback={<div className="w-full h-full bg-neutral-100" />}
+                />
+              </button>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-6 h-6 text-neutral-300" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function PostDetails() {
   const { id } = useParams()
   const dispatch = useDispatch()
@@ -356,28 +391,18 @@ export default function PostDetails() {
               </div>
             </div>
           ) : (
-            <div className="mb-6 rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
-                <div className="flex items-center gap-3">
-                  <Avatar src={post.user.avatar_url} alt={post.user.full_name} size="lg" />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-neutral-900 text-base leading-tight truncate">{post.user.full_name || 'Unknown'}</p>
-                    {post.user.username && <p className="text-xs text-neutral-400 mt-0.5">@{post.user.username}</p>}
-                  </div>
-                  <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full bg-rose-50 text-rose-500">
-                    <ImageIcon className="w-3 h-3" /> Post
-                  </span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start mb-6">
+              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-neutral-100">
+                  <SectionLabel>Content</SectionLabel>
                 </div>
-              </div>
-              <div className="p-5 lg:p-6">
-                <PostMediaPanel media={post.media} onOpenViewer={setViewerIndex} />
-              </div>
-              <div className="px-5 lg:px-6 pb-6">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 lg:p-5 space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {post.createdAt && <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-full px-3 py-1.5"><Calendar className="w-3.5 h-3.5" />{formatDateTime(post.createdAt)}</span>}
-                    {post.location && <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-full px-3 py-1.5"><MapPin className="w-3.5 h-3.5" />{post.location}</span>}
-                    <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-full px-3 py-1.5">ID: {post.id}</span>
+                <div className="px-5 py-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar src={post.user.avatar_url} alt={post.user.full_name} size="lg" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-neutral-900 text-sm leading-tight truncate">{post.user.full_name || 'Unknown'}</p>
+                      {post.user.username && <p className="text-xs text-neutral-400 mt-0.5">@{post.user.username}</p>}
+                    </div>
                   </div>
                   {post.caption ? <p className="text-sm text-neutral-700 leading-relaxed">{post.caption}</p> : <p className="text-sm text-neutral-300 italic">No caption</p>}
                   {(post.tags.length > 0 || post.people_tags.length > 0) && (
@@ -386,6 +411,19 @@ export default function PostDetails() {
                       {post.people_tags.length > 0 && <div className="flex flex-wrap gap-1.5">{post.people_tags.map((pt, i) => <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-violet-50 text-violet-600 font-medium">@{pt.username}</span>)}</div>}
                     </div>
                   )}
+                  <div className="space-y-1.5">
+                    {post.createdAt && <div className="flex items-center gap-1.5 text-xs text-neutral-400"><Calendar className="w-3.5 h-3.5 flex-shrink-0" />{formatDateTime(post.createdAt)}</div>}
+                    {post.location && <div className="flex items-center gap-1.5 text-xs text-neutral-400"><MapPin className="w-3.5 h-3.5 flex-shrink-0" />{post.location}</div>}
+                  </div>
+                  <p className="text-[10px] font-mono text-neutral-300 break-all">{post.id}</p>
+                </div>
+              </div>
+              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-neutral-100">
+                  <SectionLabel>Image / Media</SectionLabel>
+                </div>
+                <div className="p-5">
+                  <PostMediaPanelInline media={post.media} onOpenViewer={setViewerIndex} />
                 </div>
               </div>
             </div>

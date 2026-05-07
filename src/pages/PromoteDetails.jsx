@@ -211,15 +211,15 @@ export default function PromoteDetails() {
                             <div className="grid grid-cols-3 gap-2">
                               <div className="rounded-lg bg-white border border-neutral-200 p-2">
                                 <p className="text-[10px] text-neutral-400">Price</p>
-                                <p className="text-sm font-bold text-neutral-900">?{Number.isFinite(price) ? price.toLocaleString('en-IN') : '0'}</p>
+                                <p className="text-sm font-bold text-neutral-900">Rs. {Number.isFinite(price) ? price.toLocaleString('en-IN') : '0'}</p>
                               </div>
                               <div className="rounded-lg bg-white border border-neutral-200 p-2">
                                 <p className="text-[10px] text-neutral-400">Discount</p>
-                                <p className="text-sm font-bold text-emerald-600">?{Number.isFinite(discount) ? discount.toLocaleString('en-IN') : '0'}</p>
+                                <p className="text-sm font-bold text-emerald-600">Rs. {Number.isFinite(discount) ? discount.toLocaleString('en-IN') : '0'}</p>
                               </div>
                               <div className="rounded-lg bg-white border border-neutral-200 p-2">
                                 <p className="text-[10px] text-neutral-400">Final</p>
-                                <p className="text-sm font-bold text-violet-700">?{Number.isFinite(finalPrice) ? finalPrice.toLocaleString('en-IN') : '0'}</p>
+                                <p className="text-sm font-bold text-violet-700">Rs. {Number.isFinite(finalPrice) ? finalPrice.toLocaleString('en-IN') : '0'}</p>
                               </div>
                             </div>
                             {p?.visit_link && (

@@ -293,7 +293,21 @@ export default function VendorDetails() {
     [vendorListItem, id]
   )
 
-  const fetchWallet = () => { if (resolvedUserId) dispatch(fetchVendorWalletHistory(resolvedUserId)) }
+  const walletUserId = useMemo(() => {
+    const p = currentProfile || {}
+    return (
+      p?.user?._id ||
+      p?.user?.id ||
+      p?.user_id?._id ||
+      p?.user_id?.id ||
+      p?.user_id ||
+      vendorListItem?.user?._id ||
+      vendorListItem?.user?.id ||
+      resolvedUserId
+    )
+  }, [currentProfile, vendorListItem, resolvedUserId])
+
+  const fetchWallet = () => { if (walletUserId) dispatch(fetchVendorWalletHistory(walletUserId)) }
 
   useEffect(() => {
     if (!resolvedUserId) return
@@ -301,10 +315,10 @@ export default function VendorDetails() {
   }, [dispatch, resolvedUserId])
 
   useEffect(() => {
-    if (!resolvedUserId || !token) return
+    if (!walletUserId || !token) return
     fetchWallet()
     return () => { dispatch(resetVendorHistory()) }
-  }, [resolvedUserId, token])
+  }, [walletUserId, token])
 
   // Pre-load officers list (needed for the assign modal)
   useEffect(() => {
@@ -419,7 +433,14 @@ export default function VendorDetails() {
       owner,
       gender: pickGender(owner, p),
       location: pickLocation(owner, p, addr),
-      walletBalance: vendorWallet?.balance ?? owner?.wallet?.balance ?? p?.wallet?.balance ?? null,
+      walletBalance:
+        vendorWallet?.balance ??
+        vendorWallet?.new_balance ??
+        vendorWallet?.wallet_balance ??
+        owner?.wallet?.balance ??
+        p?.wallet?.balance ??
+        p?.credits ??
+        null,
       walletCurrency: vendorWallet?.currency || owner?.wallet?.currency || p?.wallet?.currency || 'Coins',
       businessEmail: op.company_email || p.business_email || p.email || owner?.email || '',
       businessPhone: op.phone_number || p.business_phone || p.phone || owner?.phone || '',
@@ -591,7 +612,7 @@ export default function VendorDetails() {
                       >{tab}</button>
                     ))}
                   </div>
-                  <Button variant="ghost" size="sm" icon={RefreshCw} onClick={fetchWallet} loading={walletLoading} disabled={!resolvedUserId || !token}>
+                  <Button variant="ghost" size="sm" icon={RefreshCw} onClick={fetchWallet} loading={walletLoading} disabled={!walletUserId || !token}>
                     Refresh
                   </Button>
                 </div>
