@@ -22,6 +22,9 @@ const initialState = {
   adWallet: null,
   adStatus: 'idle',
   adError: null,
+
+  adjustStatus: 'idle',
+  adjustError: null,
 }
 
 export const fetchAllWallets = createAsyncThunk(
@@ -96,6 +99,54 @@ export const fetchAdWalletHistory = createAsyncThunk(
   }
 )
 
+export const adminAdjustCoins = createAsyncThunk(
+  'wallet/adminAdjustCoins',
+  async ({ userId, amount, description }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token
+    if (!token) return rejectWithValue('No token')
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet/admin/adjust`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, amount, description }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return rejectWithValue(data?.message || 'Failed to adjust wallet balance')
+      return { success: true }
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
+export const rechargeVendorWallet = createAsyncThunk(
+  'wallet/rechargeVendorWallet',
+  async ({ userId, amount, description }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token
+    if (!token) return rejectWithValue('No token')
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet/vendor/${userId}/recharge`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount, description }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return rejectWithValue(data?.message || 'Failed to recharge vendor wallet')
+      return { success: true }
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
 const walletSlice = createSlice({
   name: 'wallet',
   initialState,
@@ -148,6 +199,14 @@ const walletSlice = createSlice({
         state.adWallet = payload?.wallet || null
       })
       .addCase(fetchAdWalletHistory.rejected, (state, action) => { state.adStatus = 'failed'; state.adError = action.payload || 'Unknown error' })
+
+      .addCase(adminAdjustCoins.pending, (state) => { state.adjustStatus = 'loading'; state.adjustError = null })
+      .addCase(adminAdjustCoins.fulfilled, (state) => { state.adjustStatus = 'succeeded'; state.adjustError = null })
+      .addCase(adminAdjustCoins.rejected, (state, action) => { state.adjustStatus = 'failed'; state.adjustError = action.payload || 'Unknown error' })
+
+      .addCase(rechargeVendorWallet.pending, (state) => { state.adjustStatus = 'loading'; state.adjustError = null })
+      .addCase(rechargeVendorWallet.fulfilled, (state) => { state.adjustStatus = 'succeeded'; state.adjustError = null })
+      .addCase(rechargeVendorWallet.rejected, (state, action) => { state.adjustStatus = 'failed'; state.adjustError = action.payload || 'Unknown error' })
   },
 })
 

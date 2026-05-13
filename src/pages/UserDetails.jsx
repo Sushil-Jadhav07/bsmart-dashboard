@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchUsers, deleteUserById } from '../store/usersSlice.js'
+import { fetchUsers, deleteUserById, toggleUserActive } from '../store/usersSlice.js'
 import { fetchMemberWalletHistory, resetMemberHistory } from '../store/walletSlice.js'
 import { formatDateTime, capitalize, formatNumber } from '../utils/helpers.jsx'
 import {
@@ -257,6 +257,8 @@ export default function UserDetails() {
   const [userDetailError, setUserDetailError] = useState(null)
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [activeToggleLoading, setActiveToggleLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const listItem = useMemo(() => {
     return (listItems || []).find((item) => {
@@ -279,7 +281,7 @@ export default function UserDetails() {
       })
       .then((data) => { setUserDetail(data); setUserDetailLoading(false) })
       .catch((e) => { setUserDetailError(e.message || 'Failed to load user'); setUserDetailLoading(false) })
-  }, [id, token])
+  }, [id, token, refreshKey])
 
   useEffect(() => {
     if (!listItems || listItems.length === 0) dispatch(fetchUsers())
@@ -329,6 +331,16 @@ export default function UserDetails() {
       .finally(() => setDeleteModal(false))
   }
 
+  const handleToggleActive = () => {
+    if (!profile.id || activeToggleLoading) return
+    setActiveToggleLoading(true)
+    dispatch(toggleUserActive({ id: profile.id, is_active: !profile.is_active }))
+      .unwrap()
+      .then(() => setRefreshKey((key) => key + 1))
+      .catch(() => {})
+      .finally(() => setActiveToggleLoading(false))
+  }
+
   return (
     <div className="max-w-7xl mx-auto pb-10">
       <div className="flex items-center justify-between mb-8">
@@ -346,6 +358,18 @@ export default function UserDetails() {
               {capitalize(profile.role)}
             </span>
           )}
+          <button
+            onClick={handleToggleActive}
+            disabled={activeToggleLoading}
+            className={clsx(
+              'inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors',
+              activeToggleLoading && 'opacity-50 cursor-not-allowed',
+              profile.is_active ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-green-600 bg-green-50 hover:bg-green-100'
+            )}
+          >
+            {profile.is_active ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+            {profile.is_active ? 'Ban User' : 'Activate User'}
+          </button>
           <button onClick={() => setDeleteModal(true)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full text-red-500 bg-red-50 hover:bg-red-100 transition-colors">
             <Trash2 className="w-3 h-3" />
             Delete

@@ -5,7 +5,7 @@ import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Button from '../components/Button.jsx'
-import { fetchUsers, deleteUserById } from '../store/usersSlice.js'
+import { fetchUsers, deleteUserById, toggleUserActive } from '../store/usersSlice.js'
 import { Eye, Trash2, RefreshCw } from 'lucide-react'
 
 const normalizeStatus = (value) => {
@@ -37,6 +37,7 @@ export default function AdminUsers() {
   const [status, setStatus] = useState('all')
   const [dateRange, setDateRange] = useState('all')
   const [deletingId, setDeletingId] = useState('')
+  const [updatingId, setUpdatingId] = useState('')
 
   useEffect(() => {
     dispatch(fetchUsers())
@@ -72,7 +73,8 @@ export default function AdminUsers() {
         phone: user.phone || user.mobile || '-',
         registration_date: createdAt,
         last_login: lastLogin,
-        status: normalizeStatus(user.status || (user.isDeleted ? 'inactive' : 'active')),
+        status: normalizeStatus(user.status || (user.isDeleted || user.is_active === false ? 'inactive' : 'active')),
+        is_active: user.is_active !== false,
         total_posts: totalPosts,
         total_reports: totalReports,
       }
@@ -98,6 +100,18 @@ export default function AdminUsers() {
       await dispatch(deleteUserById(id)).unwrap()
     } finally {
       setDeletingId('')
+    }
+  }
+
+  const handleToggleActive = async (row) => {
+    if (!row?.id || updatingId) return
+    setUpdatingId(row.id)
+    try {
+      await dispatch(toggleUserActive({ id: row.id, is_active: !row.is_active })).unwrap()
+    } catch {
+      // Keep existing table behavior; the slice stores updateError for failures.
+    } finally {
+      setUpdatingId('')
     }
   }
 
@@ -131,6 +145,15 @@ export default function AdminUsers() {
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" icon={Eye} onClick={() => navigate(`/users/${row.id}`)}>
             View
+          </Button>
+          <Button
+            variant={row.is_active ? 'danger' : 'outline'}
+            size="sm"
+            className={row.is_active ? '' : 'text-green-600 border-green-200 hover:border-green-500 hover:text-green-700'}
+            loading={updatingId === row.id}
+            onClick={() => handleToggleActive(row)}
+          >
+            {row.is_active ? 'Ban' : 'Activate'}
           </Button>
           <Button
             variant="ghost"

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Users,
   Image,
   Video,
-  DollarSign,
+  Briefcase,
+  Megaphone,
   TrendingUp,
   TrendingDown,
   Heart,
@@ -27,17 +29,13 @@ import {
   Legend
 } from 'recharts';
 import Card, { CardHeader, CardTitle, CardDescription } from '../components/Card.jsx';
-import Badge from '../components/Badge.jsx';
 import Button from '../components/Button.jsx';
 import LoginAlertPanel from '../components/LoginAlertPanel.jsx';
-import {
-  kpiData,
-  newUsersData,
-  postsVsReelsData,
-  userRolesData,
-  recentActivity
-} from '../data/mockData.jsx';
-import { formatCompactNumber, formatNumber, formatRelativeTime, getStatusColor } from '../utils/helpers.jsx';
+import { fetchUsers } from '../store/usersSlice.js';
+import { fetchVendors } from '../store/vendorsSlice.js';
+import { fetchPosts } from '../store/postsSlice.js';
+import { fetchAdsAdmin } from '../store/adsSlice.js';
+import { formatCompactNumber, formatNumber, formatRelativeTime } from '../utils/helpers.jsx';
 
 const KPICard = ({ title, value, icon: Icon, trend, trendValue, color }) => (
   <Card hover>
@@ -63,24 +61,39 @@ const ActivityItem = ({ type, user, target, time }) => {
   const icons = {
     like: Heart,
     comment: MessageCircle,
-    save: Bookmark
+    save: Bookmark,
+    user: Users
   };
   const colors = {
     like: 'text-red-500 bg-red-50',
     comment: 'text-blue-500 bg-blue-50',
-    save: 'text-yellow-500 bg-yellow-50'
+    save: 'text-yellow-500 bg-yellow-50',
+    user: 'text-green-600 bg-green-50'
   };
   const Icon = icons[type];
+  const initials = String(user || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || '?';
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-neutral-100 last:border-0">
-      <div className={`w-9 h-9 rounded-lg ${colors[type]} flex items-center justify-center flex-shrink-0`}>
-        <Icon className="w-4 h-4" />
-      </div>
+      {type === 'user' ? (
+        <div className="w-9 h-9 rounded-lg bg-gradient-brand text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">
+          {initials}
+        </div>
+      ) : (
+        <div className={`w-9 h-9 rounded-lg ${colors[type]} flex items-center justify-center flex-shrink-0`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm text-neutral-800">
           <span className="font-medium">{user}</span>
-          <span className="text-neutral-500"> {type === 'like' ? 'liked' : type === 'comment' ? 'commented on' : 'saved'} </span>
+          <span className="text-neutral-500"> {type === 'user' ? 'joined with' : type === 'like' ? 'liked' : type === 'comment' ? 'commented on' : 'saved'} </span>
           <span className="font-medium">{target}</span>
         </p>
         <p className="text-xs text-neutral-400 mt-0.5">{time}</p>
@@ -89,7 +102,124 @@ const ActivityItem = ({ type, user, target, time }) => {
   );
 };
 
+const getUserRecord = (entry) => entry?.user || entry || {};
+const getPostRecord = (entry) => entry?.post || entry || {};
+const getPostType = (entry) => String(entry?.item_type || entry?.type || entry?.post?.type || '').toLowerCase();
+const getCreatedAt = (entry) => entry?.createdAt || entry?.created_at || entry?.registration_date || entry?.joined_at || null;
+
+const buildLast30Days = (users) => {
+  const days = Array.from({ length: 30 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (29 - index));
+    date.setHours(0, 0, 0, 0);
+    const key = date.toISOString().slice(0, 10);
+    return { key, date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), users: 0 };
+  });
+  const byKey = new Map(days.map((day) => [day.key, day]));
+  users.forEach((entry) => {
+    const user = getUserRecord(entry);
+    const createdAt = getCreatedAt(user);
+    if (!createdAt) return;
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = date.toISOString().slice(0, 10);
+    if (byKey.has(key)) byKey.get(key).users += 1;
+  });
+  return days.map(({ key, ...day }) => day);
+};
+
+const buildPostsVsReels = (posts) => {
+  const months = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - index), 1);
+    date.setHours(0, 0, 0, 0);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return { key, month: date.toLocaleDateString('en-US', { month: 'short' }), posts: 0, reels: 0 };
+  });
+  const byKey = new Map(months.map((month) => [month.key, month]));
+  posts.forEach((entry) => {
+    const record = getPostRecord(entry);
+    const createdAt = getCreatedAt(record);
+    if (!createdAt) return;
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = byKey.get(key);
+    if (!bucket) return;
+    const type = getPostType(entry) || getPostType(record);
+    if (type === 'reel') bucket.reels += 1;
+    else bucket.posts += 1;
+  });
+  return months.map(({ key, ...month }) => month);
+};
+
+const buildRoleData = (users) => {
+  const colors = ['#E1306C', '#833AB4', '#22C55E', '#F59E0B', '#3B82F6'];
+  const counts = users.reduce((acc, entry) => {
+    const role = String(getUserRecord(entry)?.role || 'member').toLowerCase();
+    acc[role] = (acc[role] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts).map(([role, value], index) => ({
+    name: role.charAt(0).toUpperCase() + role.slice(1),
+    value,
+    color: colors[index % colors.length],
+  }));
+};
+
 const Dashboard = () => {
+  const dispatch = useDispatch();
+  const usersState = useSelector((state) => state.users);
+  const vendorsState = useSelector((state) => state.vendors);
+  const postsState = useSelector((state) => state.posts);
+  const adsState = useSelector((state) => state.ads);
+
+  const users = usersState?.items || [];
+  const vendors = vendorsState?.items || [];
+  const posts = postsState?.items || [];
+  const ads = adsState?.items || [];
+
+  useEffect(() => {
+    if (usersState?.status === 'idle') dispatch(fetchUsers());
+    if (vendorsState?.status === 'idle') dispatch(fetchVendors());
+    if (postsState?.status === 'idle') dispatch(fetchPosts());
+    if (adsState?.status === 'idle') dispatch(fetchAdsAdmin({ limit: 100 }));
+  }, [dispatch, usersState?.status, vendorsState?.status, postsState?.status, adsState?.status]);
+
+  const totals = useMemo(() => {
+    const postItems = posts.filter((item) => (getPostType(item) || getPostType(getPostRecord(item))) === 'post');
+    const reelItems = posts.filter((item) => (getPostType(item) || getPostType(getPostRecord(item))) === 'reel');
+    return {
+      totalUsers: usersState?.total || users.length,
+      totalVendors: vendors.length,
+      totalPosts: postItems.length,
+      totalReels: reelItems.length,
+      totalAds: ads.length,
+    };
+  }, [ads.length, posts, users.length, usersState?.total, vendors.length]);
+
+  const newUsersData = useMemo(() => buildLast30Days(users), [users]);
+  const postsVsReelsData = useMemo(() => buildPostsVsReels(posts), [posts]);
+  const userRolesData = useMemo(() => buildRoleData(users), [users]);
+  const recentActivity = useMemo(() => {
+    return [...users]
+      .sort((a, b) => new Date(getCreatedAt(getUserRecord(b)) || 0) - new Date(getCreatedAt(getUserRecord(a)) || 0))
+      .slice(0, 5)
+      .map((entry, index) => {
+        const user = getUserRecord(entry);
+        const name = user.username || user.full_name || user.email || 'Unknown user';
+        const email = user.email || 'No email';
+        const createdAt = getCreatedAt(user);
+        return {
+          id: user._id || user.id || index,
+          type: 'user',
+          user: name,
+          target: email,
+          time: createdAt ? `Joined ${formatRelativeTime(createdAt)}` : 'Join date unavailable',
+        };
+      });
+  }, [users]);
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -105,35 +235,43 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <KPICard
           title="Total Users"
-          value={formatCompactNumber(kpiData.totalUsers)}
+          value={formatCompactNumber(totals.totalUsers)}
           icon={Users}
           trend="up"
-          trendValue={`+${kpiData.usersGrowth}%`}
+          trendValue="Live"
           color="bg-gradient-brand"
         />
         <KPICard
-          title="Total Posts"
-          value={formatCompactNumber(kpiData.totalPosts)}
-          icon={Image}
+          title="Total Vendors"
+          value={formatCompactNumber(totals.totalVendors)}
+          icon={Briefcase}
           trend="up"
-          trendValue={`+${kpiData.postsGrowth}%`}
+          trendValue="Live"
           color="bg-primary"
         />
         <KPICard
-          title="Total Reels"
-          value={formatCompactNumber(kpiData.totalReels)}
-          icon={Video}
+          title="Total Posts"
+          value={formatCompactNumber(totals.totalPosts)}
+          icon={Image}
           trend="up"
-          trendValue={`+${kpiData.reelsGrowth}%`}
+          trendValue="Live"
           color="bg-secondary"
         />
         <KPICard
-          title="Total Revenue"
-          value={formatCompactNumber(kpiData.totalRevenue)}
-          icon={DollarSign}
+          title="Total Reels"
+          value={formatCompactNumber(totals.totalReels)}
+          icon={Video}
           trend="up"
-          trendValue={`+${kpiData.revenueGrowth}%`}
+          trendValue="Live"
           color="bg-green-500"
+        />
+        <KPICard
+          title="Total Ads"
+          value={formatCompactNumber(totals.totalAds)}
+          icon={Megaphone}
+          trend="up"
+          trendValue="Live"
+          color="bg-orange-500"
         />
         {/* reports removed */}
       </div>
@@ -289,14 +427,18 @@ const Dashboard = () => {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest user interactions</CardDescription>
+              <CardDescription>Latest user registrations</CardDescription>
             </div>
             <Button variant="ghost" size="sm" icon={MoreHorizontal} />
           </CardHeader>
           <div className="max-h-80 overflow-y-auto">
-            {recentActivity.map((activity) => (
-              <ActivityItem key={activity.id} {...activity} />
-            ))}
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <ActivityItem key={activity.id} {...activity} />
+              ))
+            ) : (
+              <div className="py-10 text-center text-sm text-neutral-400">No recent users found</div>
+            )}
           </div>
         </Card>
 

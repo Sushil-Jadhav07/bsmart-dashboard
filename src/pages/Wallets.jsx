@@ -11,10 +11,11 @@ import {
 } from 'recharts';
 import Card, { CardHeader, CardTitle, CardDescription } from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
+import Modal from '../components/Modal.jsx';
 import Badge from '../components/Badge.jsx';
 import Table from '../components/Table.jsx';
 import Select from '../components/Select.jsx';
-import { fetchAllWallets } from '../store/walletSlice.js';
+import { fetchAllWallets, adminAdjustCoins, rechargeVendorWallet } from '../store/walletSlice.js';
 import { formatNumber, formatCompactNumber, formatDateTime } from '../utils/helpers.jsx';
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
@@ -113,12 +114,41 @@ const Wallets = () => {
   const [sourceFilter, setSourceFilter] = useState('all');      // ad | post | all
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({ userId: '', amount: '', description: '', type: 'admin' });
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+  const [adjustMessage, setAdjustMessage] = useState('');
+  const [adjustError, setAdjustError] = useState('');
 
   useEffect(() => {
     if (status === 'idle') dispatch(fetchAllWallets());
   }, [dispatch, status]);
 
   const handleRefresh = () => dispatch(fetchAllWallets());
+
+  const handleAdjustSubmit = async (event) => {
+    event.preventDefault();
+    setAdjustSubmitting(true);
+    setAdjustError('');
+    setAdjustMessage('');
+    try {
+      const payload = {
+        userId: adjustForm.userId.trim(),
+        amount: Number(adjustForm.amount),
+        description: adjustForm.description.trim(),
+      };
+      const thunk = adjustForm.type === 'recharge' ? rechargeVendorWallet : adminAdjustCoins;
+      await dispatch(thunk(payload)).unwrap();
+      setAdjustMessage('Wallet balance updated successfully');
+      setAdjustModalOpen(false);
+      setAdjustForm({ userId: '', amount: '', description: '', type: 'admin' });
+      dispatch(fetchAllWallets());
+    } catch (e) {
+      setAdjustError(String(e || 'Failed to update wallet balance'));
+    } finally {
+      setAdjustSubmitting(false);
+    }
+  };
 
   const DEDUCTION_TYPES = ['AD_BUDGET_DEDUCTION', 'AD_VIEW_DEDUCTION', 'AD_LIKE_DEDUCTION', 'AD_COMMENT_DEDUCTION', 'AD_REPLY_DEDUCTION', 'AD_SAVE_DEDUCTION'];
 
@@ -264,9 +294,76 @@ const Wallets = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" icon={RefreshCw} onClick={handleRefresh}>Refresh</Button>
+          <Button variant="outline" icon={Wallet} onClick={() => { setAdjustError(''); setAdjustMessage(''); setAdjustModalOpen(true); }}>Adjust Balance</Button>
           <Button variant="primary" icon={Download}>Export Report</Button>
         </div>
       </div>
+
+      {adjustMessage && (
+        <div className="rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {adjustMessage}
+        </div>
+      )}
+
+      <Modal
+        isOpen={adjustModalOpen}
+        onClose={() => setAdjustModalOpen(false)}
+        title="Adjust Coin Balance"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAdjustModalOpen(false)} disabled={adjustSubmitting}>Cancel</Button>
+            <Button onClick={() => document.getElementById('adjust-wallet-form')?.requestSubmit()} loading={adjustSubmitting}>Submit</Button>
+          </>
+        }
+      >
+        <form id="adjust-wallet-form" className="space-y-4" onSubmit={handleAdjustSubmit}>
+          {adjustError && (
+            <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {adjustError}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">User ID</label>
+            <input
+              type="text"
+              value={adjustForm.userId}
+              onChange={(e) => setAdjustForm((form) => ({ ...form, userId: e.target.value }))}
+              className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Amount — use negative to deduct</label>
+            <input
+              type="number"
+              value={adjustForm.amount}
+              onChange={(e) => setAdjustForm((form) => ({ ...form, amount: e.target.value }))}
+              className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Reason / Note</label>
+            <input
+              type="text"
+              value={adjustForm.description}
+              onChange={(e) => setAdjustForm((form) => ({ ...form, description: e.target.value }))}
+              className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
+            <select
+              value={adjustForm.type}
+              onChange={(e) => setAdjustForm((form) => ({ ...form, type: e.target.value }))}
+              className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="admin">Admin Adjustment</option>
+              <option value="recharge">Vendor Recharge</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Coins Minted"   value={formatCompactNumber(totalCoinsMinted)}    icon={Wallet}          color="bg-gradient-brand" subtitle="AD_REWARD + REEL_VIEW_REWARD" />

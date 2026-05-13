@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import Users from '../pages/Users.jsx';
@@ -12,7 +12,6 @@ import Wallets from '../pages/Wallets.jsx';
 import Settings from '../pages/Settings.jsx';
 import ProtectedLayout from '../layout/ProtectedLayout.jsx';
 import Login from '../pages/Login.jsx';
-import Register from '../pages/Register.jsx';
 import Logout from '../pages/Logout.jsx';
 import PublicOnlyLayout from '../layout/PublicOnlyLayout.jsx';
 import AdminCreate from '../pages/AdminCreate.jsx';
@@ -27,7 +26,6 @@ import AdminDashboard from '../pages/AdminDashboard.jsx';
 import AdminUsers from '../pages/AdminUsers.jsx';
 import AdminPosts from '../pages/AdminPosts.jsx';
 import AdminVendors from '../pages/AdminVendors.jsx';
-import AdminProducts from '../pages/AdminProducts.jsx';
 import AdminAds from '../pages/AdminAds.jsx';
 import Notifications from '../pages/Notifications.jsx';
 import SalesOfficers from '../pages/SalesOfficers.jsx';
@@ -141,7 +139,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/admin/products',
-        element: <AdminProducts />
+        element: <Navigate to="/admin/dashboard" replace />
       },
       {
         path: '/admin/ads',
@@ -164,10 +162,6 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <PublicOnlyLayout><Login /></PublicOnlyLayout>
-  },
-  {
-    path: '/register',
-    element: <PublicOnlyLayout><Register /></PublicOnlyLayout>
   },
   {
     path: '/logout',

@@ -10,9 +10,10 @@ import notifications from './notificationsSlice.js'
 import wallet from './walletSlice.js'
 import sales from './salesSlice.js'
 import vendorPackages from './vendorPackagesSlice.js'
+import tweets from './tweetsSlice.js'
 
 const store = configureStore({
-  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages },
+  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets },
 })
 
 export default store
