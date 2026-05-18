@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Save, Settings as SettingsIcon, Coins, User, Globe, Shield, Eye, EyeOff } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Shield, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import Input from '../components/Input.jsx';
-import Badge from '../components/Badge.jsx';
 import { defaultSettings } from '../data/settingsData.jsx';
 import { API_BASE_WITH_PATH } from '../lib/apiBase.js';
 
@@ -32,11 +31,18 @@ const PasswordField = ({ label, value, onChange, autoComplete, visible, onToggle
   </div>
 );
 
+const tabs = [
+  { value: 'profile', label: 'Profile', icon: Shield },
+  { value: 'general', label: 'General', icon: SettingsIcon }
+];
+
+const validTabs = new Set(tabs.map((tab) => tab.value));
+
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [settings, setSettings] = useState(defaultSettings);
-  const [activeTab, setActiveTab] = useState(tabFromUrl || 'general');
+  const [activeTab, setActiveTab] = useState(validTabs.has(tabFromUrl) ? tabFromUrl : 'general');
   const [saved, setSaved] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -79,16 +85,6 @@ const Settings = () => {
       [section]: {
         ...prev[section],
         [key]: value
-      }
-    }));
-  };
-
-  const handleFeatureToggle = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      features: {
-        ...prev.features,
-        [key]: !prev.features[key]
       }
     }));
   };
@@ -159,19 +155,16 @@ const Settings = () => {
     }
   };
 
-  const tabs = [
-    { value: 'profile', label: 'Profile', icon: Shield },
-    { value: 'general', label: 'General', icon: SettingsIcon },
-    { value: 'rewards', label: 'Coin Rewards', icon: Coins },
-    { value: 'wallet', label: 'Wallet', icon: User },
-    { value: 'features', label: 'Features', icon: Globe }
-  ];
-
   useEffect(() => {
+    if (tabFromUrl && !validTabs.has(tabFromUrl)) {
+      setActiveTab('general');
+      setSearchParams({ tab: 'general' }, { replace: true });
+      return;
+    }
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [tabFromUrl, activeTab]);
+  }, [tabFromUrl, activeTab, setSearchParams]);
 
   return (
     <div className="space-y-6">
@@ -347,149 +340,6 @@ const Settings = () => {
             </Card>
           )}
 
-          {/* Coin Rewards */}
-          {activeTab === 'rewards' && (
-            <Card>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-neutral-800">Coin Rewards</h3>
-                  <p className="text-sm text-neutral-500">Configure coin rewards for user actions</p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
-                    label="Like Reward"
-                    type="number"
-                    value={settings.coinRewards.like}
-                    onChange={(e) => handleChange('coinRewards', 'like', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user likes content"
-                  />
-                  <Input
-                    label="Comment Reward"
-                    type="number"
-                    value={settings.coinRewards.comment}
-                    onChange={(e) => handleChange('coinRewards', 'comment', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user comments"
-                  />
-                  <Input
-                    label="Save Reward"
-                    type="number"
-                    value={settings.coinRewards.save}
-                    onChange={(e) => handleChange('coinRewards', 'save', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user saves content"
-                  />
-                  <Input
-                    label="Share Reward"
-                    type="number"
-                    value={settings.coinRewards.share}
-                    onChange={(e) => handleChange('coinRewards', 'share', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user shares content"
-                  />
-                  <Input
-                    label="Post Reward"
-                    type="number"
-                    value={settings.coinRewards.post}
-                    onChange={(e) => handleChange('coinRewards', 'post', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user creates a post"
-                  />
-                  <Input
-                    label="Reel Reward"
-                    type="number"
-                    value={settings.coinRewards.reel}
-                    onChange={(e) => handleChange('coinRewards', 'reel', parseInt(e.target.value))}
-                    helperText="Coins awarded when a user creates a reel"
-                  />
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Wallet Settings */}
-          {activeTab === 'wallet' && (
-            <Card>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-neutral-800">Initial Wallet Balance</h3>
-                  <p className="text-sm text-neutral-500">Set default coin balance for new users by role</p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Input
-                    label="Member Balance"
-                    type="number"
-                    value={settings.initialWalletBalance.member}
-                    onChange={(e) => handleChange('initialWalletBalance', 'member', parseInt(e.target.value))}
-                    helperText="Default for new members"
-                  />
-                  <Input
-                    label="Vendor Balance"
-                    type="number"
-                    value={settings.initialWalletBalance.vendor}
-                    onChange={(e) => handleChange('initialWalletBalance', 'vendor', parseInt(e.target.value))}
-                    helperText="Default for new vendors"
-                  />
-                  <Input
-                    label="Admin Balance"
-                    type="number"
-                    value={settings.initialWalletBalance.admin}
-                    onChange={(e) => handleChange('initialWalletBalance', 'admin', parseInt(e.target.value))}
-                    helperText="Default for new admins"
-                  />
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Features */}
-          {activeTab === 'features' && (
-            <Card>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-neutral-800">Platform Features</h3>
-                  <p className="text-sm text-neutral-500">Enable or disable platform features</p>
-                </div>
-                
-                <div className="space-y-4">
-                  {[
-                    { key: 'enableComments', label: 'Comments', desc: 'Allow users to comment on posts and reels' },
-                    { key: 'enableReels', label: 'Reels', desc: 'Enable reels feature for users' },
-                    { key: 'enableStories', label: 'Stories', desc: 'Enable stories feature for users' },
-                    { key: 'enableShopping', label: 'Shopping', desc: 'Enable shopping and product tags' },
-                    { key: 'enableLive', label: 'Live Streaming', desc: 'Enable live streaming feature' }
-                  ].map((feature) => (
-                    <div 
-                      key={feature.key} 
-                      className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-neutral-800">{feature.label}</p>
-                          {settings.features[feature.key] && (
-                            <Badge variant="success" size="sm">Enabled</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-neutral-500 mt-1">{feature.desc}</p>
-                      </div>
-                      <button
-                        onClick={() => handleFeatureToggle(feature.key)}
-                        className={clsx(
-                          'w-12 h-6 rounded-full relative transition-colors',
-                          settings.features[feature.key] ? 'bg-primary' : 'bg-neutral-300'
-                        )}
-                      >
-                        <span 
-                          className={clsx(
-                            'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform',
-                            settings.features[feature.key] ? 'right-1' : 'left-1'
-                          )} 
-                        />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
     </div>

@@ -90,8 +90,8 @@ function VideoMediaPanel({ item }) {
   const thumbUrl = getThumbnailUrl(item)
   const videoUrl = item?.fileUrl || item?.url || ''
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 w-full">
+      <div className="min-w-0">
         <SectionLabel>Thumbnail</SectionLabel>
         <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 shadow-md">
           {thumbUrl ? <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
@@ -100,7 +100,7 @@ function VideoMediaPanel({ item }) {
           <span className="absolute bottom-2.5 left-2.5 text-[10px] font-semibold text-white/80 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">Thumbnail</span>
         </div>
       </div>
-      <div>
+      <div className="min-w-0">
         <SectionLabel>Ad Video</SectionLabel>
         <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 shadow-md">
           {!showVideo ? (
@@ -127,7 +127,7 @@ function ImageMediaPanel({ media }) {
   const imgUrl = getThumbnailUrl(item) || item?.fileUrl || item?.url || ''
   if (!item) return <div className="aspect-square rounded-2xl bg-neutral-100 flex items-center justify-center"><ImageIcon className="w-8 h-8 text-neutral-300" /></div>
   return (
-    <div>
+    <div className="w-full min-w-0">
       <SectionLabel>Image</SectionLabel>
       <div className="aspect-square rounded-2xl overflow-hidden shadow-md bg-neutral-100">
         <img src={imgUrl || THUMB_PLACEHOLDER} alt="ad" className="w-full h-full object-cover" />
@@ -685,7 +685,7 @@ export default function AdDetails() {
   const spentPct  = walletStats.totalBudgetCoins > 0 ? Math.min(100, Math.round((walletStats.totalCoinsSpent / walletStats.totalBudgetCoins) * 100)) : 0
 
   return (
-    <div className="max-w-7xl mx-auto pb-16">
+    <div className="w-full min-w-0 pb-16">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
         <button onClick={() => navigate('/ads')} className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group">
@@ -704,7 +704,7 @@ export default function AdDetails() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] gap-6 xl:gap-8 items-start">
           <div className="space-y-4"><div className="h-3 w-16 bg-neutral-100 rounded animate-pulse" /><div className="aspect-[9/16] bg-neutral-100 rounded-2xl animate-pulse" /></div>
           <div className="bg-neutral-100 rounded-3xl h-[500px] animate-pulse" />
         </div>
@@ -719,8 +719,8 @@ export default function AdDetails() {
       {!isLoading && !currentError && (
         <div className="space-y-8">
           {/* Row 1: media + sidebar */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] gap-6 xl:gap-8 items-start">
+            <div className="space-y-6 min-w-0">
               {ad.isVideo ? <VideoMediaPanel item={ad.media[0]} /> : <ImageMediaPanel media={ad.media} />}
 
               <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
@@ -765,7 +765,7 @@ export default function AdDetails() {
               </div>
             </div>
 
-            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
+            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm w-full min-w-0">
               <div className="px-5 py-5">
                 <p className="text-sm font-semibold text-neutral-900">{ad.title}</p>
                 {ad.caption ? <p className="text-sm text-neutral-700 leading-relaxed mt-2">{ad.caption}</p>
