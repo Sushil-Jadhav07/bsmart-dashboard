@@ -5,6 +5,7 @@ import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import Button from '../components/Button.jsx'
 import Badge from '../components/Badge.jsx'
+import Dropdown from '../components/Dropdown.jsx'
 import { fetchAdsAdmin, patchAdStatus, deleteAdById } from '../store/adsSlice.js'
 import { formatNumber, formatDateTime } from '../utils/helpers.jsx'
 import { CheckCircle2, XCircle, Pause, Trash2, Play, Eye } from 'lucide-react'
@@ -217,18 +218,18 @@ export default function AdminAds() {
       <h1 className="text-2xl font-bold text-neutral-900">Ads</h1>
       <div className="bg-white rounded-2xl border border-neutral-200 p-5 space-y-4">
         <FilterBar search={search} onSearch={setSearch}>
-          <select
+          <Dropdown
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="draft">Draft</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            onChange={(val) => setStatusFilter(val)}
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'active', label: 'Active' },
+              { value: 'paused', label: 'Paused' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'rejected', label: 'Rejected' },
+            ]}
+          />
         </FilterBar>
         {status === 'loading' ? (
           <div className="py-20 text-center text-neutral-400 text-sm">Loading ads…</div>

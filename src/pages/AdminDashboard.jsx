@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { Users, Activity, ShoppingBag, ShieldAlert, Flag, Inbox, Eye, MousePointerClick, Heart, Coins, RefreshCw } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
 import Button from '../components/Button.jsx'
+import Dropdown from '../components/Dropdown.jsx'
 import { fetchUsers } from '../store/usersSlice.js'
 import { fetchVendors } from '../store/vendorsSlice.js'
 import { fetchPosts } from '../store/postsSlice.js'
@@ -234,15 +235,15 @@ export default function AdminDashboard() {
           <p className="text-xs text-neutral-500 mt-0.5">Campaign performance overview</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <Dropdown
             value={range}
-            onChange={(e) => setRange(e.target.value)}
-            className="h-9 border border-neutral-200 rounded-lg px-3 text-sm text-neutral-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-          </select>
+            onChange={(val) => setRange(val)}
+            options={[
+              { value: '7d', label: 'Last 7 days' },
+              { value: '30d', label: 'Last 30 days' },
+              { value: '90d', label: 'Last 90 days' },
+            ]}
+          />
           <Button variant="outline" size="sm" icon={RefreshCw} onClick={handleRefresh}>
             Refresh
           </Button>

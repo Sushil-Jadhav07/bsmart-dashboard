@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Loader2, Mail, MapPin, Phone, Plus, TrendingUp, UserPlus, Users, X } from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, Loader2, Mail, MapPin, Phone, Plus, TrendingUp, UserPlus, Users, X } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import PremiumResourcePage, { PremiumBadge } from '../components/PremiumResourcePage.jsx';
 import { clearCreateError, createSalesOfficer, fetchSalesOfficers, fetchVendorsByOfficer } from '../store/salesSlice.js';
@@ -20,6 +20,7 @@ const CreateOfficerModal = ({ open, onClose }) => {
   const { createStatus, createError } = useSelector((state) => state.sales);
   const [form, setForm] = useState({ username: '', email: '', password: '', full_name: '', phone: '', location: '' });
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const set = (key) => (event) => setForm((value) => ({ ...value, [key]: event.target.value }));
 
@@ -74,7 +75,26 @@ const CreateOfficerModal = ({ open, onClose }) => {
             <Field label="Username" value={form.username} onChange={set('username')} placeholder="john_sales" required />
           </div>
           <Field label="Email" type="email" value={form.email} onChange={set('email')} placeholder="john@example.com" required />
-          <Field label="Password" type="password" value={form.password} onChange={set('password')} placeholder="Min. 6 characters" required />
+          <div>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={set('password')}
+                placeholder="Min. 6 characters"
+                required
+                className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 pr-10 text-sm font-medium text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary focus:ring-4 focus:ring-primary/10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Phone" value={form.phone} onChange={set('phone')} placeholder="+91..." />
             <Field label="Location" value={form.location} onChange={set('location')} placeholder="Mumbai" />

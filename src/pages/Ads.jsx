@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { clsx } from 'clsx';
-import { Eye, Film, Image, Megaphone, MoreHorizontal, MousePointerClick, Search, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Eye, Film, Image, Megaphone, MoreHorizontal, MousePointerClick, Search, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { deleteAdById, fetchAdCategories, fetchAdsAdmin } from '../store/adsSlice.js';
+import Dropdown from '../components/Dropdown.jsx';
 import { formatDateTime, formatNumber, truncateText } from '../utils/helpers.jsx';
 
 const THUMB_PLACEHOLDER =
@@ -147,12 +148,11 @@ const Ads = () => {
               <input type="text" placeholder="Search by ID, title, or creator..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-800 placeholder-neutral-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition" />
             </div>
             <div className="flex gap-2">
-              <div className="relative">
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-9 appearance-none rounded-lg border border-neutral-200 bg-neutral-50 pl-3 pr-8 text-xs font-medium text-neutral-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition">
-                  {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-400 pointer-events-none" />
-              </div>
+              <Dropdown
+                value={categoryFilter}
+                onChange={(val) => setCategoryFilter(val)}
+                options={categoryOptions}
+              />
               <div className="flex gap-1 bg-neutral-100 rounded-lg p-0.5">
                 {[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'pending', label: 'Pending' }, { value: 'paused', label: 'Paused' }].map((opt) => (
                   <button key={opt.value} onClick={() => setStatusFilter(opt.value)} className={clsx('px-2.5 py-1.5 rounded-md text-xs font-medium transition-all', statusFilter === opt.value ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700')}>

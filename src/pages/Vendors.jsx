@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PremiumResourcePage, { PremiumBadge } from '../components/PremiumResourcePage.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { deleteVendorById, fetchVendors, processVendorProfile, setVendorValidatedOptimistic } from '../store/vendorsSlice.js';
+import { fetchUsers } from '../store/usersSlice.js';
 import { capitalize, formatNumber } from '../utils/helpers.jsx';
 
 const Toast = ({ message, onClose }) => (
@@ -32,6 +33,7 @@ const Vendors = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { items, profilesByVendorId, status, error, updating } = useSelector((state) => state.vendors);
+  const { items: allUsers = [], status: usersStatus } = useSelector((state) => state.users);
   const authUser = useSelector((state) => state.auth.user);
   const adminId = authUser?.id || authUser?._id || authUser?.uuid || authUser?.user_id || null;
   const isAdmin = String(authUser?.role || '').toLowerCase() === 'admin';
@@ -42,7 +44,25 @@ const Vendors = () => {
 
   useEffect(() => {
     dispatch(fetchVendors());
-  }, [dispatch]);
+    if (usersStatus === 'idle') dispatch(fetchUsers());
+  }, [dispatch, usersStatus]);
+
+  const usersMap = useMemo(() => {
+    const map = new Map();
+    (allUsers || []).forEach((u) => {
+      const base = u && u.user ? u.user : u || {};
+      const id = base._id || base.id || base.user_id || base.uuid || '';
+      if (id) {
+        map.set(id, {
+          username: base.username || '',
+          fullName: base.full_name || base.fullName || base.name || '',
+          phone: base.phone || '',
+          role: base.role || '',
+        });
+      }
+    });
+    return map;
+  }, [allUsers]);
 
   const rows = useMemo(() => {
     return (items || []).map((vendor) => {
@@ -51,19 +71,20 @@ const Vendors = () => {
       const complete = isProfileComplete(profile);
       const vendorId = vendor._id;
       const userId = user._id || user.id || null;
+      const enriched = usersMap.get(userId) || {};
       return {
         id: userId || vendorId,
         vendorId,
         business: vendor.business_name || profile?.company_name || 'Vendor',
-        username: user.username || 'unknown',
-        fullName: user.full_name || user.name || '-',
-        phone: user.phone || profile?.business_phone || '-',
-        role: user.role || 'vendor',
+        username: enriched.username || user.username || 'unknown',
+        fullName: enriched.fullName || user.full_name || user.name || '-',
+        phone: enriched.phone || user.phone || profile?.business_phone || '-',
+        role: enriched.role || user.role || 'vendor',
         validated: !!vendor.validated,
         profile: complete ? 'complete' : 'incomplete',
       };
     });
-  }, [items, profilesByVendorId]);
+  }, [items, profilesByVendorId, usersMap]);
 
   const filteredRows = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();

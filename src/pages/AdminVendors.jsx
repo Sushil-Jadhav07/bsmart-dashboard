@@ -3,6 +3,7 @@ import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Button from '../components/Button.jsx'
+import Dropdown from '../components/Dropdown.jsx'
 import { CheckCircle2, XCircle, Trash2, Eye, RefreshCw } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
@@ -155,17 +156,17 @@ export default function AdminVendors() {
       </div>
       <div className="bg-white rounded-2xl border border-neutral-200 p-5 space-y-4">
         <FilterBar search={search} onSearch={setSearch}>
-          <select
+          <Dropdown
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="suspended">Suspended</option>
-          </select>
+            onChange={(val) => setStatus(val)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'suspended', label: 'Suspended' },
+            ]}
+          />
         </FilterBar>
         {fetchStatus === 'loading' ? (
           <div className="py-16 text-center text-sm text-neutral-400">Loading vendors...</div>

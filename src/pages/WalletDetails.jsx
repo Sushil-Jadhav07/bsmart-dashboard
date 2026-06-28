@@ -5,7 +5,6 @@ import { clsx } from 'clsx';
 import {
   ArrowLeft,
   ArrowRightLeft,
-  ChevronDown,
   Search,
   TrendingDown,
   TrendingUp,
@@ -16,6 +15,7 @@ import {
   fetchMemberWalletHistory,
   fetchVendorWalletHistory,
 } from '../store/walletSlice.js';
+import Dropdown from '../components/Dropdown.jsx';
 import { formatDateTime, formatNumber } from '../utils/helpers.jsx';
 
 const getUserObj = (tx) => {
@@ -192,18 +192,15 @@ const WalletDetails = () => {
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-800 placeholder-neutral-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
             />
           </div>
-          <div className="relative">
-            <select
-              value={directionFilter}
-              onChange={(e) => setDirectionFilter(e.target.value)}
-              className="h-9 appearance-none rounded-lg border border-neutral-200 bg-neutral-50 pl-3 pr-8 text-xs font-medium text-neutral-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
-            >
-              <option value="all">All Directions</option>
-              <option value="credit">Credits</option>
-              <option value="debit">Debits</option>
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
-          </div>
+          <Dropdown
+            value={directionFilter}
+            onChange={(val) => setDirectionFilter(val)}
+            options={[
+              { value: 'all', label: 'All Directions' },
+              { value: 'credit', label: 'Credits' },
+              { value: 'debit', label: 'Debits' },
+            ]}
+          />
         </div>
 
         <div className="overflow-x-auto">

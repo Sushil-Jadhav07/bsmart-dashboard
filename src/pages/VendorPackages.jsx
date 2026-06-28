@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import PremiumResourcePage, { PremiumBadge } from '../components/PremiumResourcePage.jsx';
 import Modal from '../components/Modal.jsx';
 import Button from '../components/Button.jsx';
+import Dropdown from '../components/Dropdown.jsx';
 import { adminCreatePackage, adminDeactivatePackage, adminFetchAllPurchases, adminUpdatePackage, fetchAllPackages, resetMutation } from '../store/vendorPackagesSlice.js';
 import { formatDateTime, formatNumber } from '../utils/helpers.jsx';
 
@@ -81,9 +82,13 @@ const PackageForm = ({ open, initial, onClose }) => {
             <div key={key}>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">{label}</label>
               {key === 'tier' ? (
-                <select value={form[key]} onChange={set(key)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/10">
-                  {['basic', 'standard', 'premium', 'enterprise'].map((tier) => <option key={tier} value={tier}>{tier}</option>)}
-                </select>
+                <Dropdown
+                  value={form[key]}
+                  onChange={(val) => setForm((v) => ({ ...v, [key]: val }))}
+                  options={['basic', 'standard', 'premium', 'enterprise'].map((tier) => ({ value: tier, label: tier }))}
+                  size="lg"
+                  fullWidth
+                />
               ) : (
                 <input value={form[key]} onChange={set(key)} type={key === 'name' ? 'text' : 'number'} required={['name', 'base_price', 'coins_granted'].includes(key)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" />
               )}

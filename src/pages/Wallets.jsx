@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   ArrowRightLeft,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -17,6 +16,8 @@ import {
 import Modal from '../components/Modal.jsx';
 import Button from '../components/Button.jsx';
 import { adminAdjustCoins, fetchAllWallets, rechargeVendorWallet } from '../store/walletSlice.js';
+import { fetchUsers } from '../store/usersSlice.js';
+import Dropdown from '../components/Dropdown.jsx';
 import { formatDate, formatNumber } from '../utils/helpers.jsx';
 
 const PAGE_SIZE = 10;
@@ -53,6 +54,7 @@ const Wallets = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { transactions = [], summary = null, total = 0, status = 'idle', error = null } = useSelector((state) => state.wallet) || {};
+  const { items: allUsers = [], status: usersStatus } = useSelector((state) => state.users);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('balance');
   const [page, setPage] = useState(1);
@@ -64,7 +66,24 @@ const Wallets = () => {
 
   useEffect(() => {
     if (status === 'idle') dispatch(fetchAllWallets());
-  }, [dispatch, status]);
+    if (usersStatus === 'idle') dispatch(fetchUsers());
+  }, [dispatch, status, usersStatus]);
+
+  const usersMap = useMemo(() => {
+    const map = new Map();
+    (allUsers || []).forEach((u) => {
+      const base = u && u.user ? u.user : u || {};
+      const id = base._id || base.id || base.user_id || base.uuid || '';
+      if (id) {
+        map.set(id, {
+          name: base.full_name || base.fullName || base.name || base.username || base.email || '',
+          email: base.email || '',
+          avatar: base.avatar_url || base.avatar || base.image || base.photo || '',
+        });
+      }
+    });
+    return map;
+  }, [allUsers]);
 
   // Group transactions per user
   const userRows = useMemo(() => {
@@ -72,14 +91,15 @@ const Wallets = () => {
     transactions.forEach((tx) => {
       const id = getUserId(tx) || 'system';
       const obj = getUserObj(tx) || {};
+      const enriched = usersMap.get(id) || {};
       const amount = Number(tx.amount || 0);
       const createdAt = tx.createdAt || tx.transactionDate || tx.created_at || null;
       if (!map.has(id)) {
         map.set(id, {
           id,
-          name: obj.full_name || obj.username || obj.email || (id === 'system' ? 'System / Platform' : 'Unknown user'),
-          email: obj.email || '',
-          avatar: obj.avatar_url || obj.avatar || obj.image || '',
+          name: enriched.name || obj.full_name || obj.username || obj.email || (id === 'system' ? 'System / Platform' : 'Unknown user'),
+          email: enriched.email || obj.email || '',
+          avatar: enriched.avatar || obj.avatar_url || obj.avatar || obj.image || '',
           credits: 0,
           debits: 0,
           balance: 0,
@@ -95,7 +115,7 @@ const Wallets = () => {
       if (ts && (!entry.lastActivity || ts > entry.lastActivity)) entry.lastActivity = ts;
     });
     return Array.from(map.values());
-  }, [transactions]);
+  }, [transactions, usersMap]);
 
   const filteredRows = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -193,19 +213,16 @@ console.log(filteredRows)
                 className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-800 placeholder-neutral-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
               />
             </div>
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="h-9 appearance-none rounded-lg border border-neutral-200 bg-neutral-50 pl-3 pr-8 text-xs font-medium text-neutral-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
-              >
-                <option value="balance">Sort: Balance</option>
-                <option value="transactions">Sort: Transactions</option>
-                <option value="recent">Sort: Recent activity</option>
-                <option value="name">Sort: Name</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
-            </div>
+            <Dropdown
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'balance', label: 'Sort: Balance' },
+                { value: 'transactions', label: 'Sort: Transactions' },
+                { value: 'recent', label: 'Sort: Recent activity' },
+                { value: 'name', label: 'Sort: Name' },
+              ]}
+            />
           </div>
 
           <div className="overflow-x-auto">
@@ -279,13 +296,17 @@ console.log(filteredRows)
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Adjust Wallet Balance" size="md">
         <form onSubmit={submitAdjustment} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">Operation</label>
-            <select value={form.type} onChange={(event) => setForm((value) => ({ ...value, type: event.target.value }))} className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/10">
-              <option value="admin">Admin adjustment</option>
-              <option value="recharge">Vendor recharge</option>
-            </select>
-          </div>
+          <Dropdown
+            label="Operation"
+            value={form.type}
+            onChange={(val) => setForm((v) => ({ ...v, type: val }))}
+            options={[
+              { value: 'admin', label: 'Admin adjustment' },
+              { value: 'recharge', label: 'Vendor recharge' },
+            ]}
+            size="lg"
+            fullWidth
+          />
           {['userId', 'amount', 'description'].map((key) => (
             <div key={key}>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">{key === 'userId' ? 'User ID' : key}</label>

@@ -5,6 +5,7 @@ import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Button from '../components/Button.jsx'
+import Dropdown from '../components/Dropdown.jsx'
 import { deletePostById, fetchPosts } from '../store/postsSlice.js'
 import { Eye, Trash2, RefreshCw } from 'lucide-react'
 
@@ -122,24 +123,24 @@ export default function AdminPosts() {
       </div>
       <div className="bg-white rounded-2xl border border-neutral-200 p-5 space-y-4">
         <FilterBar search={search} onSearch={setSearch}>
-          <select
+          <Dropdown
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">All</option>
-            <option value="post">Posts</option>
-            <option value="reel">Reels</option>
-          </select>
-          <select
+            onChange={(val) => setFilter(val)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'post', label: 'Posts' },
+              { value: 'reel', label: 'Reels' },
+            ]}
+          />
+          <Dropdown
             value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">All Dates</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-          </select>
+            onChange={(val) => setDateRange(val)}
+            options={[
+              { value: 'all', label: 'All Dates' },
+              { value: '7d', label: 'Last 7 days' },
+              { value: '30d', label: 'Last 30 days' },
+            ]}
+          />
         </FilterBar>
         {fetchStatus === 'loading' ? (
           <div className="py-16 text-center text-sm text-neutral-400">Loading posts...</div>

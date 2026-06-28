@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Eye, MoreHorizontal, Search, Trash2 } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Eye, MoreHorizontal, Search, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Button from './Button.jsx';
+import Dropdown from './Dropdown.jsx';
 import { formatNumber } from '../utils/helpers.jsx';
 
 export const toneClass = {
@@ -67,21 +68,6 @@ const MetricCard = ({ label, value, icon: Icon, tone = 'magenta' }) => {
   );
 };
 
-const PremiumSelect = ({ label, value, options = [], onChange }) => (
-  <div className="relative">
-    <span className="sr-only">{label}</span>
-    <select
-      value={value}
-      onChange={onChange}
-      className="h-9 appearance-none rounded-lg border border-neutral-200 bg-neutral-50 pl-3 pr-8 text-xs font-medium text-neutral-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>{option.label}</option>
-      ))}
-    </select>
-    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
-  </div>
-);
 
 const SortHeader = ({ column, sortConfig, onSort }) => {
   const active = sortConfig.key === column.key;
@@ -252,12 +238,11 @@ const PremiumResourcePage = ({
           {!!filters.length && (
             <div className="flex flex-wrap gap-2">
               {filters.map((filter) => (
-                <PremiumSelect
+                <Dropdown
                   key={filter.label}
-                  label={filter.label}
                   value={filter.value}
                   options={filter.options}
-                  onChange={(event) => filter.onChange?.(event.target.value)}
+                  onChange={(val) => filter.onChange?.(val)}
                 />
               ))}
             </div>

@@ -16,7 +16,7 @@ export const fetchUsers = createAsyncThunk('users/fetch', async (_, { getState, 
   const token = getState().auth.token
   if (!token) return rejectWithValue('No token')
   try {
-    const res = await fetch(`${API_BASE_WITH_PATH}/admin/users`, {
+    const res = await fetch(`${API_BASE_WITH_PATH}/admin/users?all=true`, {
       headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
     })
     const data = await res.json().catch(() => ({}))

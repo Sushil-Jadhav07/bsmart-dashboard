@@ -3,6 +3,7 @@ import DataTable from '../components/DataTable.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Button from '../components/Button.jsx'
+import Dropdown from '../components/Dropdown.jsx'
 import { productsMock } from '../data/admin/products.mock.js'
 import { Eye, Trash2, Star } from 'lucide-react'
 
@@ -53,16 +54,16 @@ export default function AdminProducts() {
       <h1 className="text-2xl font-bold text-neutral-900">Products</h1>
       <div className="bg-white rounded-2xl border border-neutral-200 p-5 space-y-4">
         <FilterBar search={search} onSearch={setSearch}>
-          <select
+          <Dropdown
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="disabled">Disabled</option>
-          </select>
+            onChange={(val) => setStatus(val)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'active', label: 'Active' },
+              { value: 'disabled', label: 'Disabled' },
+            ]}
+          />
         </FilterBar>
         <DataTable columns={columns} data={data} />
       </div>

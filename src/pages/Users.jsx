@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpDown,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -19,6 +18,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
 import { fetchUsers, deleteUserById } from '../store/usersSlice.js';
 import Button from '../components/Button.jsx';
+import Dropdown from '../components/Dropdown.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { capitalize, formatDate, formatNumber } from '../utils/helpers.jsx';
@@ -69,23 +69,6 @@ const Toast = ({ message, onClose, variant = 'success' }) => (
   </div>
 );
 
-const FilterSelect = ({ label, value, options, onChange }) => (
-  <div className="relative">
-    <span className="sr-only">{label}</span>
-    <select
-      value={value}
-      onChange={onChange}
-      className="h-9 appearance-none rounded-lg border border-neutral-200 bg-neutral-50 pl-3 pr-8 text-xs font-medium text-neutral-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" />
-  </div>
-);
 
 const RoleBadge = ({ role }) => {
   const normalized = normalizeRole(role);
@@ -380,8 +363,8 @@ const Users = () => {
               />
             </div>
             <div className="flex gap-2">
-              <FilterSelect label="Role" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} options={roleOptions} />
-              <FilterSelect label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} options={statusOptions} />
+              <Dropdown value={roleFilter} onChange={(val) => setRoleFilter(val)} options={roleOptions} />
+              <Dropdown value={statusFilter} onChange={(val) => setStatusFilter(val)} options={statusOptions} />
             </div>
           </div>
 
@@ -398,9 +381,9 @@ const Users = () => {
                   <th className="px-4 py-2.5">
                     <SortHeader label="Status" active={sortConfig.key === 'status'} direction={sortConfig.direction} onClick={() => setSort('status')} />
                   </th>
-                  <th className="px-4 py-2.5">
+                  {/* <th className="px-4 py-2.5">
                     <SortHeader label="Balance" active={sortConfig.key === 'coins'} direction={sortConfig.direction} onClick={() => setSort('coins')} />
-                  </th>
+                  </th> */}
                   <th className="px-4 py-2.5">
                     <SortHeader label="Joined" active={sortConfig.key === 'joinedDate'} direction={sortConfig.direction} onClick={() => setSort('joinedDate')} />
                   </th>
@@ -434,9 +417,9 @@ const Users = () => {
                       <td className="px-4 py-3">
                         <StatusBadge status={user.status} />
                       </td>
-                      <td className="px-4 py-3">
+                      {/* <td className="px-4 py-3">
                         <span className="font-mono text-sm font-semibold text-neutral-700">{formatNumber(user.coins)}</span>
-                      </td>
+                      </td> */}
                       <td className="px-4 py-3">
                         <span className="text-xs text-neutral-500">{formatDate(user.joinedDate)}</span>
                       </td>

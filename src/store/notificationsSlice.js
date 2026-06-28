@@ -66,16 +66,18 @@ export const fetchNotifications = createAsyncThunk(
   'notifications/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE_WITH_PATH}/notifications`, { headers: authHeaders() })
+      const res = await fetch(`${API_BASE_WITH_PATH}/notifications?limit=500`, { headers: authHeaders() })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch')
-      const items = Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : Array.isArray(data?.items)
-            ? data.items
-            : []
+      const items = Array.isArray(data?.notifications)
+        ? data.notifications
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data)
+            ? data
+            : Array.isArray(data?.items)
+              ? data.items
+              : []
       return (items || [])
         .map((n) => normalizeNotificationPayload(n, n?.type))
         .filter(Boolean)
