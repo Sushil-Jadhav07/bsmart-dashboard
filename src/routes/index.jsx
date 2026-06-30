@@ -31,6 +31,9 @@ import AdminAds from '../pages/AdminAds.jsx';
 import Notifications from '../pages/Notifications.jsx';
 import SalesOfficers from '../pages/SalesOfficers.jsx';
 import VendorPackages from '../pages/VendorPackages.jsx';
+import Inquiries from '../pages/Inquiries.jsx';
+import CustomerQueries from '../pages/CustomerQueries.jsx';
+import CustomerQueriesDetails from '../pages/CustomerQueriesDetails.jsx';
 
 
 export const router = createBrowserRouter([
@@ -161,6 +164,18 @@ export const router = createBrowserRouter([
       {
         path: '/vendor-packages',
         element: <VendorPackages />
+      },
+      {
+        path: '/inquiries',
+        element: <Inquiries />
+      },
+      {
+        path: '/customer-queries',
+        element: <CustomerQueries />
+      },
+      {
+        path: '/customer-queries/:id',
+        element: <CustomerQueriesDetails />
       },
     ]
   },

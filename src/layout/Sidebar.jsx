@@ -19,6 +19,8 @@ import {
   Sparkles,
   LogOut,
   LifeBuoy,
+  Inbox,
+  MessageSquare,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import logoIcon from '../assets/bsmart_logo.png';
@@ -48,6 +50,13 @@ const navGroups = [
       { path: '/vendor-packages', label: 'Packages', icon: PackageCheck },
       { path: '/sales', label: 'Sales', icon: TrendingUp },
       { path: '/wallets', label: 'Wallets', icon: Wallet },
+    ],
+  },
+  {
+    label: 'Help & Ticket',
+    items: [
+      { path: '/inquiries', label: 'Inquiry', icon: Inbox },
+      { path: '/customer-queries', label: 'Customer Queries', icon: MessageSquare },
     ],
   },
   {

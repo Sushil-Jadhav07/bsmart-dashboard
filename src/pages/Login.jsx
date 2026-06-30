@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { login } from '../store/authSlice.js'
 import { connectSocket } from '../store/notificationsSlice.js'
 import { fetchNotifications } from '../store/notificationsSlice.js'
+import { registerFCMToken } from '../lib/firebase.js'
 import Input from '../components/Input.jsx'
 import Button from '../components/Button.jsx'
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react'
@@ -29,10 +30,10 @@ function Login() {
       .unwrap()
       .then((result) => {
         const userId = result?.user?.id || result?.user?._id
-        if (userId) {
-          connectSocket(String(userId), dispatch)
-        }
+        if (userId) connectSocket(String(userId), dispatch)
         dispatch(fetchNotifications())
+        // Register FCM token for push notifications (fire-and-forget)
+        if (result?.token) registerFCMToken(result.token)
         navigate('/dashboard', { replace: true })
       })
       .catch(() => {})
