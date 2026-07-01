@@ -34,6 +34,7 @@ import VendorPackages from '../pages/VendorPackages.jsx';
 import Inquiries from '../pages/Inquiries.jsx';
 import CustomerQueries from '../pages/CustomerQueries.jsx';
 import CustomerQueriesDetails from '../pages/CustomerQueriesDetails.jsx';
+import FAQ from '../pages/FAQ.jsx';
 
 
 export const router = createBrowserRouter([
@@ -176,6 +177,10 @@ export const router = createBrowserRouter([
       {
         path: '/customer-queries/:id',
         element: <CustomerQueriesDetails />
+      },
+      {
+        path: '/faq',
+        element: <FAQ />
       },
     ]
   },

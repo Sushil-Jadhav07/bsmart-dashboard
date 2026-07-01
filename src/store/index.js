@@ -13,9 +13,10 @@ import vendorPackages from './vendorPackagesSlice.js'
 import tweets from './tweetsSlice.js'
 import inquiries from './inquiriesSlice.js'
 import customerQueries from './customerQueriesSlice.js'
+import faq from './faqSlice.js'
 
 const store = configureStore({
-  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries },
+  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries, faq },
 })
 
 export default store
