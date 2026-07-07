@@ -138,7 +138,7 @@ const WalletDetails = () => {
         onClick={() => navigate('/wallets')}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-primary transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to Wallets
+        <ArrowLeft className="w-4 h-4" /> Back to Vault
       </button>
 
       {/* User header */}
@@ -153,7 +153,7 @@ const WalletDetails = () => {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Wallet Detail</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Vault Detail</p>
           <h1 className="text-xl font-bold text-neutral-900 mt-0.5 truncate">{userName}</h1>
           <p className="text-sm text-neutral-500 truncate">{userEmail || (id === 'system' ? 'Platform-level transactions' : 'No email available')}</p>
         </div>

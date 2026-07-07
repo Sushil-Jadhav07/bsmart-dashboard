@@ -118,14 +118,14 @@ const Prompts = () => {
     <>
       <div className="space-y-5">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Promote Management</p>
-          <h1 className="text-xl font-bold text-neutral-900 mt-1">Promote</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Manage promoted reel content and engagement</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Boosts</p>
+          <h1 className="text-xl font-bold text-neutral-900 mt-1">Boosts</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">Manage boosted bSpark content and engagement</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Promoted', value: totals.all, icon: Sparkles, color: 'text-primary bg-primary/10' },
+            { label: 'Boosts', value: totals.all, icon: Sparkles, color: 'text-primary bg-primary/10' },
             { label: 'Likes', value: totals.likes, icon: Heart, color: 'text-rose-600 bg-rose-50' },
             { label: 'Comments', value: totals.comments, icon: MessageCircle, color: 'text-emerald-600 bg-emerald-50' },
             { label: 'Live', value: totals.live, icon: Film, color: 'text-violet-600 bg-violet-50' },
@@ -154,7 +154,7 @@ const Prompts = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/50">
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Promoted Reel</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Boost</th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center"><Heart className="w-3.5 h-3.5 inline" /></th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center"><MessageCircle className="w-3.5 h-3.5 inline" /></th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Status</th>
@@ -208,8 +208,8 @@ const Prompts = () => {
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={handleDelete}
-        title="Delete Promote Reel"
-        description="Are you sure you want to delete this promoted reel? This action cannot be undone."
+        title="Delete Boost"
+        description="Are you sure you want to delete this boost? This action cannot be undone."
         confirmText="Delete"
         confirmVariant="danger"
       />

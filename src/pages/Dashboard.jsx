@@ -187,7 +187,7 @@ const buildStatusData = (items, colorMap) => {
 const buildRecentContent = (posts, tweets, ads) => [
   ...posts.map((entry) => {
     const record = getPostRecord(entry);
-    const type = getPostType(entry) === 'reel' ? 'Reel' : 'Post';
+    const type = getPostType(entry) === 'reel' ? 'bSpark' : 'Moment';
     return {
       id: getId(record),
       type,
@@ -200,8 +200,8 @@ const buildRecentContent = (posts, tweets, ads) => [
   }),
   ...tweets.map((tweet) => ({
     id: getId(tweet),
-    type: 'Tweet',
-    title: truncateText(tweet.content || 'Tweet content', 64),
+    type: 'Buzz',
+    title: truncateText(tweet.content || 'Buzz content', 64),
     owner: getUserName(tweet),
     status: getStatus(tweet),
     engagement: numberValue(tweet.likes_count) + numberValue(tweet.reposts_count) + numberValue(tweet.replies_count),
@@ -209,7 +209,7 @@ const buildRecentContent = (posts, tweets, ads) => [
   })),
   ...ads.map((ad) => ({
     id: getId(ad),
-    type: 'Ad',
+    type: 'Spotlight',
     title: truncateText(ad.title || ad.headline || ad.caption || ad.description || 'Campaign', 64),
     owner: getUserName(ad),
     status: getStatus(ad),
@@ -393,10 +393,10 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <KPI title="Total Users" value={formatCompactNumber(totals.totalUsers)} caption="Members, vendors, sales and admins" icon={Users} tone="brand" meter={percent(totals.totalUsers, totals.totalUsers + totals.totalVendors)} to="/users" />
         <KPI title="Total Vendors" value={formatCompactNumber(totals.totalVendors)} caption={`${formatNumber(totals.validatedVendors)} validated profiles`} icon={Briefcase} tone="brand" meter={percent(totals.validatedVendors, totals.totalVendors)} to="/vendors" />
-        <KPI title="Posts + Reels" value={formatCompactNumber(totals.totalPosts + totals.totalReels)} caption={`${formatNumber(totals.totalPosts)} posts, ${formatNumber(totals.totalReels)} reels`} icon={Layers3} tone="emerald" meter={percent(totals.totalReels, totals.totalPosts + totals.totalReels)} to="/posts" />
-        <KPI title="Tweets" value={formatCompactNumber(totals.totalTweets)} caption="Text posts and replies feed" icon={Send} tone="brand" meter={percent(totals.totalTweets, totals.totalTweets + totals.totalPosts + totals.totalReels)} to="/tweets" />
-        <KPI title="Ads" value={formatCompactNumber(totals.totalAds)} caption={`${formatNumber(totals.activeAds)} active, ${formatNumber(totals.pendingAds)} pending`} icon={Megaphone} tone="rose" meter={percent(totals.activeAds, totals.totalAds)} to="/ads" />
-        <KPI title="Wallet Volume" value={formatCompactNumber(totals.walletVolume)} caption={`${formatNumber(transactions.length)} wallet transactions`} icon={Coins} tone="emerald" meter={Math.min(100, transactions.length * 8)} to="/wallets" />
+        <KPI title="Moments + bSparks" value={formatCompactNumber(totals.totalPosts + totals.totalReels)} caption={`${formatNumber(totals.totalPosts)} moments, ${formatNumber(totals.totalReels)} bSparks`} icon={Layers3} tone="emerald" meter={percent(totals.totalReels, totals.totalPosts + totals.totalReels)} to="/posts" />
+        <KPI title="Buzz" value={formatCompactNumber(totals.totalTweets)} caption="Text posts and replies feed" icon={Send} tone="brand" meter={percent(totals.totalTweets, totals.totalTweets + totals.totalPosts + totals.totalReels)} to="/tweets" />
+        <KPI title="Spotlights" value={formatCompactNumber(totals.totalAds)} caption={`${formatNumber(totals.activeAds)} active, ${formatNumber(totals.pendingAds)} pending`} icon={Megaphone} tone="rose" meter={percent(totals.activeAds, totals.totalAds)} to="/ads" />
+        <KPI title="Vault Volume" value={formatCompactNumber(totals.walletVolume)} caption={`${formatNumber(transactions.length)} vault transactions`} icon={Coins} tone="emerald" meter={Math.min(100, transactions.length * 8)} to="/wallets" />
         <KPI title="Packages" value={formatCompactNumber(totals.packages)} caption={`${formatNumber(purchases.length)} purchase records`} icon={Package} tone="brand" meter={Math.min(100, packages.length * 20)} to="/vendor-packages" />
         <KPI title="Sales Officers" value={formatCompactNumber(totals.salesOfficers)} caption="Assignment team capacity" icon={ShieldCheck} tone="neutral" meter={percent(totals.salesOfficers, totals.totalVendors)} to="/sales" />
       </div>
@@ -406,7 +406,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Growth Momentum</CardTitle>
-            <CardDescription>Last 14 days across registrations, content, tweets and ads</CardDescription>
+            <CardDescription>Last 14 days across registrations, content, buzz and spotlights</CardDescription>
           </CardHeader>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -415,10 +415,10 @@ const Dashboard = () => {
                 <XAxis dataKey="label" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatCompactNumber} />
                 <Tooltip contentStyle={chartTooltip} />
-                <Bar dataKey="ads" name="Ads" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="ads" name="Spotlights" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
                 <Line type="monotone" dataKey="users" name="Users" stroke={COLORS.pink} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="content" name="Posts/Reels" stroke={COLORS.green} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="tweets" name="Tweets" stroke={COLORS.blue} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="content" name="Moments/bSparks" stroke={COLORS.green} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="tweets" name="Buzz" stroke={COLORS.blue} strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -436,12 +436,12 @@ const Dashboard = () => {
             <div className="rounded-md bg-neutral-50 border border-neutral-100 px-3 py-2.5">
               <Clock3 className="h-3.5 w-3.5 text-amber-600" />
               <p className="mt-1.5 text-lg font-bold text-neutral-900">{formatNumber(totals.pendingAds)}</p>
-              <p className="text-[10px] text-neutral-500">Ads waiting</p>
+              <p className="text-[10px] text-neutral-500">Spotlights waiting</p>
             </div>
             <div className="rounded-md bg-neutral-50 border border-neutral-100 px-3 py-2.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
               <p className="mt-1.5 text-lg font-bold text-neutral-900">{formatNumber(totals.activeAds)}</p>
-              <p className="text-[10px] text-neutral-500">Ads live</p>
+              <p className="text-[10px] text-neutral-500">Spotlights live</p>
             </div>
           </div>
         </Card>
@@ -452,7 +452,7 @@ const Dashboard = () => {
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Content Mix</CardTitle>
-            <CardDescription>Monthly split for posts, reels, tweets and campaigns</CardDescription>
+            <CardDescription>Monthly split for moments, bSparks, buzz and spotlights</CardDescription>
           </CardHeader>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -461,10 +461,10 @@ const Dashboard = () => {
                 <XAxis dataKey="label" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatCompactNumber} />
                 <Tooltip contentStyle={chartTooltip} />
-                <Bar dataKey="posts" name="Posts" stackId="a" fill={COLORS.pink} />
-                <Bar dataKey="reels" name="Reels" stackId="a" fill={COLORS.purple} />
-                <Bar dataKey="tweets" name="Tweets" stackId="a" fill={COLORS.blue} />
-                <Bar dataKey="ads" name="Ads" stackId="a" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="posts" name="Moments" stackId="a" fill={COLORS.pink} />
+                <Bar dataKey="reels" name="bSparks" stackId="a" fill={COLORS.purple} />
+                <Bar dataKey="tweets" name="Buzz" stackId="a" fill={COLORS.blue} />
+                <Bar dataKey="ads" name="Spotlights" stackId="a" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -546,7 +546,7 @@ const Dashboard = () => {
                     <td className="px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <span className="flex h-6 w-6 items-center justify-center rounded bg-neutral-100 text-neutral-500 flex-shrink-0">
-                          {item.type === 'Tweet' ? <Send className="h-3 w-3" /> : item.type === 'Ad' ? <Megaphone className="h-3 w-3" /> : item.type === 'Reel' ? <Video className="h-3 w-3" /> : <Image className="h-3 w-3" />}
+                          {item.type === 'Buzz' ? <Send className="h-3 w-3" /> : item.type === 'Spotlight' ? <Megaphone className="h-3 w-3" /> : item.type === 'bSpark' ? <Video className="h-3 w-3" /> : <Image className="h-3 w-3" />}
                         </span>
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold text-neutral-800">{item.type}</p>

@@ -36,11 +36,11 @@ const navGroups = [
   {
     label: 'Content',
     items: [
-      { path: '/posts', label: 'Posts', icon: Image },
-      { path: '/reels', label: 'Reels', icon: Film },
-      { path: '/tweets', label: 'Tweets', icon: MessagesSquare },
-      { path: '/promote', label: 'Promote', icon: Sparkles },
-      { path: '/ads', label: 'Ads', icon: Megaphone },
+      { path: '/posts', label: 'Moments', icon: Image },
+      { path: '/reels', label: 'bSparks', icon: Film },
+      { path: '/tweets', label: 'Buzz', icon: MessagesSquare },
+      { path: '/promote', label: 'Boosts', icon: Sparkles },
+      { path: '/ads', label: 'Spotlights', icon: Megaphone },
     ],
   },
   {
@@ -50,7 +50,7 @@ const navGroups = [
       { path: '/vendors', label: 'Vendors', icon: Briefcase },
       { path: '/vendor-packages', label: 'Packages', icon: PackageCheck },
       { path: '/sales', label: 'Sales', icon: TrendingUp },
-      { path: '/wallets', label: 'Wallets', icon: Wallet },
+      { path: '/wallets', label: 'Vault', icon: Wallet },
     ],
   },
   {

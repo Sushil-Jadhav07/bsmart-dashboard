@@ -129,12 +129,12 @@ export default function PromoteDetails() {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-400 hover:text-neutral-800 transition-colors group"
         >
           <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Promote
+          Back to Boosts
         </button>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100">
             <Film className="w-3 h-3" />
-            Promote Reel
+            Boost
           </span>
           <button
             onClick={() => setDeleteModal(true)}
@@ -150,7 +150,7 @@ export default function PromoteDetails() {
       {status === 'loading' && (
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-neutral-400">
           <Loader2 className="w-8 h-8 animate-spin" />
-          <p className="text-sm font-medium">Loading promote reel…</p>
+          <p className="text-sm font-medium">Loading boost…</p>
         </div>
       )}
 
@@ -184,7 +184,7 @@ export default function PromoteDetails() {
             <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
               <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50/60 flex items-center gap-2">
                 <User className="w-3.5 h-3.5 text-neutral-400" />
-                <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Promote Info</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Boost Info</p>
               </div>
               <div className="px-5 py-4 space-y-4">
 
@@ -230,7 +230,7 @@ export default function PromoteDetails() {
 
                 {/* ID */}
                 <div className="rounded-xl bg-neutral-50 border border-neutral-100 px-3 py-2.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mb-1">Promote Reel ID</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mb-1">Boost ID</p>
                   <p className="text-[11px] font-mono text-neutral-400 break-all leading-relaxed">
                     {item?.promote_reel_id || item?._id}
                   </p>
@@ -456,8 +456,8 @@ export default function PromoteDetails() {
         isOpen={deleteModal}
         onClose={() => setDeleteModal(false)}
         onConfirm={handleDelete}
-        title="Delete Promote Reel"
-        description="Are you sure you want to delete this promote reel? This cannot be undone."
+        title="Delete Boost"
+        description="Are you sure you want to delete this boost? This cannot be undone."
         confirmText="Delete"
         confirmVariant="danger"
         loading={deleting}

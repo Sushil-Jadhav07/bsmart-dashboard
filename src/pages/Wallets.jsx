@@ -140,7 +140,7 @@ const Wallets = () => {
   const debits = userRows.reduce((sum, r) => sum + r.debits, 0);
 
   const statCards = [
-    { label: 'Wallet Holders', value: formatNumber(userRows.length), icon: UsersIcon, color: 'text-primary bg-primary/10' },
+    { label: 'Vault Holders', value: formatNumber(userRows.length), icon: UsersIcon, color: 'text-primary bg-primary/10' },
     { label: 'Transactions', value: formatNumber(summary?.total_transactions ?? total ?? transactions.length), icon: ArrowRightLeft, color: 'text-violet-600 bg-violet-50' },
     { label: 'Total Credits', value: formatNumber(credits), icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50' },
     { label: 'Total Debits', value: formatNumber(debits), icon: TrendingDown, color: 'text-rose-600 bg-rose-50' },
@@ -175,8 +175,8 @@ console.log(filteredRows)
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Wallet Operations</p>
-            <h1 className="text-xl font-bold text-neutral-900 mt-1">Wallets</h1>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Vault</p>
+            <h1 className="text-xl font-bold text-neutral-900 mt-1">Vault</h1>
             <p className="text-sm text-neutral-500 mt-0.5">Coin balances per user — open a user to see their full transaction history.</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">

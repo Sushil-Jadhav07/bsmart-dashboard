@@ -136,7 +136,7 @@ function ReelMediaPanel({ item }) {
         <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-900">
           <div className="px-3 py-2 bg-white/90 border-b border-neutral-200 flex items-center gap-1.5">
             <Film className="w-3 h-3 text-neutral-400" />
-            <p className="text-[10px] font-semibold tracking-[0.1em] text-neutral-500 uppercase">Reel Video</p>
+            <p className="text-[10px] font-semibold tracking-[0.1em] text-neutral-500 uppercase">bSpark Video</p>
           </div>
           <div className="relative aspect-[9/16]">
             {!showVideo ? (
@@ -153,7 +153,7 @@ function ReelMediaPanel({ item }) {
                 <div className="relative z-10 w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all duration-200 shadow-lg">
                   <Play className="w-6 h-6 text-white fill-white ml-1" />
                 </div>
-                <span className="relative z-10 text-white/80 text-xs font-semibold tracking-wide">Play Reel</span>
+                <span className="relative z-10 text-white/80 text-xs font-semibold tracking-wide">Play bSpark</span>
               </button>
             ) : (
               <video
@@ -402,7 +402,7 @@ export default function PostDetails() {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-400 hover:text-neutral-800 transition-colors group"
         >
           <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          {isReel ? 'Back to Reels' : 'Back to Posts'}
+          {isReel ? 'Back to bSparks' : 'Back to Moments'}
         </button>
 
         <div className="flex items-center gap-2">
@@ -464,7 +464,7 @@ export default function PostDetails() {
               {/* Card header */}
               <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50/60 flex items-center gap-2">
                 <User className="w-3.5 h-3.5 text-neutral-400" />
-                <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Post Info</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Moment Info</p>
               </div>
 
               <div className="px-5 py-4 space-y-4">

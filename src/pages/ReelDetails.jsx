@@ -101,7 +101,7 @@ function ReelMediaPanel({ item }) {
 
         <div className="rounded-xl border border-neutral-200 overflow-hidden bg-neutral-900">
           <div className="px-3 py-2 bg-white border-b border-neutral-200">
-            <p className="text-[10px] font-semibold tracking-[0.1em] text-neutral-500 uppercase">Reel Video</p>
+            <p className="text-[10px] font-semibold tracking-[0.1em] text-neutral-500 uppercase">bSpark Video</p>
           </div>
           <div className="relative aspect-[9/16] md:aspect-[16/10]">
             {!showVideo ? (
@@ -118,7 +118,7 @@ function ReelMediaPanel({ item }) {
                 <div className="relative z-10 w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/25 transition-all duration-200">
                   <Play className="w-5 h-5 text-white fill-white ml-0.5" />
                 </div>
-                <span className="relative z-10 text-white/75 text-[11px] font-medium">Play Reel</span>
+                <span className="relative z-10 text-white/75 text-[11px] font-medium">Play bSpark</span>
               </button>
             ) : (
               <video
@@ -211,11 +211,11 @@ export default function ReelDetails() {
           className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group"
         >
           <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Reels
+          Back to bSparks
         </button>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full bg-violet-50 text-violet-600">
-            <Film className="w-3 h-3" /> Reel
+            <Film className="w-3 h-3" /> bSpark
           </span>
           <button
             onClick={() => setDeleteModal(true)}
@@ -360,8 +360,8 @@ export default function ReelDetails() {
         isOpen={deleteModal}
         onClose={() => setDeleteModal(false)}
         onConfirm={handleDelete}
-        title="Delete Reel"
-        description="Are you sure you want to permanently delete this reel? This cannot be undone."
+        title="Delete bSpark"
+        description="Are you sure you want to permanently delete this bSpark? This cannot be undone."
         confirmText="Delete"
         confirmVariant="danger"
         loading={deleting}

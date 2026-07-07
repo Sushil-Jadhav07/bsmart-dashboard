@@ -72,7 +72,7 @@ const RowMenu = ({ onView, onDelete }) => {
   );
 };
 
-const Posts = ({ forcedType = null, title = 'Posts' }) => {
+const Posts = ({ forcedType = null, title = 'Moments' }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, status, error } = useSelector((state) => state.posts);
@@ -141,8 +141,8 @@ const Posts = ({ forcedType = null, title = 'Posts' }) => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Total', value: totals.all, icon: Image, color: 'text-primary bg-primary/10' },
-            { label: 'Posts', value: totals.posts, icon: Image, color: 'text-blue-600 bg-blue-50' },
-            { label: 'Reels', value: totals.reels, icon: Film, color: 'text-violet-600 bg-violet-50' },
+            { label: 'Moments', value: totals.posts, icon: Image, color: 'text-blue-600 bg-blue-50' },
+            { label: 'bSparks', value: totals.reels, icon: Film, color: 'text-violet-600 bg-violet-50' },
             { label: 'Engagement', value: totals.engagement, icon: Heart, color: 'text-rose-600 bg-rose-50' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-3">
@@ -171,7 +171,7 @@ const Posts = ({ forcedType = null, title = 'Posts' }) => {
             </div>
             {!forcedType && (
               <div className="flex gap-1 bg-neutral-100 rounded-lg p-0.5">
-                {[{ value: 'all', label: 'All' }, { value: 'post', label: 'Posts' }, { value: 'reel', label: 'Reels' }].map((opt) => (
+                {[{ value: 'all', label: 'All' }, { value: 'post', label: 'Moments' }, { value: 'reel', label: 'bSparks' }].map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setTypeFilter(opt.value)}

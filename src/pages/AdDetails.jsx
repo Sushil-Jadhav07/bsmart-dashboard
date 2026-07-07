@@ -408,7 +408,7 @@ function AdStatsPanel({ stats, status, error, onRefresh }) {
           </div>
           <div>
             <h2 className="text-base font-bold text-neutral-900">Engagement Analytics</h2>
-            <p className="text-[11px] text-neutral-400">Live performance data for this ad</p>
+            <p className="text-[11px] text-neutral-400">Live performance data for this spotlight</p>
           </div>
         </div>
         <button onClick={onRefresh}
@@ -478,7 +478,7 @@ function AdStatsPanel({ stats, status, error, onRefresh }) {
 
         <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-5">
           <p className="text-sm font-semibold text-neutral-800 mb-1">Performance Rates</p>
-          <p className="text-[11px] text-neutral-400 mb-5">How effectively this ad converts views</p>
+          <p className="text-[11px] text-neutral-400 mb-5">How effectively this spotlight converts views</p>
           <div className="grid grid-cols-3 gap-4">
             <RadialGauge value={views.completed || 0} max={views.total  || 1} label="Completion"  reverse={false} />
             <RadialGauge value={views.unique    || 0} max={views.total  || 1} label="Unique Rate" reverse={true}  />
@@ -689,7 +689,7 @@ export default function AdDetails() {
       {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
         <button onClick={() => navigate('/ads')} className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group">
-          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Ads
+          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Spotlights
         </button>
         <div className="flex items-center gap-2">
           {!isLoading && (
@@ -900,7 +900,7 @@ export default function AdDetails() {
         </div>
       )}
 
-      <ConfirmModal isOpen={deleteModal} onClose={() => setDeleteModal(false)} onConfirm={handleDeleteAd} title="Delete Ad" description="Are you sure you want to permanently delete this ad? This cannot be undone." confirmText="Delete" confirmVariant="danger" loading={deleting} />
+      <ConfirmModal isOpen={deleteModal} onClose={() => setDeleteModal(false)} onConfirm={handleDeleteAd} title="Delete Spotlight" description="Are you sure you want to permanently delete this spotlight? This cannot be undone." confirmText="Delete" confirmVariant="danger" loading={deleting} />
       <ConfirmModal isOpen={!!commentToDelete} onClose={() => setCommentToDelete(null)} onConfirm={handleDeleteComment} title="Delete Comment" description="Are you sure you want to delete this comment? This cannot be undone." confirmText="Delete" confirmVariant="danger" loading={commentDeleting} />
       <Modal isOpen={rejectModal} onClose={() => setRejectModal(false)} title="Reject Ad" description="Provide a reason for rejection (optional)" size="sm"
         footer={<><Button variant="ghost" onClick={() => setRejectModal(false)} disabled={updatingStatus}>Cancel</Button><Button variant="danger" onClick={handleReject} loading={updatingStatus}>Reject</Button></>}>

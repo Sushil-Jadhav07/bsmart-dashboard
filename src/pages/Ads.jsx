@@ -118,14 +118,14 @@ const Ads = () => {
     <>
       <div className="space-y-5">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Campaign Management</p>
-          <h1 className="text-xl font-bold text-neutral-900 mt-1">Ads</h1>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Spotlights</p>
+          <h1 className="text-xl font-bold text-neutral-900 mt-1">Spotlights</h1>
           <p className="text-sm text-neutral-500 mt-0.5">Review ad campaigns, status, and performance</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Total Ads', value: totals.all, icon: Megaphone, color: 'text-primary bg-primary/10' },
+            { label: 'Total Spotlights', value: totals.all, icon: Megaphone, color: 'text-primary bg-primary/10' },
             { label: 'Active', value: totals.active, icon: Image, color: 'text-emerald-600 bg-emerald-50' },
             { label: 'Views', value: totals.views, icon: MousePointerClick, color: 'text-violet-600 bg-violet-50' },
           ].map((stat) => (
@@ -167,7 +167,7 @@ const Ads = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/50">
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Ad</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Spotlight</th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Category</th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center">Views</th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Status</th>
@@ -224,8 +224,8 @@ const Ads = () => {
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, ad: null })}
         onConfirm={() => { if (!confirmModal.ad?.id) return; dispatch(deleteAdById(confirmModal.ad.id)).finally(() => setConfirmModal({ isOpen: false, ad: null })); }}
-        title="Delete Ad"
-        description={`Are you sure you want to delete "${confirmModal.ad?.title || 'this ad'}"? This action cannot be undone.`}
+        title="Delete Spotlight"
+        description={`Are you sure you want to delete "${confirmModal.ad?.title || 'this spotlight'}"? This action cannot be undone.`}
         confirmText="Delete"
         confirmVariant="danger"
       />

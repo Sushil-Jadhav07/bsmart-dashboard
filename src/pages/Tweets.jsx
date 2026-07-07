@@ -119,8 +119,8 @@ const Tweets = () => {
     <>
       <div className="space-y-5">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Tweet System</p>
-          <h1 className="text-xl font-bold text-neutral-900 mt-1">Tweets</h1>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Buzz</p>
+          <h1 className="text-xl font-bold text-neutral-900 mt-1">Buzz</h1>
           <p className="text-sm text-neutral-500 mt-0.5">Moderate short-form text updates, replies, and engagement</p>
         </div>
 
@@ -155,7 +155,7 @@ const Tweets = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/50">
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Tweet</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Buzz</th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center"><Heart className="w-3.5 h-3.5 inline" /></th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center"><MessageCircle className="w-3.5 h-3.5 inline" /></th>
                   <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-center"><Repeat2 className="w-3.5 h-3.5 inline" /></th>
@@ -187,7 +187,7 @@ const Tweets = () => {
                     <td className="px-4 py-3 text-center"><span className="text-sm font-medium text-neutral-700">{formatNumber(row.reposts)}</span></td>
                     <td className="px-4 py-3">
                       <span className={clsx('inline-flex items-center text-xs font-medium px-2 py-1 rounded-md', row.isReply ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700')}>
-                        {row.isReply ? 'Reply' : 'Tweet'}
+                        {row.isReply ? 'Reply' : 'Buzz'}
                       </span>
                     </td>
                     <td className="px-4 py-3"><span className="text-xs text-neutral-500">{formatDateTime(row.createdAt)}</span></td>
@@ -215,8 +215,8 @@ const Tweets = () => {
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={handleDelete}
-        title="Delete Tweet"
-        description="Are you sure you want to delete this tweet? This action cannot be undone."
+        title="Delete Buzz"
+        description="Are you sure you want to delete this buzz? This action cannot be undone."
         confirmText="Delete"
         confirmVariant="danger"
       />
