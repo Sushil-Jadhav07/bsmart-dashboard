@@ -22,6 +22,7 @@ import {
   Inbox,
   MessageSquare,
   HelpCircle,
+  Scale,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import logoIcon from '../assets/bsmart_logo.png';
@@ -59,6 +60,12 @@ const navGroups = [
       { path: '/inquiries', label: 'Inquiry', icon: Inbox },
       { path: '/customer-queries', label: 'Customer Queries', icon: MessageSquare },
       { path: '/faq', label: 'FAQ', icon: HelpCircle },
+    ],
+  },
+  {
+    label: 'Legal',
+    items: [
+      { path: '/policies', label: 'Legal Docs', icon: Scale },
     ],
   },
   {

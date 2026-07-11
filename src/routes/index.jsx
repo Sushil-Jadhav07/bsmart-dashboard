@@ -35,6 +35,8 @@ import Inquiries from '../pages/Inquiries.jsx';
 import CustomerQueries from '../pages/CustomerQueries.jsx';
 import CustomerQueriesDetails from '../pages/CustomerQueriesDetails.jsx';
 import FAQ from '../pages/FAQ.jsx';
+import Policies from '../pages/Policies.jsx';
+import PolicyEditor from '../pages/PolicyEditor.jsx';
 
 
 export const router = createBrowserRouter([
@@ -181,6 +183,14 @@ export const router = createBrowserRouter([
       {
         path: '/faq',
         element: <FAQ />
+      },
+      {
+        path: '/policies',
+        element: <Policies />
+      },
+      {
+        path: '/policies/:type',
+        element: <PolicyEditor />
       },
     ]
   },
