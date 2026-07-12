@@ -483,36 +483,6 @@ export default function PolicyEditor() {
               {sideTab === 'details' && (
                 <div className="space-y-5">
 
-                  {/* Status */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Status</p>
-                    <button
-                      onClick={handleToggleStatus}
-                      disabled={toggleLoading || !policy}
-                      className={clsx(
-                        'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors',
-                        isPublished
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'
-                          : 'bg-neutral-50 text-neutral-500 border-neutral-200 hover:bg-neutral-100',
-                        (toggleLoading || !policy) && 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        {toggleLoading
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : isPublished
-                          ? <Globe className="w-4 h-4" />
-                          : <FileMinus className="w-4 h-4" />
-                        }
-                        {isPublished ? 'Published' : 'Draft'}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-                    </button>
-                    <p className="text-[11px] text-neutral-400 mt-1.5 leading-relaxed">
-                      {isPublished ? 'Visible to all users in the app.' : 'Not publicly visible yet.'}
-                    </p>
-                  </div>
-
                   {/* Document info */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Document Info</p>
