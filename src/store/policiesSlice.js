@@ -126,6 +126,41 @@ export const fetchPolicyHistory = createAsyncThunk(
   }
 );
 
+/** DELETE /api/policies/:type/meta — permanently remove a policy type */
+export const deletePolicyMeta = createAsyncThunk(
+  'policies/deleteMeta',
+  async (type, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    try {
+      const res  = await fetch(`${BASE}/${type}/meta`, {
+        method: 'DELETE',
+        headers: authHeader(token),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to delete policy');
+      return type;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
+/** PATCH /api/policies/:type/meta — update title / app_source */
+export const updatePolicyMeta = createAsyncThunk(
+  'policies/updateMeta',
+  async ({ type, title, app_source }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    try {
+      const res  = await fetch(`${BASE}/${type}/meta`, {
+        method: 'PATCH',
+        headers: authHeader(token),
+        body: JSON.stringify({ title, app_source }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update policy meta');
+      return { type, ...json.data };
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
 // ── Slice ────────────────────────────────────────────────────────────────────
 
 const policiesSlice = createSlice({
@@ -144,6 +179,10 @@ const policiesSlice = createSlice({
     history: {},          // keyed by type: { terms: [...], cookies: [...] }
     historyStatus: 'idle',
     historyError: null,
+    deleteStatus: 'idle',
+    deleteError: null,
+    metaStatus: 'idle',
+    metaError: null,
   },
   reducers: {
     clearSaveStatus(state) {
@@ -157,6 +196,14 @@ const policiesSlice = createSlice({
     clearHistory(state, { payload: type }) {
       delete state.history[type];
       state.historyStatus = 'idle';
+    },
+    clearDeleteStatus(state) {
+      state.deleteStatus = 'idle';
+      state.deleteError  = null;
+    },
+    clearMetaStatus(state) {
+      state.metaStatus = 'idle';
+      state.metaError  = null;
     },
   },
   extraReducers: (builder) => {
@@ -217,8 +264,29 @@ const policiesSlice = createSlice({
         state.history[type]   = entries;
       })
       .addCase(fetchPolicyHistory.rejected,  (state, { payload })          => { state.historyStatus = 'failed'; state.historyError = payload; });
+
+    // deletePolicyMeta
+    builder
+      .addCase(deletePolicyMeta.pending,   (state)                   => { state.deleteStatus = 'loading'; state.deleteError = null; })
+      .addCase(deletePolicyMeta.fulfilled, (state, { payload: type }) => {
+        state.deleteStatus = 'succeeded';
+        delete state.items[type];
+        delete state.history[type];
+      })
+      .addCase(deletePolicyMeta.rejected,  (state, { payload })       => { state.deleteStatus = 'failed'; state.deleteError = payload; });
+
+    // updatePolicyMeta
+    builder
+      .addCase(updatePolicyMeta.pending,   (state)            => { state.metaStatus = 'loading'; state.metaError = null; })
+      .addCase(updatePolicyMeta.fulfilled, (state, { payload }) => {
+        state.metaStatus = 'succeeded';
+        if (payload?.type && state.items[payload.type]) {
+          state.items[payload.type] = { ...state.items[payload.type], ...payload };
+        }
+      })
+      .addCase(updatePolicyMeta.rejected,  (state, { payload }) => { state.metaStatus = 'failed'; state.metaError = payload; });
   },
 });
 
-export const { clearSaveStatus, clearCreateStatus, clearHistory } = policiesSlice.actions;
+export const { clearSaveStatus, clearCreateStatus, clearHistory, clearDeleteStatus, clearMetaStatus } = policiesSlice.actions;
 export default policiesSlice.reducer;
