@@ -37,6 +37,10 @@ import CustomerQueriesDetails from '../pages/CustomerQueriesDetails.jsx';
 import FAQ from '../pages/FAQ.jsx';
 import Policies from '../pages/Policies.jsx';
 import PolicyEditor from '../pages/PolicyEditor.jsx';
+import GiftCards from '../pages/GiftCards.jsx'
+import GiftCardCreate from '../pages/GiftCardCreate.jsx'
+import GiftCardEdit from '../pages/GiftCardEdit.jsx'
+import GiftCardView from '../pages/GiftCardView.jsx';
 
 
 export const router = createBrowserRouter([
@@ -191,6 +195,22 @@ export const router = createBrowserRouter([
       {
         path: '/policies/:type',
         element: <PolicyEditor />
+      },
+      {
+        path: '/gift-cards',
+        element: <GiftCards />
+      },
+      {
+        path: '/gift-cards/create',
+        element: <GiftCardCreate />
+      },
+      {
+        path: '/gift-cards/:id',
+        element: <GiftCardView />
+      },
+      {
+        path: '/gift-cards/:id/edit',
+        element: <GiftCardEdit />
       },
     ]
   },

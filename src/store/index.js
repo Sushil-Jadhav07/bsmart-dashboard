@@ -15,9 +15,10 @@ import inquiries from './inquiriesSlice.js'
 import customerQueries from './customerQueriesSlice.js'
 import faq from './faqSlice.js'
 import policies from './policiesSlice.js'
+import giftCards from './giftCardsSlice.js'
 
 const store = configureStore({
-  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries, faq, policies },
+  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries, faq, policies, giftCards },
 })
 
 export default store
