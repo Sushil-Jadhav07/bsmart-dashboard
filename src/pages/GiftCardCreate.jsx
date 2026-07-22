@@ -6,6 +6,7 @@ import {
   ArrowLeft, Gift, Loader2, Upload, Image as ImageIcon,
   X, Plus, Trash2, IndianRupee, Coins,
   FileText, Building2, Tag, CheckCircle2, AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import {
   createGiftCard, uploadGiftCardMedia,
@@ -62,6 +63,7 @@ export function GiftCardForm({ initialValues = {}, onSubmit, saving, saveError, 
     title:       initialValues.title       ?? '',
     description: initialValues.description ?? '',
     vendor:      initialValues.vendor      ?? '',
+    category:    initialValues.category    ?? 'Gift Cards',
     card_status: initialValues.card_status ?? 'active',
   });
 
@@ -89,15 +91,45 @@ export function GiftCardForm({ initialValues = {}, onSubmit, saving, saveError, 
 
   const [errors, setErrors]       = useState({});
   const [mediaError, setMediaError] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef(null);
 
   // Clear stale upload status whenever the form mounts
   useEffect(() => {
     dispatch(clearUploadStatus());
   }, [dispatch]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const categories = [
+    'Gift Cards',
+    'Food',
+    'Entertainment',
+    'Shopping',
+    'Travel',
+    'Health & Wellness',
+    'Electronics',
+    'Fashion',
+  ];
+
   const setField = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
     setErrors((er) => ({ ...er, [k]: '' }));
+  };
+
+  const handleCategorySelect = (category) => {
+    setForm((f) => ({ ...f, category }));
+    setShowCategoryDropdown(false);
   };
 
   // ── Denomination helpers ────────────────────────────────────────────────
@@ -153,7 +185,7 @@ export function GiftCardForm({ initialValues = {}, onSubmit, saving, saveError, 
     const body = {
       title:               form.title.trim(),
       description:         form.description.trim(),
-      category:            'Gift Cards',
+      category:            form.category,
       card_status:         form.card_status,
       vendor:              form.vendor.trim(),
       denominations:       denominations
@@ -297,15 +329,44 @@ export function GiftCardForm({ initialValues = {}, onSubmit, saving, saveError, 
             {uploadError && <p className="text-[11px] text-red-500 mt-1.5">{uploadError}</p>}
           </SectionCard>
 
-          {/* ④ Category — static */}
+          {/* ④ Category */}
           <SectionCard>
             <SectionTitle icon={Tag} iconBg="bg-amber-50" iconColor="text-amber-600">Category</SectionTitle>
-            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50">
-              <Gift className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-              <span className="text-[13px] font-semibold text-neutral-700 flex-1">Gift Cards</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-200/60 px-2 py-0.5 rounded-full">Default</span>
+            <div className="relative" ref={categoryDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className={clsx(
+                  'w-full flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-[14px] text-neutral-800',
+                  'focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition',
+                  'border-neutral-200 bg-neutral-50 hover:bg-neutral-100',
+                  showCategoryDropdown && 'border-primary ring-2 ring-primary/30'
+                )}
+              >
+                <span>{form.category}</span>
+                <ChevronDown className={clsx('w-4 h-4 text-neutral-400 transition-transform', showCategoryDropdown && 'rotate-180')} />
+              </button>
+              {showCategoryDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => handleCategorySelect(category)}
+                      className={clsx(
+                        'w-full text-left px-3.5 py-2.5 text-[14px] transition-colors',
+                        form.category === category
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'text-neutral-800 hover:bg-neutral-50'
+                      )}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <FieldHint>Gift card products are always filed under the "Gift Cards" category.</FieldHint>
+            <FieldHint>Select the category that best fits this gift card.</FieldHint>
           </SectionCard>
 
           {/* ⑤ Denominations */}

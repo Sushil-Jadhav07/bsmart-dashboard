@@ -67,6 +67,7 @@ const navGroups = [
     label: 'Promotions',
     items: [
       { path: '/gift-cards', label: 'Gift Cards', icon: Gift },
+      { path: '/gift-card-orders', label: 'Gift Card Orders', icon: Gift },
     ],
   },
   {

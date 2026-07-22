@@ -40,7 +40,10 @@ import PolicyEditor from '../pages/PolicyEditor.jsx';
 import GiftCards from '../pages/GiftCards.jsx'
 import GiftCardCreate from '../pages/GiftCardCreate.jsx'
 import GiftCardEdit from '../pages/GiftCardEdit.jsx'
-import GiftCardView from '../pages/GiftCardView.jsx';
+import GiftCardView from '../pages/GiftCardView.jsx'
+import GiftCardOrders from '../pages/GiftCardOrders.jsx'
+import GiftCardOrderView from '../pages/GiftCardOrderView.jsx'
+import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
 
 
 export const router = createBrowserRouter([
@@ -211,6 +214,18 @@ export const router = createBrowserRouter([
       {
         path: '/gift-cards/:id/edit',
         element: <GiftCardEdit />
+      },
+      {
+        path: '/gift-card-orders',
+        element: <GiftCardOrders />
+      },
+      {
+        path: '/gift-card-orders/:id',
+        element: <GiftCardOrderView />
+      },
+      {
+        path: '/gift-card-orders/:id/process',
+        element: <GiftCardOrderProcess />
       },
     ]
   },
