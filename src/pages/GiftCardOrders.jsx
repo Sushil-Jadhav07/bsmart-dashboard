@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
@@ -96,8 +97,34 @@ const GiftCardOrders = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [openMenuOrderId, setOpenMenuOrderId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [message, setMessage] = useState('');
+  const menuWidth = 192;
+
+  const openMenu = (e, orderId) => {
+    e.stopPropagation();
+    if (openMenuOrderId === orderId) {
+      setOpenMenuOrderId(null);
+      setMenuPosition(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(8, rect.right - menuWidth),
+      window.innerWidth - menuWidth - 8
+    );
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < 220 ? rect.top - 8 : rect.bottom + 4;
+    const openUpward = spaceBelow < 220;
+    setMenuPosition({ top, left, openUpward });
+    setOpenMenuOrderId(orderId);
+  };
+
+  const closeMenu = () => {
+    setOpenMenuOrderId(null);
+    setMenuPosition(null);
+  };
 
   useEffect(() => {
     if (listStatus === 'idle') {
@@ -149,13 +176,13 @@ const GiftCardOrders = () => {
   const visibleOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleCancelOrder = async (orderId) => {
-    setOpenMenuOrderId(null);
+    closeMenu();
     dispatch(cancelGiftCardOrder(orderId));
   };
 
   const handleDeleteOrder = (orderId) => {
     const order = list.find((o) => (o._id || o.id) === orderId);
-    setOpenMenuOrderId(null);
+    closeMenu();
     setDeleteTarget(order);
   };
 
@@ -375,23 +402,27 @@ const GiftCardOrders = () => {
                         <td className="px-4 py-3 text-right">
                           <div className="relative inline-block">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuOrderId(isMenuOpen ? null : orderId);
-                              }}
+                              onClick={(e) => openMenu(e, orderId)}
                               className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </button>
-                            {isMenuOpen && (
+                            {isMenuOpen && menuPosition && createPortal(
                               <>
-                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuOrderId(null)} />
-                                <div className="absolute right-0 top-8 z-20 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg py-1">
+                                <div className="fixed inset-0 z-40" onClick={closeMenu} />
+                                <div
+                                  className="fixed z-50 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg py-1"
+                                  style={{
+                                    left: menuPosition.left,
+                                    top: menuPosition.openUpward ? undefined : menuPosition.top,
+                                    bottom: menuPosition.openUpward ? window.innerHeight - menuPosition.top : undefined,
+                                  }}
+                                >
                                   {/* View Order - always show */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setOpenMenuOrderId(null);
+                                      closeMenu();
                                       navigate(`/gift-card-orders/${orderId}`);
                                     }}
                                     className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
@@ -405,7 +436,7 @@ const GiftCardOrders = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setOpenMenuOrderId(null);
+                                          closeMenu();
                                           navigate(`/gift-card-orders/${orderId}/process`);
                                         }}
                                         className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
@@ -429,7 +460,7 @@ const GiftCardOrders = () => {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setOpenMenuOrderId(null);
+                                        closeMenu();
                                         navigate(`/gift-card-orders/${orderId}/process`);
                                       }}
                                       className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
@@ -451,7 +482,8 @@ const GiftCardOrders = () => {
                                     </button>
                                   )}
                                 </div>
-                              </>
+                              </>,
+                              document.body
                             )}
                           </div>
                         </td>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
@@ -32,12 +32,17 @@ export default function GiftCardOrderView() {
   const dispatch = useDispatch();
 
   const { current, currentStatus, currentError } = useSelector((s) => s.giftCardOrders);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchGiftCardOrderById(id));
     }
   }, [dispatch, id]);
+
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [current?.media?.url]);
 
   const status = useMemo(() => current?.status || 'pending', [current]);
   const statusConfig = useMemo(() => STATUS_MAP[status] || STATUS_MAP.pending, [status]);
@@ -101,9 +106,34 @@ export default function GiftCardOrderView() {
           <div className="space-y-6">
             {/* Header card with gift card media */}
             <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-              <div className={clsx('relative h-48 w-full overflow-hidden bg-gradient-to-br', CARD_GRADIENTS[0])}>
+              <div className={clsx('relative h-56 sm:h-64 w-full overflow-hidden bg-gradient-to-br', CARD_GRADIENTS[0])}>
                 {current.media?.url ? (
-                  <img src={current.media.url} alt={current.title} className="w-full h-full object-cover" />
+                  <>
+                    {/* Blurred backdrop fills the frame so a letterboxed banner doesn't look empty */}
+                    <img
+                      src={current.media.url}
+                      alt=""
+                      aria-hidden="true"
+                      className={clsx(
+                        'absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40 transition-opacity duration-300',
+                        imgLoaded ? 'opacity-40' : 'opacity-0'
+                      )}
+                    />
+                    {!imgLoaded && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-white/80 animate-spin" />
+                      </div>
+                    )}
+                    <img
+                      src={current.media.url}
+                      alt={current.title}
+                      onLoad={() => setImgLoaded(true)}
+                      className={clsx(
+                        'relative w-full h-full object-contain transition-opacity duration-300',
+                        imgLoaded ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Gift className="w-16 h-16 text-white/30" />
