@@ -24,6 +24,8 @@ import {
   HelpCircle,
   Scale,
   Gift,
+  Bug,
+  Flag,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import logoIcon from '../assets/bsmart_logo.png';
@@ -41,7 +43,7 @@ const navGroups = [
       { path: '/posts', label: 'Moments', icon: Image },
       { path: '/reels', label: 'bSparks', icon: Film },
       { path: '/tweets', label: 'Buzz', icon: MessagesSquare },
-      { path: '/promote', label: 'Boosts', icon: Sparkles },
+      { path: '/promote', label: 'Campaigns', icon: Sparkles },
       { path: '/ads', label: 'Spotlights', icon: Megaphone },
     ],
   },
@@ -68,6 +70,13 @@ const navGroups = [
     items: [
       { path: '/gift-cards', label: 'Gift Cards', icon: Gift },
       { path: '/gift-card-orders', label: 'Gift Card Orders', icon: Gift },
+    ],
+  },
+  {
+    label: 'Reports',
+    items: [
+      { path: '/reports/bugs', label: 'Bug Reports', icon: Bug },
+      { path: '/reports/content', label: 'Content Reports', icon: Flag },
     ],
   },
   {

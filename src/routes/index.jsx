@@ -44,6 +44,9 @@ import GiftCardView from '../pages/GiftCardView.jsx'
 import GiftCardOrders from '../pages/GiftCardOrders.jsx'
 import GiftCardOrderView from '../pages/GiftCardOrderView.jsx'
 import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
+import BugReports from '../pages/BugReports.jsx';
+import BugReportDetail from '../pages/BugReportDetail.jsx';
+import ContentReports from '../pages/ContentReports.jsx';
 
 
 export const router = createBrowserRouter([
@@ -226,6 +229,18 @@ export const router = createBrowserRouter([
       {
         path: '/gift-card-orders/:id/process',
         element: <GiftCardOrderProcess />
+      },
+      {
+        path: '/reports/bugs',
+        element: <BugReports />
+      },
+      {
+        path: '/reports/bugs/:id',
+        element: <BugReportDetail />
+      },
+      {
+        path: '/reports/content',
+        element: <ContentReports />
       },
     ]
   },
