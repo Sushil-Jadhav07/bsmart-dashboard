@@ -48,6 +48,21 @@ export const updateContentReport = createAsyncThunk(
   }
 );
 
+export const deleteContentReport = createAsyncThunk(
+  'contentReports/delete',
+  async (id, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    try {
+      const res = await fetch(`${BASE}/${id}`, { method: 'DELETE', headers: authHeader(token) });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to delete content report');
+      }
+      return id;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
 const contentReportsSlice = createSlice({
   name: 'contentReports',
   initialState: {
@@ -59,9 +74,12 @@ const contentReportsSlice = createSlice({
     listError: null,
     updateStatus: 'idle',
     updateError: null,
+    deleteStatus: 'idle',
+    deleteError: null,
   },
   reducers: {
     clearUpdateStatus: (s) => { s.updateStatus = 'idle'; s.updateError = null; },
+    clearDeleteStatus: (s) => { s.deleteStatus = 'idle'; s.deleteError = null; },
   },
   extraReducers: (builder) => {
     builder
@@ -85,8 +103,16 @@ const contentReportsSlice = createSlice({
         }
       })
       .addCase(updateContentReport.rejected, (s, a) => { s.updateStatus = 'failed'; s.updateError = a.payload; });
+
+    builder
+      .addCase(deleteContentReport.pending, (s) => { s.deleteStatus = 'loading'; s.deleteError = null; })
+      .addCase(deleteContentReport.fulfilled, (s, a) => {
+        s.deleteStatus = 'succeeded';
+        s.list = s.list.filter((r) => (r._id || r.id) !== a.payload);
+      })
+      .addCase(deleteContentReport.rejected, (s, a) => { s.deleteStatus = 'failed'; s.deleteError = a.payload; });
   },
 });
 
-export const { clearUpdateStatus } = contentReportsSlice.actions;
+export const { clearUpdateStatus, clearDeleteStatus } = contentReportsSlice.actions;
 export default contentReportsSlice.reducer;

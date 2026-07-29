@@ -4,12 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   ChevronLeft, CheckCircle2, Ban, Clock, Bug, Loader2, AlertCircle,
-  User, Smartphone, Monitor, Apple, Save, AlertTriangle, Wifi, Ticket,
+  User, Smartphone, Monitor, Apple, Save, AlertTriangle, Wifi, Ticket, Trash2,
 } from 'lucide-react';
-import { fetchBugReportById, updateBugReport, clearCurrent, clearUpdateStatus } from '../store/bugReportsSlice.js';
+import { fetchBugReportById, updateBugReport, deleteBugReport, clearCurrent, clearUpdateStatus } from '../store/bugReportsSlice.js';
 import { formatDateTime } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
 import Dropdown from '../components/Dropdown.jsx';
+import { ConfirmModal } from '../components/Modal.jsx';
 
 const STATUS_MAP = {
   new: { label: 'New', cls: 'bg-amber-50 text-amber-700 border-amber-100', icon: Clock },
@@ -82,10 +83,11 @@ export default function BugReportDetail() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { current, currentStatus, currentError, updateStatus, updateError } = useSelector((s) => s.bugReports);
+  const { current, currentStatus, currentError, updateStatus, updateError, deleteStatus } = useSelector((s) => s.bugReports);
   const [heroLoaded, setHeroLoaded] = useState(false);
   const [form, setForm] = useState({ status: '', priority: '', assigned_to: '', admin_note: '' });
   const [saveMessage, setSaveMessage] = useState('');
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (id) dispatch(fetchBugReportById(id));
@@ -136,6 +138,19 @@ export default function BugReportDetail() {
     dispatch(updateBugReport({ id, data: form }));
   };
 
+  const handleDelete = () => {
+    if (!id) return;
+    dispatch(deleteBugReport(id)).then((result) => {
+      if (result.error) {
+        setConfirmDeleteOpen(false);
+        setSaveMessage(result.payload || 'Failed to delete report');
+        setTimeout(() => setSaveMessage(''), 2500);
+      } else {
+        navigate('/reports/bugs');
+      }
+    });
+  };
+
   return (
     <div className="max-w-7xl mx-auto pb-10">
       {/* Top bar */}
@@ -147,10 +162,16 @@ export default function BugReportDetail() {
           <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           Back to Bug Reports
         </button>
-        <Button variant="primary" size="sm" onClick={handleSave} loading={updateStatus === 'loading'}>
-          <Save className="w-3.5 h-3.5 mr-1" />
-          Save Changes
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
+            <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
+            Delete
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} loading={updateStatus === 'loading'}>
+            <Save className="w-3.5 h-3.5 mr-1" />
+            Save Changes
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -400,6 +421,17 @@ export default function BugReportDetail() {
           {saveMessage}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Bug Report?"
+        description={`Ticket ${current?.ticket_id || ''} will be permanently removed. This action cannot be undone.`}
+        confirmText="Delete"
+        confirmVariant="danger"
+        loading={deleteStatus === 'loading'}
+      />
     </div>
   );
 }

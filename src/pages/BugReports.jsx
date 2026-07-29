@@ -20,10 +20,12 @@ import {
   Smartphone,
   Monitor,
   Apple,
+  Trash2,
 } from 'lucide-react';
-import { fetchBugReports, updateBugReport } from '../store/bugReportsSlice.js';
+import { fetchBugReports, updateBugReport, deleteBugReport } from '../store/bugReportsSlice.js';
 import { formatNumber, formatRelativeTime } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
+import { ConfirmModal } from '../components/Modal.jsx';
 
 const STATUS_MAP = {
   new: { label: 'New', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
@@ -83,13 +85,14 @@ const getFirstAttachment = (r) => (Array.isArray(r.attachments) && r.attachments
 const BugReports = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { list = [], listStatus, listError, total } = useSelector((s) => s.bugReports);
+  const { list = [], listStatus, listError, total, deleteStatus } = useSelector((s) => s.bugReports);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPosition, setMenuPosition] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const menuWidth = 192;
 
   const load = () => {
@@ -125,6 +128,13 @@ const BugReports = () => {
   const handleQuickStatus = (id, status) => {
     closeMenu();
     dispatch(updateBugReport({ id, data: { status } })).then(() => load());
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      const id = deleteTarget._id || deleteTarget.id;
+      dispatch(deleteBugReport(id)).then(() => setDeleteTarget(null));
+    }
   };
 
   const filteredReports = useMemo(() => {
@@ -346,6 +356,12 @@ const BugReports = () => {
                                       <Ban className="w-3.5 h-3.5 text-neutral-400" /> Close
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => { closeMenu(); setDeleteTarget(report); }}
+                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Delete Report
+                                  </button>
                                 </div>
                               </>,
                               document.body
@@ -397,6 +413,17 @@ const BugReports = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Bug Report?"
+        description={`Ticket ${deleteTarget?.ticket_id || ''} will be permanently removed. This action cannot be undone.`}
+        confirmText="Delete"
+        confirmVariant="danger"
+        loading={deleteStatus === 'loading'}
+      />
     </>
   );
 };

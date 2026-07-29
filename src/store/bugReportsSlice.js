@@ -72,6 +72,21 @@ export const updateBugReport = createAsyncThunk(
   }
 );
 
+export const deleteBugReport = createAsyncThunk(
+  'bugReports/delete',
+  async (id, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    try {
+      const res = await fetch(`${BASE}/${id}`, { method: 'DELETE', headers: authHeader(token) });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to delete bug report');
+      }
+      return id;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
 const bugReportsSlice = createSlice({
   name: 'bugReports',
   initialState: {
@@ -86,10 +101,13 @@ const bugReportsSlice = createSlice({
     currentError: null,
     updateStatus: 'idle',
     updateError: null,
+    deleteStatus: 'idle',
+    deleteError: null,
   },
   reducers: {
     clearCurrent: (s) => { s.current = null; s.currentStatus = 'idle'; s.currentError = null; },
     clearUpdateStatus: (s) => { s.updateStatus = 'idle'; s.updateError = null; },
+    clearDeleteStatus: (s) => { s.deleteStatus = 'idle'; s.deleteError = null; },
   },
   extraReducers: (builder) => {
     builder
@@ -119,8 +137,17 @@ const bugReportsSlice = createSlice({
         }
       })
       .addCase(updateBugReport.rejected, (s, a) => { s.updateStatus = 'failed'; s.updateError = a.payload; });
+
+    builder
+      .addCase(deleteBugReport.pending, (s) => { s.deleteStatus = 'loading'; s.deleteError = null; })
+      .addCase(deleteBugReport.fulfilled, (s, a) => {
+        s.deleteStatus = 'succeeded';
+        s.list = s.list.filter((r) => (r._id || r.id) !== a.payload);
+        if (s.current && (s.current._id || s.current.id) === a.payload) s.current = null;
+      })
+      .addCase(deleteBugReport.rejected, (s, a) => { s.deleteStatus = 'failed'; s.deleteError = a.payload; });
   },
 });
 
-export const { clearCurrent, clearUpdateStatus } = bugReportsSlice.actions;
+export const { clearCurrent, clearUpdateStatus, clearDeleteStatus } = bugReportsSlice.actions;
 export default bugReportsSlice.reducer;

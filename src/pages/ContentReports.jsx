@@ -22,10 +22,12 @@ import {
   MessageCircle,
   MessagesSquare,
   Loader2,
+  Trash2,
 } from 'lucide-react';
-import { fetchContentReports, updateContentReport, clearUpdateStatus } from '../store/contentReportsSlice.js';
+import { fetchContentReports, updateContentReport, deleteContentReport, clearUpdateStatus } from '../store/contentReportsSlice.js';
 import { formatDateTime, formatNumber, formatRelativeTime, capitalize } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
+import { ConfirmModal } from '../components/Modal.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -71,7 +73,7 @@ const Avatar = ({ name, avatarUrl, size = 8 }) => {
   );
 };
 
-const DetailModal = ({ report, onClose, onSaved }) => {
+const DetailModal = ({ report, onClose, onSaved, onDelete }) => {
   const dispatch = useDispatch();
   const { updateStatus, updateError } = useSelector((s) => s.contentReports);
   const [form, setForm] = useState({
@@ -207,11 +209,16 @@ const DetailModal = ({ report, onClose, onSaved }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-neutral-100 flex-shrink-0 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" size="sm" onClick={handleSave} loading={updateStatus === 'loading'}>
-            <ShieldAlert className="w-3.5 h-3.5 mr-1.5" /> Save Review
+        <div className="flex items-center justify-between gap-2 px-6 py-3 border-t border-neutral-100 flex-shrink-0 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => onDelete(report)}>
+            <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-500" /> Delete
           </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={updateStatus === 'loading'}>
+              <ShieldAlert className="w-3.5 h-3.5 mr-1.5" /> Save Review
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -220,7 +227,7 @@ const DetailModal = ({ report, onClose, onSaved }) => {
 
 const ContentReports = () => {
   const dispatch = useDispatch();
-  const { list = [], listStatus, listError, total } = useSelector((s) => s.contentReports);
+  const { list = [], listStatus, listError, total, deleteStatus } = useSelector((s) => s.contentReports);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -229,6 +236,7 @@ const ContentReports = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPosition, setMenuPosition] = useState(null);
   const [detailReport, setDetailReport] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const menuWidth = 192;
 
   const load = () => {
@@ -264,6 +272,13 @@ const ContentReports = () => {
   const handleQuickStatus = (id, status) => {
     closeMenu();
     dispatch(updateContentReport({ id, data: { status } })).then(() => load());
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      const id = deleteTarget._id || deleteTarget.id;
+      dispatch(deleteContentReport(id)).then(() => setDeleteTarget(null));
+    }
   };
 
   const filteredReports = useMemo(() => {
@@ -494,6 +509,12 @@ const ContentReports = () => {
                                       <ShieldAlert className="w-3.5 h-3.5" /> Mark Action Taken
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => { closeMenu(); setDeleteTarget(report); }}
+                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Delete Report
+                                  </button>
                                 </div>
                               </>,
                               document.body
@@ -551,8 +572,20 @@ const ContentReports = () => {
           report={detailReport}
           onClose={() => setDetailReport(null)}
           onSaved={() => { setDetailReport(null); load(); }}
+          onDelete={(report) => { setDetailReport(null); setDeleteTarget(report); }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Content Report?"
+        description="This report will be permanently removed. This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="danger"
+        loading={deleteStatus === 'loading'}
+      />
     </>
   );
 };
