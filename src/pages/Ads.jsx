@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { clsx } from 'clsx';
-import { Eye, Film, Image, Megaphone, MoreHorizontal, MousePointerClick, Search, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Film, Image, Megaphone, MousePointerClick, Search, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { deleteAdById, fetchAdCategories, fetchAdsAdmin } from '../store/adsSlice.js';
 import Dropdown from '../components/Dropdown.jsx';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 import { formatDateTime, formatNumber, truncateText } from '../utils/helpers.jsx';
 
 const THUMB_PLACEHOLDER =
@@ -21,29 +22,14 @@ const statusColors = {
   draft: 'bg-neutral-100 text-neutral-600',
 };
 
-const RowMenu = ({ onView, onDelete }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <button onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }} className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors">
-        <MoreHorizontal className="w-4 h-4" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
-            <button onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-              <Eye className="w-3.5 h-3.5 text-neutral-400" /> View details
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+const RowMenu = ({ onView, onDelete }) => (
+  <RowActionMenu
+    actions={[
+      { label: 'View details', icon: Eye, onClick: onView },
+      { label: 'Delete', icon: Trash2, tone: 'rose', onClick: onDelete },
+    ]}
+  />
+);
 
 const Ads = () => {
   const navigate = useNavigate();

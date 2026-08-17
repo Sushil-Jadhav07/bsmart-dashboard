@@ -4,6 +4,8 @@ import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 const initialState = {
   transactions: [],
   summary: null,
+  wallets: [],
+  pagination: null,
   total: 0,
   status: 'idle',
   error: null,
@@ -29,11 +31,16 @@ const initialState = {
 
 export const fetchAllWallets = createAsyncThunk(
   'wallet/fetchAll',
-  async (_, { getState, rejectWithValue }) => {
+  async (params = {}, { getState, rejectWithValue }) => {
     const token = getState().auth.token
     if (!token) return rejectWithValue('No token')
     try {
-      const res = await fetch(`${API_BASE_WITH_PATH}/wallet`, {
+      const query = new URLSearchParams()
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '' && value !== 'all') query.set(key, value)
+      })
+      const qs = query.toString()
+      const res = await fetch(`${API_BASE_WITH_PATH}/wallet${qs ? `?${qs}` : ''}`, {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => ({}))
@@ -169,6 +176,8 @@ const walletSlice = createSlice({
         state.status = 'succeeded'
         state.transactions = action.payload.transactions || action.payload.data?.transactions || []
         state.summary = action.payload.summary || action.payload.data?.summary || null
+        state.wallets = action.payload.wallets || action.payload.data?.wallets || []
+        state.pagination = action.payload.pagination || action.payload.data?.pagination || null
         state.total = action.payload.total || action.payload.data?.total || 0
       })
       .addCase(fetchAllWallets.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload || 'Unknown error' })

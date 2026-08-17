@@ -32,6 +32,7 @@ const pageTitles = {
   '/vendor-packages': 'Vendor Packages',
   '/sales': 'Sales',
   '/wallets': 'Wallets',
+  '/transactions': 'Transaction History',
   '/notifications': 'Notifications',
   '/settings': 'Settings',
 };

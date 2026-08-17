@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowUpDown, ChevronLeft, ChevronRight, Eye, MoreHorizontal, Search, Trash2 } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Eye, Search, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Button from './Button.jsx';
 import Dropdown from './Dropdown.jsx';
+import RowActionMenu from './RowActionMenu.jsx';
 import { formatNumber } from '../utils/helpers.jsx';
 
 export const toneClass = {
@@ -90,50 +91,16 @@ const SortHeader = ({ column, sortConfig, onSort }) => {
   );
 };
 
-const ActionMenu = ({ row, actions = [] }) => {
-  const [open, setOpen] = useState(false);
-  if (!actions.length) return null;
-  return (
-    <div className="relative flex justify-end">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((value) => !value); }}
-        className="p-1.5 rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-600"
-        aria-label="Row actions"
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {open && (
-        <>
-          <button className="fixed inset-0 z-10 cursor-default" type="button" aria-label="Close actions" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
-            {actions.map((action) => {
-              const Icon = action.icon || (action.tone === 'rose' ? Trash2 : Eye);
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen(false);
-                    action.onClick?.(row);
-                  }}
-                  className={clsx(
-                    'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition',
-                    action.tone === 'rose' ? 'text-red-600 hover:bg-red-50' : 'text-neutral-700 hover:bg-neutral-50'
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+const ActionMenu = ({ row, actions = [] }) => (
+  <RowActionMenu
+    width={160}
+    actions={actions.map((action) => ({
+      ...action,
+      icon: action.icon || (action.tone === 'rose' ? Trash2 : Eye),
+      onClick: () => action.onClick?.(row),
+    }))}
+  />
+);
 
 const compareValues = (a, b, key) => {
   const aValue = a?.[key];

@@ -11,6 +11,7 @@ import {
   Clock, Scale, AlertCircle, Loader2, Plus, X, Check,
   MoreVertical, Trash2, ChevronDown, Search, Users, Briefcase,
 } from 'lucide-react';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 
 // ── Preset visuals for known types ──────────────────────────────────────────
 
@@ -473,7 +474,6 @@ export default function Policies() {
   } = useSelector((s) => s.policies) ?? {};
 
   const [showCreate, setShowCreate]     = useState(false);
-  const [openMenu, setOpenMenu]         = useState(null);   // type string or null
   const [editTarget, setEditTarget]     = useState(null);   // policy object
   const [deleteTarget, setDeleteTarget] = useState(null);   // policy object
   const [search, setSearch]             = useState('');
@@ -516,11 +516,6 @@ export default function Policies() {
       {showCreate   && <CreateModal onClose={handleCloseCreate} />}
       {editTarget   && <EditMetaModal policy={editTarget} onClose={() => setEditTarget(null)} />}
       {deleteTarget && <DeleteConfirmModal policy={deleteTarget} onClose={() => setDeleteTarget(null)} />}
-
-      {/* Transparent backdrop — closes any open card dropdown */}
-      {openMenu && (
-        <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
-      )}
 
       <div className="space-y-6">
         {/* Header */}
@@ -677,12 +672,17 @@ export default function Policies() {
                               )}
                             </div>
                           </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === p.type ? null : p.type); }}
-                            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors flex-shrink-0"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <RowActionMenu
+                              triggerIcon={MoreVertical}
+                              triggerClassName="p-1.5 rounded-lg hover:text-neutral-700 hover:bg-neutral-100"
+                              actions={[
+                                { label: 'Edit Type', icon: Pencil, onClick: () => setEditTarget(p) },
+                                { divider: true },
+                                { label: 'Delete Type', icon: Trash2, tone: 'rose', onClick: () => setDeleteTarget(p) },
+                              ]}
+                            />
+                          </div>
                         </div>
 
                         {/* Meta row */}
@@ -744,26 +744,6 @@ export default function Policies() {
                       </div>
                     </div>
 
-                    {/* Dropdown — outside overflow:hidden so it isn't clipped by the card */}
-                    {openMenu === p.type && (
-                      <div className="absolute top-12 right-4 z-20 w-44 bg-white rounded-xl border border-neutral-200 shadow-lg py-1">
-                        <button
-                          onClick={() => { setEditTarget(p); setOpenMenu(null); }}
-                          className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-neutral-400" />
-                          Edit Type
-                        </button>
-                        <div className="h-px bg-neutral-100 mx-2" />
-                        <button
-                          onClick={() => { setDeleteTarget(p); setOpenMenu(null); }}
-                          className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete Type
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })

@@ -19,9 +19,10 @@ import giftCards from './giftCardsSlice.js'
 import giftCardOrders from './giftCardOrdersSlice.js'
 import bugReports from './bugReportsSlice.js'
 import contentReports from './contentReportsSlice.js'
+import razorpay from './razorpaySlice.js'
 
 const store = configureStore({
-  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries, faq, policies, giftCards, giftCardOrders, bugReports, contentReports },
+  reducer: { auth, posts, users, vendors, ads, products, analytics, notifications, wallet, sales, vendorPackages, tweets, inquiries, customerQueries, faq, policies, giftCards, giftCardOrders, bugReports, contentReports, razorpay },
 })
 
 export default store

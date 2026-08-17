@@ -47,6 +47,7 @@ import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
 import BugReports from '../pages/BugReports.jsx';
 import BugReportDetail from '../pages/BugReportDetail.jsx';
 import ContentReports from '../pages/ContentReports.jsx';
+import TransactionHistory from '../pages/TransactionHistory.jsx';
 
 
 export const router = createBrowserRouter([
@@ -136,6 +137,10 @@ export const router = createBrowserRouter([
       {
         path: '/wallets/:id',
         element: <WalletDetails />
+      },
+      {
+        path: '/transactions',
+        element: <TransactionHistory />
       },
       {
         path: '/settings',

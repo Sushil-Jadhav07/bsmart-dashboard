@@ -26,6 +26,7 @@ import {
   Gift,
   Bug,
   Flag,
+  Receipt,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import logoIcon from '../assets/bsmart_logo.png';
@@ -55,6 +56,7 @@ const navGroups = [
       { path: '/vendor-packages', label: 'Packages', icon: PackageCheck },
       { path: '/sales', label: 'Sales', icon: TrendingUp },
       { path: '/wallets', label: 'Vault', icon: Wallet },
+      { path: '/transactions', label: 'Transaction History', icon: Receipt },
     ],
   },
   {

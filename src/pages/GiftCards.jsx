@@ -9,6 +9,7 @@ import {
   Building2, Package, Loader2, RefreshCw,
 } from 'lucide-react';
 import { fetchGiftCards, deleteGiftCard, clearDeleteStatus } from '../store/giftCardsSlice.js';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 
 const PAGE_SIZE = 9; // 3-column grid
 
@@ -44,7 +45,6 @@ const CARD_GRADIENTS = [
 // ── Gift Card tile ─────────────────────────────────────────────────────────
 
 function GiftCardTile({ card, idx, onEdit, onDelete, onView }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const gradient = CARD_GRADIENTS[idx % CARD_GRADIENTS.length];
   const id = card.id ?? card._id;
   const status = card.card_status ?? card.status ?? 'inactive';
@@ -68,41 +68,17 @@ function GiftCardTile({ card, idx, onEdit, onDelete, onView }) {
           <StatusBadge status={status} />
         </div>
         {/* Action menu */}
-        <div className="absolute top-2 right-2">
-          <div className="relative">
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg bg-black/30 text-white hover:bg-black/50 transition backdrop-blur-sm"
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-neutral-200 shadow-lg py-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onView(id); setMenuOpen(false); }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                  >
-                    <Gift className="w-3.5 h-3.5 text-neutral-400" /> View
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onEdit(id); setMenuOpen(false); }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                  >
-                    <Pencil className="w-3.5 h-3.5 text-neutral-400" /> Edit
-                  </button>
-                  <div className="h-px bg-neutral-100 mx-2" />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(id); setMenuOpen(false); }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+          <RowActionMenu
+            triggerIcon={MoreVertical}
+            triggerClassName="w-7 h-7 flex items-center justify-center !p-0 rounded-lg bg-black/30 !text-white hover:bg-black/50 hover:!text-white transition backdrop-blur-sm [&_svg]:h-3.5 [&_svg]:w-3.5"
+            actions={[
+              { label: 'View', icon: Gift, onClick: () => onView(id) },
+              { label: 'Edit', icon: Pencil, onClick: () => onEdit(id) },
+              { divider: true },
+              { label: 'Delete', icon: Trash2, tone: 'rose', onClick: () => onDelete(id) },
+            ]}
+          />
         </div>
       </div>
 

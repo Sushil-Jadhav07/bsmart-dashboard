@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
@@ -22,6 +21,7 @@ import Dropdown from '../components/Dropdown.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
 import { roleOptions, statusOptions } from '../data/usersData.jsx';
 import { capitalize, formatDate, formatNumber } from '../utils/helpers.jsx';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 
 const AVATAR_PLACEHOLDER =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0Y5RkFGQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTQ0RTYzIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+VXNlcjwvdGV4dD48L3N2Zz4=';
@@ -123,45 +123,15 @@ const UserAvatar = ({ user }) => {
   );
 };
 
-const ActionMenu = ({ user, onView, onDelete }) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative flex justify-end">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((value) => !value); }}
-        className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
-        aria-label={`Actions for ${user.name}`}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onView(user); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-50"
-            >
-              <Eye className="h-3.5 w-3.5 text-neutral-400" />
-              View profile
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(user); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete user
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+const ActionMenu = ({ user, onView, onDelete }) => (
+  <RowActionMenu
+    ariaLabel={`Actions for ${user.name}`}
+    actions={[
+      { label: 'View profile', icon: Eye, onClick: () => onView(user) },
+      { label: 'Delete user', icon: Trash2, tone: 'rose', onClick: () => onDelete(user) },
+    ]}
+  />
+);
 
 const SortHeader = ({ label, active, direction, onClick, align = 'left' }) => (
   <button

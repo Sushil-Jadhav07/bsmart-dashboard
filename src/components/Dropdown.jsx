@@ -57,7 +57,7 @@ const Dropdown = ({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-20 mt-1 w-full min-w-[140px] overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+          <div className="absolute left-0 top-full z-20 mt-1 w-full min-w-[140px] max-h-72 overflow-y-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
             {options.map((option) => (
               <button
                 key={option.value}
