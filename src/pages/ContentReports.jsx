@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
 import {
@@ -28,6 +27,7 @@ import { fetchContentReports, updateContentReport, deleteContentReport, clearUpd
 import { formatDateTime, formatNumber, formatRelativeTime, capitalize } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -233,11 +233,8 @@ const ContentReports = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [page, setPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [menuPosition, setMenuPosition] = useState(null);
   const [detailReport, setDetailReport] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const menuWidth = 192;
 
   const load = () => {
     dispatch(fetchContentReports({ status: filterStatus, content_type: filterType, page: 1, limit: 100 }));
@@ -249,28 +246,7 @@ const ContentReports = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, filterStatus, filterType]);
 
-  const openMenu = (e, id) => {
-    e.stopPropagation();
-    if (openMenuId === id) {
-      setOpenMenuId(null);
-      setMenuPosition(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpward = spaceBelow < 220;
-    setMenuPosition({ top: openUpward ? rect.top - 8 : rect.bottom + 4, left, openUpward });
-    setOpenMenuId(id);
-  };
-
-  const closeMenu = () => {
-    setOpenMenuId(null);
-    setMenuPosition(null);
-  };
-
   const handleQuickStatus = (id, status) => {
-    closeMenu();
     dispatch(updateContentReport({ id, data: { status } })).then(() => load());
   };
 
@@ -420,7 +396,6 @@ const ContentReports = () => {
                 ) : visibleReports.length > 0 ? (
                   visibleReports.map((report) => {
                     const id = report._id || report.id;
-                    const isMenuOpen = openMenuId === id;
                     const ContentIcon = CONTENT_TYPE_ICON[report.content_type] || Image;
                     return (
                       <tr
@@ -461,65 +436,30 @@ const ContentReports = () => {
                           <span className="text-xs text-neutral-500">{formatRelativeTime(report.createdAt)}</span>
                         </td>
                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="relative inline-block">
-                            <button
-                              onClick={(e) => openMenu(e, id)}
-                              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {isMenuOpen && menuPosition && createPortal(
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                                <div
-                                  className="fixed z-50 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg py-1"
-                                  style={{
-                                    left: menuPosition.left,
-                                    top: menuPosition.openUpward ? undefined : menuPosition.top,
-                                    bottom: menuPosition.openUpward ? window.innerHeight - menuPosition.top : undefined,
-                                  }}
-                                >
-                                  <button
-                                    onClick={() => { closeMenu(); setDetailReport(report); }}
-                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-neutral-400" /> Review
-                                  </button>
-                                  {report.status === 'pending' && (
-                                    <button
-                                      onClick={() => handleQuickStatus(id, 'reviewed')}
-                                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                    >
-                                      <Eye className="w-3.5 h-3.5 text-neutral-400" /> Mark Reviewed
-                                    </button>
-                                  )}
-                                  {report.status !== 'rejected' && report.status !== 'action_taken' && (
-                                    <button
-                                      onClick={() => handleQuickStatus(id, 'rejected')}
-                                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                    >
-                                      <Ban className="w-3.5 h-3.5 text-neutral-400" /> Reject
-                                    </button>
-                                  )}
-                                  {report.status !== 'action_taken' && (
-                                    <button
-                                      onClick={() => handleQuickStatus(id, 'action_taken')}
-                                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
-                                    >
-                                      <ShieldAlert className="w-3.5 h-3.5" /> Mark Action Taken
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => { closeMenu(); setDeleteTarget(report); }}
-                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" /> Delete Report
-                                  </button>
-                                </div>
-                              </>,
-                              document.body
-                            )}
-                          </div>
+                          <RowActionMenu
+                            ariaLabel={`Actions for content report ${id}`}
+                            actions={[
+                              { label: 'Review', icon: Eye, onClick: () => setDetailReport(report) },
+                              report.status === 'pending' && {
+                                label: 'Mark Reviewed',
+                                icon: Eye,
+                                onClick: () => handleQuickStatus(id, 'reviewed'),
+                              },
+                              (report.status !== 'rejected' && report.status !== 'action_taken') && {
+                                label: 'Reject',
+                                icon: Ban,
+                                onClick: () => handleQuickStatus(id, 'rejected'),
+                              },
+                              report.status !== 'action_taken' && {
+                                label: 'Mark Action Taken',
+                                icon: ShieldAlert,
+                                tone: 'rose',
+                                onClick: () => handleQuickStatus(id, 'action_taken'),
+                              },
+                              { divider: true },
+                              { label: 'Delete Report', icon: Trash2, tone: 'rose', onClick: () => setDeleteTarget(report) },
+                            ]}
+                          />
                         </td>
                       </tr>
                     );

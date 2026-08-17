@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
@@ -15,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   IndianRupee,
-  MoreVertical,
   Eye,
   Play,
   Trash2,
@@ -30,6 +28,7 @@ import {
 } from '../store/giftCardOrdersSlice.js';
 import { formatDate, formatNumber } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
+import RowActionMenu from '../components/RowActionMenu.jsx';
 
 const PAGE_SIZE = 10;
 
@@ -96,35 +95,8 @@ const GiftCardOrders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [page, setPage] = useState(1);
-  const [openMenuOrderId, setOpenMenuOrderId] = useState(null);
-  const [menuPosition, setMenuPosition] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [message, setMessage] = useState('');
-  const menuWidth = 192;
-
-  const openMenu = (e, orderId) => {
-    e.stopPropagation();
-    if (openMenuOrderId === orderId) {
-      setOpenMenuOrderId(null);
-      setMenuPosition(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(8, rect.right - menuWidth),
-      window.innerWidth - menuWidth - 8
-    );
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const top = spaceBelow < 220 ? rect.top - 8 : rect.bottom + 4;
-    const openUpward = spaceBelow < 220;
-    setMenuPosition({ top, left, openUpward });
-    setOpenMenuOrderId(orderId);
-  };
-
-  const closeMenu = () => {
-    setOpenMenuOrderId(null);
-    setMenuPosition(null);
-  };
 
   useEffect(() => {
     if (listStatus === 'idle') {
@@ -176,13 +148,11 @@ const GiftCardOrders = () => {
   const visibleOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleCancelOrder = async (orderId) => {
-    closeMenu();
     dispatch(cancelGiftCardOrder(orderId));
   };
 
   const handleDeleteOrder = (orderId) => {
     const order = list.find((o) => (o._id || o.id) === orderId);
-    closeMenu();
     setDeleteTarget(order);
   };
 
@@ -341,7 +311,6 @@ const GiftCardOrders = () => {
                     const isProcessing = order.status === 'processing';
                     const isCancelled = order.status === 'cancelled';
                     const isCompleted = order.status === 'completed';
-                    const isMenuOpen = openMenuOrderId === orderId;
                     return (
                       <tr key={orderId} className="group bg-white transition-colors hover:bg-neutral-50/60">
                         <td className="px-4 py-3">
@@ -400,92 +369,35 @@ const GiftCardOrders = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="relative inline-block">
-                            <button
-                              onClick={(e) => openMenu(e, orderId)}
-                              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {isMenuOpen && menuPosition && createPortal(
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                                <div
-                                  className="fixed z-50 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg py-1"
-                                  style={{
-                                    left: menuPosition.left,
-                                    top: menuPosition.openUpward ? undefined : menuPosition.top,
-                                    bottom: menuPosition.openUpward ? window.innerHeight - menuPosition.top : undefined,
-                                  }}
-                                >
-                                  {/* View Order - always show */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      closeMenu();
-                                      navigate(`/gift-card-orders/${orderId}`);
-                                    }}
-                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-neutral-400" /> View Order
-                                  </button>
-
-                                  {/* Pending Status Actions */}
-                                  {isPending && (
-                                    <>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          closeMenu();
-                                          navigate(`/gift-card-orders/${orderId}/process`);
-                                        }}
-                                        className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                      >
-                                        <Play className="w-3.5 h-3.5 text-neutral-400" /> Start Process
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleCancelOrder(orderId);
-                                        }}
-                                        className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
-                                      >
-                                        <XCircle className="w-3.5 h-3.5 text-red-400" /> Cancel Order
-                                      </button>
-                                    </>
-                                  )}
-
-                                  {/* Processing Status Actions */}
-                                  {isProcessing && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        closeMenu();
-                                        navigate(`/gift-card-orders/${orderId}/process`);
-                                      }}
-                                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-neutral-700 hover:bg-neutral-50 transition"
-                                    >
-                                      <Play className="w-3.5 h-3.5 text-neutral-400" /> Complete Process
-                                    </button>
-                                  )}
-
-                                  {/* Cancelled Status Actions */}
-                                  {isCancelled && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteOrder(orderId);
-                                      }}
-                                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-600 hover:bg-red-50 transition"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" /> Delete Order
-                                    </button>
-                                  )}
-                                </div>
-                              </>,
-                              document.body
-                            )}
-                          </div>
+                          <RowActionMenu
+                            ariaLabel={`Actions for order ${orderId}`}
+                            actions={[
+                              { label: 'View Order', icon: Eye, onClick: () => navigate(`/gift-card-orders/${orderId}`) },
+                              { divider: true },
+                              isPending && {
+                                label: 'Start Process',
+                                icon: Play,
+                                onClick: () => navigate(`/gift-card-orders/${orderId}/process`),
+                              },
+                              isPending && {
+                                label: 'Cancel Order',
+                                icon: XCircle,
+                                tone: 'rose',
+                                onClick: () => handleCancelOrder(orderId),
+                              },
+                              isProcessing && {
+                                label: 'Complete Process',
+                                icon: Play,
+                                onClick: () => navigate(`/gift-card-orders/${orderId}/process`),
+                              },
+                              isCancelled && {
+                                label: 'Delete Order',
+                                icon: Trash2,
+                                tone: 'rose',
+                                onClick: () => handleDeleteOrder(orderId),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     );

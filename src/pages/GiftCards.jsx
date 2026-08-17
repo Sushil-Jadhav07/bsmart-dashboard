@@ -71,7 +71,7 @@ function GiftCardTile({ card, idx, onEdit, onDelete, onView }) {
         <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
           <RowActionMenu
             triggerIcon={MoreVertical}
-            triggerClassName="w-7 h-7 flex items-center justify-center !p-0 rounded-lg bg-black/30 !text-white hover:bg-black/50 hover:!text-white transition backdrop-blur-sm [&_svg]:h-3.5 [&_svg]:w-3.5"
+            triggerClassName="w-7 h-7 flex items-center justify-center !p-0 rounded-lg !bg-black/30 hover:!bg-black/50 !text-white hover:!text-white transition backdrop-blur-sm border border-white/10 [&_svg]:h-3.5 [&_svg]:w-3.5"
             actions={[
               { label: 'View', icon: Gift, onClick: () => onView(id) },
               { label: 'Edit', icon: Pencil, onClick: () => onEdit(id) },

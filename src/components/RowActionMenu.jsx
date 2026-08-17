@@ -23,22 +23,33 @@ const RowActionMenu = ({ actions = [], width = MENU_WIDTH, triggerClassName = ''
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) return undefined;
 
+    let rafId = 0;
+    let stopped = false;
+
     const place = () => {
-      const rect = buttonRef.current.getBoundingClientRect();
+      if (stopped) return;
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
       const menuHeight = visibleActions.length * ITEM_HEIGHT + 8;
       const openUpward = rect.bottom + menuHeight + MENU_MARGIN > window.innerHeight;
-      setCoords({
-        left: Math.min(rect.right - width, window.innerWidth - width - MENU_MARGIN),
-        top: openUpward ? rect.top - menuHeight - MENU_MARGIN : rect.bottom + MENU_MARGIN,
-      });
+      const left = Math.min(rect.right - width, window.innerWidth - width - MENU_MARGIN);
+      const idealTop = openUpward ? rect.top - menuHeight - MENU_MARGIN : rect.bottom + MENU_MARGIN;
+      const top = Math.min(Math.max(MENU_MARGIN, idealTop), Math.max(MENU_MARGIN, window.innerHeight - menuHeight - MENU_MARGIN));
+
+      setCoords((current) => (
+        current && current.left === left && current.top === top
+          ? current
+          : { left, top }
+      ));
+
+      rafId = window.requestAnimationFrame(place);
     };
 
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
+    rafId = window.requestAnimationFrame(place);
     return () => {
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
+      stopped = true;
+      window.cancelAnimationFrame(rafId);
     };
   }, [open, visibleActions.length, width]);
 
