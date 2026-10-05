@@ -7,19 +7,21 @@ const jsonHeader = (token) => ({ ...authHeader(token), 'Content-Type': 'applicat
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
 
+const FILTER_KEYS = ['seller', 'buyer', 'status', 'payment_status', 'category'];
+
 const buildQuery = (params = {}, page) => {
   const qs = new URLSearchParams();
-  if (params.seller && params.seller !== 'all') qs.set('seller', params.seller);
-  if (params.status && params.status !== 'all') qs.set('status', params.status);
-  if (params.category && params.category !== 'all') qs.set('category', params.category);
+  FILTER_KEYS.forEach((key) => {
+    if (params[key] && params[key] !== 'all') qs.set(key, params[key]);
+  });
   if (params.q && params.q.trim()) qs.set('q', params.q.trim());
   qs.set('page', page);
   qs.set('limit', PAGE_LIMIT);
   return qs;
 };
 
-// The admin catalog endpoints are paginated server-side; walk every page so the
-// shared table component can sort and paginate the full filtered set client-side.
+// The admin list endpoints are paginated server-side; walk every page (up to
+// MAX_PAGES) so the shared table component can sort and paginate client-side.
 const fetchAllPages = async (endpoint, listKey, params, token) => {
   const items = [];
   let total = 0;
@@ -119,6 +121,75 @@ export const fetchMarketplaceService = createAsyncThunk(
   }
 );
 
+export const fetchAdminOrders = createAsyncThunk(
+  'marketplace/fetchAdminOrders',
+  async (params = {}, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (!token) return rejectWithValue('No token');
+    try { return await fetchAllPages('orders', 'orders', params, token); }
+    catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
+// GET /orders/:id returns user_id as a bare id, so the buyer is looked up separately.
+export const fetchMarketplaceOrder = createAsyncThunk(
+  'marketplace/fetchOrder',
+  async (id, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (!token) return rejectWithValue('No token');
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/orders/${id}`, { headers: authHeader(token) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to load order');
+      const order = json?.order || null;
+      const buyerId = order && typeof order.user_id === 'string' ? order.user_id : null;
+      if (buyerId) {
+        const userRes = await fetch(`${API_BASE_WITH_PATH}/users/${buyerId}`, { headers: authHeader(token) }).catch(() => null);
+        const userJson = userRes?.ok ? await userRes.json().catch(() => null) : null;
+        const buyer = userJson?.user || userJson?.data || userJson;
+        if (buyer?._id) order.user_id = buyer;
+      }
+      return order;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
+export const updateOrderStatus = createAsyncThunk(
+  'marketplace/updateOrderStatus',
+  async ({ id, ...body }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (!token) return rejectWithValue('No token');
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: jsonHeader(token),
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to update order status');
+      return json?.order;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
+export const cancelOrder = createAsyncThunk(
+  'marketplace/cancelOrder',
+  async ({ id, reason }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (!token) return rejectWithValue('No token');
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/orders/${id}/cancel`, {
+        method: 'PATCH',
+        headers: jsonHeader(token),
+        body: JSON.stringify({ reason }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Failed to cancel order');
+      return json?.order;
+    } catch (e) { return rejectWithValue(e.message); }
+  }
+);
+
 const listState = () => ({ items: [], total: 0, status: 'idle', error: null });
 const detailState = () => ({ item: null, status: 'idle', error: null });
 
@@ -129,6 +200,24 @@ const initialState = {
   services: listState(),
   product: detailState(),
   service: detailState(),
+  orders: listState(),
+  order: detailState(),
+  orderUpdating: {},
+};
+
+// Status/cancel responses return the order with user_id unpopulated; keep the
+// already-populated buyer so the UI doesn't lose the name/avatar.
+const mergeOrder = (existing, updated) => ({
+  ...existing,
+  ...updated,
+  user_id: existing && typeof existing.user_id === 'object' ? existing.user_id : updated.user_id,
+});
+
+const applyOrderUpdate = (state, updated) => {
+  if (!updated?._id) return;
+  const id = String(updated._id);
+  state.orders.items = state.orders.items.map((o) => (String(o._id) === id ? mergeOrder(o, updated) : o));
+  if (state.order.item && String(state.order.item._id) === id) state.order.item = mergeOrder(state.order.item, updated);
 };
 
 // Products/services carry a populated `user_id`; keep its suspended flag in sync
@@ -203,6 +292,17 @@ const slice = createSlice({
     addListCases(builder, fetchAdminServices, 'services');
     addDetailCases(builder, fetchMarketplaceProduct, 'product');
     addDetailCases(builder, fetchMarketplaceService, 'service');
+    addListCases(builder, fetchAdminOrders, 'orders');
+    addDetailCases(builder, fetchMarketplaceOrder, 'order');
+    [updateOrderStatus, cancelOrder].forEach((thunk) => {
+      builder
+        .addCase(thunk.pending, (state, action) => { state.orderUpdating[action.meta.arg.id] = true; })
+        .addCase(thunk.rejected, (state, action) => { delete state.orderUpdating[action.meta.arg.id]; })
+        .addCase(thunk.fulfilled, (state, action) => {
+          delete state.orderUpdating[action.meta.arg.id];
+          applyOrderUpdate(state, action.payload);
+        });
+    });
   },
 });
 

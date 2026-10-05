@@ -52,6 +52,8 @@ import MarketplaceProducts from '../pages/MarketplaceProducts.jsx';
 import MarketplaceProductDetail from '../pages/MarketplaceProductDetail.jsx';
 import MarketplaceServices from '../pages/MarketplaceServices.jsx';
 import MarketplaceServiceDetail from '../pages/MarketplaceServiceDetail.jsx';
+import MarketplaceOrders from '../pages/MarketplaceOrders.jsx';
+import MarketplaceOrderDetail from '../pages/MarketplaceOrderDetail.jsx';
 
 
 export const router = createBrowserRouter([
@@ -270,6 +272,14 @@ export const router = createBrowserRouter([
       {
         path: '/marketplace/services/:id',
         element: <MarketplaceServiceDetail />
+      },
+      {
+        path: '/marketplace/orders',
+        element: <MarketplaceOrders />
+      },
+      {
+        path: '/marketplace/orders/:id',
+        element: <MarketplaceOrderDetail />
       },
     ]
   },

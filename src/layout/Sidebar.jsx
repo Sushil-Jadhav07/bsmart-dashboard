@@ -28,6 +28,7 @@ import {
   Flag,
   Store,
   ShoppingBag,
+  ShoppingCart,
   Wrench,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
@@ -66,6 +67,7 @@ const navGroups = [
       { path: '/marketplace/influencers', label: 'Influencers', icon: Store },
       { path: '/marketplace/products', label: 'Products', icon: ShoppingBag },
       { path: '/marketplace/services', label: 'Services', icon: Wrench },
+      { path: '/marketplace/orders', label: 'Orders', icon: ShoppingCart },
     ],
   },
   {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Package, ShieldCheck, ShieldOff, Store, Users, Wrench } from 'lucide-react';
+import { Eye, Package, ShieldCheck, ShieldOff, ShoppingCart, Store, Users, Wrench } from 'lucide-react';
 import PremiumResourcePage, { PremiumBadge } from '../components/PremiumResourcePage.jsx';
 import { Avatar, SuspendInfluencerModal, Toast, humanize } from '../components/MarketplaceShared.jsx';
 import useInfluencerSuspension from '../hooks/useInfluencerSuspension.js';
@@ -142,6 +142,7 @@ const MarketplaceInfluencers = () => {
           { label: 'View profile', icon: Eye, onClick: (row) => navigate(`/users/${row.id}`) },
           { label: 'View products', icon: Package, onClick: (row) => navigate(`/marketplace/products?seller=${row.id}`) },
           { label: 'View services', icon: Wrench, onClick: (row) => navigate(`/marketplace/services?seller=${row.id}`) },
+          { label: 'View orders', icon: ShoppingCart, onClick: (row) => navigate(`/marketplace/orders?seller=${row.id}`) },
           { label: 'Suspend selling', icon: ShieldOff, tone: 'rose', hidden: (row) => row.isSuspended, onClick: openSuspension },
           { label: 'Restore selling', icon: ShieldCheck, hidden: (row) => !row.isSuspended, onClick: openSuspension },
         ]}
