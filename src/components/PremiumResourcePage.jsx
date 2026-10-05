@@ -165,6 +165,7 @@ const PremiumResourcePage = ({
   actions = [],
   pageSize = 10,
   rowKey = (row, index) => row?.id || row?._id || index,
+  toolbarExtra = null,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: columns.find((column) => column.sortable !== false)?.key || '', direction: 'desc' });
   const [page, setPage] = useState(1);
@@ -236,8 +237,9 @@ const PremiumResourcePage = ({
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-800 placeholder-neutral-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
             />
           </div>
-          {!!filters.length && (
+          {(!!filters.length || toolbarExtra) && (
             <div className="flex flex-wrap gap-2">
+              {toolbarExtra}
               {filters.map((filter) => (
                 <Dropdown
                   key={filter.label}

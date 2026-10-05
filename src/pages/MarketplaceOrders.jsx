@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Ban, Eye, IndianRupee, PackageCheck, ShoppingCart, Truck } from 'lucide-react';
+import { AlertTriangle, Ban, Eye, IndianRupee, PackageCheck, ShoppingCart } from 'lucide-react';
+import { clsx } from 'clsx';
 import PremiumResourcePage from '../components/PremiumResourcePage.jsx';
 import { Avatar, Thumb, Toast, formatINR, humanize } from '../components/MarketplaceShared.jsx';
 import {
-  CANCELLABLE, CancelOrderModal, OrderStatusBadge, PaymentStatusBadge, buyerOf,
+  CANCELLABLE, CancelOrderModal, OrderStatusBadge, PaymentStatusBadge, RefundFailedBadge, buyerOf,
 } from '../components/OrderShared.jsx';
 import { useAbortableFetch, useDebouncedValue, useSellerOptions, useUrlParam } from '../hooks/useCatalogQuery.js';
 import useOrderCancel from '../hooks/useOrderCancel.js';
@@ -28,6 +29,8 @@ const MarketplaceOrders = () => {
   const influencers = useSelector((s) => s.marketplace.influencers.items);
   const [seller, setSeller] = useUrlParam('seller');
   const [buyer, setBuyer] = useUrlParam('buyer');
+  const [refundFailed, setRefundFailed] = useUrlParam('refund_failed');
+  const refundFailedOnly = refundFailed === 'true';
   const [status, setStatus] = useState('all');
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [search, setSearch] = useState('');
@@ -35,7 +38,9 @@ const MarketplaceOrders = () => {
   const sellerOptions = useSellerOptions(seller);
   const cancel = useOrderCancel();
 
-  useAbortableFetch(fetchAdminOrders, { seller, buyer, status, payment_status: paymentStatus, q: debouncedSearch });
+  useAbortableFetch(fetchAdminOrders, {
+    seller, buyer, status, payment_status: paymentStatus, refund_failed: refundFailedOnly ? 'true' : 'all', q: debouncedSearch,
+  });
 
   const storeNames = useMemo(() => new Map(influencers.map((u) => [
     String(u._id),
@@ -62,6 +67,7 @@ const MarketplaceOrders = () => {
       paymentMethod: order.payment_method,
       paymentStatus: order.payment_status,
       orderStatus: order.order_status,
+      refundFailed: !!order.refund_failed,
       placedAt: order.placed_at || order.createdAt,
       raw: order,
     };
@@ -84,8 +90,8 @@ const MarketplaceOrders = () => {
         metrics={[
           { label: 'Matching Orders', value: formatNumber(total), icon: ShoppingCart, tone: 'magenta' },
           { label: 'To Fulfil', value: count((r) => CANCELLABLE.includes(r.orderStatus)), icon: PackageCheck, tone: 'violet' },
-          { label: 'In Transit', value: count((r) => r.orderStatus === 'shipped'), icon: Truck, tone: 'emerald' },
-          { label: 'Paid Value', value: formatINR(paidValue), icon: IndianRupee, tone: 'rose' },
+          { label: 'Refund Failed', value: count((r) => r.refundFailed), icon: AlertTriangle, tone: 'rose' },
+          { label: 'Paid Value', value: formatINR(paidValue), icon: IndianRupee, tone: 'emerald' },
         ]}
         rows={rows}
         columns={[
@@ -94,7 +100,10 @@ const MarketplaceOrders = () => {
             title: 'Order',
             render: (value, row) => (
               <button type="button" onClick={() => navigate(`/marketplace/orders/${row.id}`)} className="text-left group/cell">
-                <p className="text-sm font-bold text-neutral-950 group-hover/cell:text-primary transition-colors whitespace-nowrap">{value}</p>
+                <p className="flex items-center gap-1.5 text-sm font-bold text-neutral-950 group-hover/cell:text-primary transition-colors whitespace-nowrap">
+                  {row.refundFailed && <span className="h-2 w-2 rounded-full bg-rose-500" title="Refund failed" />}
+                  {value}
+                </p>
                 <p className="mt-0.5 text-xs text-neutral-500 whitespace-nowrap">{formatDateTime(row.placedAt)}</p>
               </button>
             ),
@@ -140,7 +149,28 @@ const MarketplaceOrders = () => {
             ),
           },
           { key: 'orderStatus', title: 'Status', render: (value) => <OrderStatusBadge status={value} /> },
+          {
+            key: 'refundFailed',
+            title: 'Refund',
+            render: (value) => (value ? <RefundFailedBadge /> : <span className="text-neutral-300">-</span>),
+          },
         ]}
+        toolbarExtra={(
+          <button
+            type="button"
+            onClick={() => setRefundFailed(refundFailedOnly ? 'all' : 'true')}
+            aria-pressed={refundFailedOnly}
+            className={clsx(
+              'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition',
+              refundFailedOnly
+                ? 'border-rose-300 bg-rose-50 text-rose-700'
+                : 'border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-rose-200 hover:text-rose-600',
+            )}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Refund failed
+          </button>
+        )}
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search order number or Razorpay payment ID..."

@@ -18,8 +18,8 @@ export default function useOrderCancel() {
     if (!target) return;
     try {
       const order = await dispatch(cancelOrder({ id: String(target._id), reason })).unwrap();
-      // The backend still cancels when a Razorpay refund fails, leaving payment_status 'paid'.
-      if (order?.payment_status === 'paid') {
+      // The backend still cancels when a Razorpay refund fails and flags it with refund_failed.
+      if (order?.refund_failed) {
         showToast('Order cancelled, but the refund did not go through. Refund it manually.', 'error');
       } else {
         showToast(order?.payment_status === 'refunded' ? 'Order cancelled and refunded' : 'Order cancelled', 'success');

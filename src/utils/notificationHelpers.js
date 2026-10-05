@@ -19,11 +19,33 @@ export const getNotificationIcon = (type) => {
     story_view: '👁️',
     login_alert: '🔐',
     order: '📦',
+    order_placed: '🛍️',
+    order_seller_new: '📦',
+    order_status: '🚚',
+    order_cancelled: '❌',
+    order_refunded: '💰',
+    order_payment_failed: '⚠️',
+    order_refund_pending: '⏳',
+    order_refund_failed: '🚨',
     payout: '💳',
     admin: '🛡️'
   }
   return icons[type] || '🔔'
 }
+
+const NOTIFICATION_LABELS = {
+  order_placed: 'Order placed',
+  order_seller_new: 'New order',
+  order_status: 'Order update',
+  order_cancelled: 'Order cancelled',
+  order_refunded: 'Refund processed',
+  order_payment_failed: 'Payment failed',
+  order_refund_pending: 'Refund pending',
+  order_refund_failed: 'Refund failed',
+}
+
+export const getNotificationLabel = (type) =>
+  NOTIFICATION_LABELS[type] || String(type || 'system').replace(/_/g, ' ')
 
 export const getNotificationDotColor = (type) => {
   const colors = {
@@ -45,6 +67,14 @@ export const getNotificationDotColor = (type) => {
     story_view: 'bg-cyan-500',
     login_alert: 'bg-neutral-500',
     order: 'bg-teal-500',
+    order_placed: 'bg-green-500',
+    order_seller_new: 'bg-blue-500',
+    order_status: 'bg-purple-500',
+    order_cancelled: 'bg-red-600',
+    order_refunded: 'bg-green-500',
+    order_payment_failed: 'bg-red-600',
+    order_refund_pending: 'bg-amber-500',
+    order_refund_failed: 'bg-red-600',
     payout: 'bg-emerald-500',
     admin: 'bg-neutral-600'
   }

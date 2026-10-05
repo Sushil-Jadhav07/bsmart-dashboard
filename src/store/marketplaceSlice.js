@@ -7,7 +7,7 @@ const jsonHeader = (token) => ({ ...authHeader(token), 'Content-Type': 'applicat
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
 
-const FILTER_KEYS = ['seller', 'buyer', 'status', 'payment_status', 'category'];
+const FILTER_KEYS = ['seller', 'buyer', 'status', 'payment_status', 'category', 'refund_failed'];
 
 const buildQuery = (params = {}, page) => {
   const qs = new URLSearchParams();

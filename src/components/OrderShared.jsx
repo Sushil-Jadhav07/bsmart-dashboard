@@ -50,8 +50,14 @@ const refundNote = (order) => {
   if (order.payment_status !== 'paid') return 'No payment has been captured, so nothing will be refunded.';
   const amount = formatINR(order.total_amount);
   if (order.payment_method === 'wallet') return `${amount} will be refunded to the buyer's wallet and the items restocked.`;
-  return `${amount} will be refunded through Razorpay and the items restocked. If the Razorpay refund fails, the order is still cancelled but stays marked as paid. You'd then need to refund it manually.`;
+  return `${amount} will be refunded through Razorpay and the items restocked. If the Razorpay refund fails, the order is still cancelled and flagged "Refund failed" for a manual refund.`;
 };
+
+export const RefundFailedBadge = ({ className }) => (
+  <PremiumBadge tone="rose" className={className}>
+    <AlertTriangle className="h-3 w-3" /> Refund failed
+  </PremiumBadge>
+);
 
 export const CancelOrderModal = ({ order, onClose, onConfirm, loading }) => {
   const [reason, setReason] = useState('');

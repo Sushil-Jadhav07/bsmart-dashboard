@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Ban, Check, ExternalLink, MapPin, Save } from 'lucide-react';
+import { AlertOctagon, Ban, Check, ExternalLink, MapPin, Save } from 'lucide-react';
 import Button from '../components/Button.jsx';
 import Dropdown from '../components/Dropdown.jsx';
 import {
   Avatar, DetailShell, InfoTile, MetaRow, SectionCard, Thumb, Toast, formatINR, humanize,
 } from '../components/MarketplaceShared.jsx';
 import {
-  CANCELLABLE, CancelOrderModal, ORDER_FLOW, OrderStatusBadge, PaymentStatusBadge, buyerOf,
+  CANCELLABLE, CancelOrderModal, ORDER_FLOW, OrderStatusBadge, PaymentStatusBadge, RefundFailedBadge, buyerOf,
 } from '../components/OrderShared.jsx';
 import useOrderCancel from '../hooks/useOrderCancel.js';
 import { fetchInfluencers, fetchMarketplaceOrder, updateOrderStatus } from '../store/marketplaceSlice.js';
@@ -51,6 +51,30 @@ const StatusStepper = ({ order }) => {
     </div>
   );
 };
+
+// There is no "mark refunded" API yet, so this only tells the admin what to do.
+const RefundFailedAlert = ({ order }) => (
+  <div className="flex gap-3 rounded-3xl border border-rose-200 bg-rose-50 px-6 py-5">
+    <AlertOctagon className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+    <div className="min-w-0 space-y-2">
+      <p className="text-sm font-semibold text-rose-900">Automatic refund failed</p>
+      <p className="text-sm text-rose-800">
+        This order was cancelled but the Razorpay refund of {formatINR(order.total_amount)} did not go through. The buyer has been told their refund is being processed manually.
+      </p>
+      {order.refund_error && (
+        <div className="rounded-xl bg-white/70 border border-rose-100 px-3.5 py-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Refund error</p>
+          <p className="text-sm text-rose-900 mt-0.5 break-words">{order.refund_error}</p>
+        </div>
+      )}
+      <p className="text-sm text-rose-800">
+        <span className="font-semibold">Mark as refunded manually:</span> issue the refund from the Razorpay dashboard
+        {order.razorpay_payment_id ? <> for payment <span className="font-mono text-xs">{order.razorpay_payment_id}</span></> : ''}.
+        The dashboard can't update this order's payment status yet, so it will keep showing as paid.
+      </p>
+    </div>
+  </div>
+);
 
 const ManagePanel = ({ order, onCancel }) => {
   const dispatch = useDispatch();
@@ -182,6 +206,7 @@ const MarketplaceOrderDetail = () => {
       {order && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
           <div className="space-y-6">
+            {order.refund_failed && <RefundFailedAlert order={order} />}
             <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
               <div className="px-6 py-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -190,6 +215,7 @@ const MarketplaceOrderDetail = () => {
                     <p className="text-sm text-neutral-500 mt-1">Placed {formatDateTime(order.placed_at || order.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {order.refund_failed && <RefundFailedBadge />}
                     <PaymentStatusBadge status={order.payment_status} />
                     <OrderStatusBadge status={order.order_status} />
                   </div>
@@ -258,6 +284,15 @@ const MarketplaceOrderDetail = () => {
               <InfoTile label="Method">{humanize(order.payment_method)}</InfoTile>
               <InfoTile label="Status"><PaymentStatusBadge status={order.payment_status} /></InfoTile>
               <InfoTile label="Currency">{order.currency || 'INR'}</InfoTile>
+              {order.order_status === 'cancelled' && (
+                <InfoTile label="Refund">
+                  {order.refund_failed
+                    ? <RefundFailedBadge />
+                    : order.payment_status === 'refunded' ? 'Refunded'
+                      : order.payment_status === 'paid' ? <span className="font-semibold text-rose-700">Paid, not refunded</span>
+                        : 'Not applicable'}
+                </InfoTile>
+              )}
               {order.payment_method === 'razorpay' ? (
                 <>
                   <InfoTile label="Razorpay Order ID"><span className="text-xs">{order.razorpay_order_id || '-'}</span></InfoTile>

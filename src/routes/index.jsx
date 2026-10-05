@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation, useParams } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import Users from '../pages/Users.jsx';
@@ -55,6 +55,12 @@ import MarketplaceServiceDetail from '../pages/MarketplaceServiceDetail.jsx';
 import MarketplaceOrders from '../pages/MarketplaceOrders.jsx';
 import MarketplaceOrderDetail from '../pages/MarketplaceOrderDetail.jsx';
 
+// Backend notifications link admins to /admin/orders/...; the pages live under /marketplace.
+const AdminOrdersRedirect = () => {
+  const { id } = useParams();
+  const { search } = useLocation();
+  return <Navigate to={`/marketplace/orders${id ? `/${id}` : ''}${search}`} replace />;
+};
 
 export const router = createBrowserRouter([
   {
@@ -280,6 +286,14 @@ export const router = createBrowserRouter([
       {
         path: '/marketplace/orders/:id',
         element: <MarketplaceOrderDetail />
+      },
+      {
+        path: '/admin/orders',
+        element: <AdminOrdersRedirect />
+      },
+      {
+        path: '/admin/orders/:id',
+        element: <AdminOrdersRedirect />
       },
     ]
   },

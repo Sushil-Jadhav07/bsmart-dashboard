@@ -11,9 +11,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { deleteNotification, fetchNotifications, markAllRead, markOneRead } from '../store/notificationsSlice.js';
-import { getNotificationIcon, getNotificationDotColor, formatNotifTime } from '../utils/notificationHelpers.js';
+import { getNotificationIcon, getNotificationDotColor, getNotificationLabel, formatNotifTime } from '../utils/notificationHelpers.js';
 import { formatNumber } from '../utils/helpers.jsx';
 import Button from '../components/Button.jsx';
 import Dropdown from '../components/Dropdown.jsx';
@@ -41,7 +42,7 @@ const SenderAvatar = ({ sender }) => {
 
 const TypeBadge = ({ type }) => {
   const icon = getNotificationIcon(type);
-  const label = String(type || 'system').replace(/_/g, ' ');
+  const label = getNotificationLabel(type);
   return (
     <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-medium capitalize text-neutral-700">
       <span className="text-sm leading-none">{icon}</span>
@@ -52,6 +53,7 @@ const TypeBadge = ({ type }) => {
 
 const Notifications = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { items, unreadCount, status, error } = useSelector((state) => state.notifications);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -82,7 +84,7 @@ const Notifications = () => {
     const types = [...new Set(rows.map((r) => r.type))].sort();
     return [
       { value: 'all', label: 'All Types' },
-      ...types.map((t) => ({ value: t, label: t.replace(/_/g, ' ') })),
+      ...types.map((t) => ({ value: t, label: getNotificationLabel(t) })),
     ];
   }, [rows]);
 
@@ -117,6 +119,14 @@ const Notifications = () => {
     { label: 'Unread', value: unreadCount, icon: Clock, color: unreadCount > 0 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50' },
     { label: 'Read', value: readCount, icon: MailOpen, color: 'text-emerald-600 bg-emerald-50' },
   ];
+
+  // Only admin-dashboard links are navigable here; buyer/seller links point into the app.
+  const isDashboardLink = (link) => typeof link === 'string' && link.startsWith('/admin/');
+
+  const openLink = (row) => {
+    if (!row.isRead) dispatch(markOneRead(row.id));
+    navigate(row.link);
+  };
 
   const handleDelete = (notification) => {
     setConfirmModal({ isOpen: true, notification });
@@ -251,9 +261,17 @@ const Notifications = () => {
                         <p className={clsx('truncate text-sm text-neutral-700', !row.isRead && 'font-medium text-neutral-900')}>
                           {row.message}
                         </p>
-                        {row.link && (
+                        {row.link && (isDashboardLink(row.link) ? (
+                          <button
+                            type="button"
+                            onClick={() => openLink(row)}
+                            className="block max-w-full truncate text-[11px] font-semibold text-primary hover:underline mt-0.5"
+                          >
+                            Open {row.link}
+                          </button>
+                        ) : (
                           <p className="truncate text-[11px] text-primary/70 mt-0.5">{row.link}</p>
-                        )}
+                        ))}
                       </td>
 
                       {/* Type */}
