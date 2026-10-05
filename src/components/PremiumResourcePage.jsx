@@ -90,8 +90,9 @@ const SortHeader = ({ column, sortConfig, onSort }) => {
   );
 };
 
-const ActionMenu = ({ row, actions = [] }) => {
+const ActionMenu = ({ row, actions: allActions = [] }) => {
   const [open, setOpen] = useState(false);
+  const actions = allActions.filter((action) => !action.hidden?.(row));
   if (!actions.length) return null;
   return (
     <div className="relative flex justify-end">

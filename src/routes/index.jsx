@@ -47,6 +47,11 @@ import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
 import BugReports from '../pages/BugReports.jsx';
 import BugReportDetail from '../pages/BugReportDetail.jsx';
 import ContentReports from '../pages/ContentReports.jsx';
+import MarketplaceInfluencers from '../pages/MarketplaceInfluencers.jsx';
+import MarketplaceProducts from '../pages/MarketplaceProducts.jsx';
+import MarketplaceProductDetail from '../pages/MarketplaceProductDetail.jsx';
+import MarketplaceServices from '../pages/MarketplaceServices.jsx';
+import MarketplaceServiceDetail from '../pages/MarketplaceServiceDetail.jsx';
 
 
 export const router = createBrowserRouter([
@@ -241,6 +246,30 @@ export const router = createBrowserRouter([
       {
         path: '/reports/content',
         element: <ContentReports />
+      },
+      {
+        path: '/marketplace',
+        element: <Navigate to="/marketplace/influencers" replace />
+      },
+      {
+        path: '/marketplace/influencers',
+        element: <MarketplaceInfluencers />
+      },
+      {
+        path: '/marketplace/products',
+        element: <MarketplaceProducts />
+      },
+      {
+        path: '/marketplace/products/:id',
+        element: <MarketplaceProductDetail />
+      },
+      {
+        path: '/marketplace/services',
+        element: <MarketplaceServices />
+      },
+      {
+        path: '/marketplace/services/:id',
+        element: <MarketplaceServiceDetail />
       },
     ]
   },
