@@ -32,8 +32,9 @@ export const fetchSalesOfficerById = createAsyncThunk(
       const data = await res.json().catch(() => ({}))
       if (res.status === 404) return null
       if (!res.ok) return rejectWithValue(data?.message || 'Failed to load officer')
-      // data now contains both sales profile fields AND user fields (email, username etc.)
-      return { ...data, _id: data.user_id || data._id, id }
+      // Response is { success, data: { ...user, sales_profile, assigned_vendors_count } }
+      const record = data?.data || data
+      return { ...record, _id: record.user_id || record._id || id, id }
     } catch (e) {
       return rejectWithValue(e.message || 'Network error')
     }

@@ -30,6 +30,7 @@ import AdminVendors from '../pages/AdminVendors.jsx';
 import AdminAds from '../pages/AdminAds.jsx';
 import Notifications from '../pages/Notifications.jsx';
 import SalesOfficers from '../pages/SalesOfficers.jsx';
+import SalesOfficerDetails from '../pages/SalesOfficerDetails.jsx';
 import VendorPackages from '../pages/VendorPackages.jsx';
 import Inquiries from '../pages/Inquiries.jsx';
 import CustomerQueries from '../pages/CustomerQueries.jsx';
@@ -186,6 +187,10 @@ export const router = createBrowserRouter([
       {
         path: '/sales',
         element: <SalesOfficers />
+      },
+      {
+        path: '/sales/:id',
+        element: <SalesOfficerDetails />
       },
       {
         path: '/vendor-packages',
