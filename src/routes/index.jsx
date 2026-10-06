@@ -89,7 +89,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/posts',
-        element: <Posts forcedType="post" title="Posts" />
+        element: <Posts forcedType="post" title="Moments" />
       },
       {
         path: '/posts/:id',

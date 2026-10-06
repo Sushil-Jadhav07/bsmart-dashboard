@@ -1,16 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { clsx } from 'clsx';
 import {
   Bell,
-  ChevronDown,
   LogOut,
   User,
   Settings,
   X,
   Search,
-  LifeBuoy,
+  HelpCircle,
 } from 'lucide-react';
 import {
   fetchNotifications,
@@ -20,31 +19,8 @@ import {
 } from '../store/notificationsSlice.js';
 import { getNotificationIcon, getNotificationDotColor, formatNotifTime } from '../utils/notificationHelpers.js';
 
-const pageTitles = {
-  '/dashboard': 'Dashboard',
-  '/users': 'Users',
-  '/posts': 'Posts',
-  '/reels': 'Reels',
-  '/tweets': 'Tweets',
-  '/promote': 'Promote',
-  '/ads': 'Ads',
-  '/vendors': 'Vendors',
-  '/vendor-packages': 'Vendor Packages',
-  '/sales': 'Sales',
-  '/wallets': 'Wallets',
-  '/notifications': 'Notifications',
-  '/settings': 'Settings',
-};
-
-function getPageTitle(pathname) {
-  if (pageTitles[pathname]) return pageTitles[pathname];
-  const match = Object.keys(pageTitles).find((key) => pathname.startsWith(key + '/'));
-  return match ? pageTitles[match] : 'Dashboard';
-}
-
 const Header = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const dispatch = useDispatch();
   const { items: notifications, unreadCount, status } = useSelector((s) => s.notifications);
   const authUser = useSelector((s) => s.auth.user);
@@ -61,14 +37,14 @@ const Header = () => {
     authUser?.username ||
     (authUser?.email ? authUser.email.split('@')[0] : 'Admin User');
   const displayEmail = authUser?.email || 'No email';
+  const roleLabel = String(authUser?.role || 'admin').replace(/[_-]+/g, ' ');
+  const avatarUrl = authUser?.avatar_url || '';
   const initials = displayName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'AD';
-
-  const pageTitle = getPageTitle(location.pathname);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -80,41 +56,23 @@ const Header = () => {
   }, []);
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-[260px] h-[68px] bg-white/85 backdrop-blur-xl border-b border-neutral-200/70 z-30">
-      <div className="h-full flex items-center justify-between gap-4 pl-16 pr-4 lg:px-7">
+    <header className="fixed top-0 right-0 left-0 lg:left-[260px] h-[52px] bg-white border-b border-neutral-200/70 shadow-[0_1px_3px_rgba(16,24,40,0.04)] z-30">
+      <div className="h-full flex items-center justify-between gap-4 pl-16 pr-4 lg:pl-5 lg:pr-6">
 
-        {/* Page Title */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h1 className="font-display text-[17px] sm:text-lg font-bold tracking-tight text-neutral-900 truncate">{pageTitle}</h1>
-            <p className="hidden sm:block text-[11px] text-neutral-400 leading-tight truncate">B-smart admin console</p>
-          </div>
-        </div>
-
-        {/* Center search */}
-        <div className="hidden md:flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+        {/* Search */}
+        <div className="hidden md:block w-full max-w-[240px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#6E72A8]" strokeWidth={2.25} />
             <input
               type="text"
-              placeholder="Search the console…"
-              className="h-10 w-full rounded-xl border border-neutral-200 bg-neutral-50/80 pl-10 pr-14 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none transition focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10"
+              placeholder="Search campaigns, creators, orders..."
+              className="h-[30px] w-full rounded-md border border-[#E2E5F4] bg-[#EEF0FA] pl-8 pr-3 text-[12px] text-neutral-700 placeholder:text-[#7E8299] outline-none transition focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/10"
             />
-            <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-neutral-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400">⌘K</kbd>
           </div>
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-1">
-
-          {/* Support */}
-          <button
-            onClick={() => navigate('/notifications')}
-            className="hidden sm:inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-neutral-600 hover:text-primary hover:bg-primary/[0.06] transition-colors"
-          >
-            <LifeBuoy className="w-[18px] h-[18px]" />
-            <span className="hidden lg:inline">Support</span>
-          </button>
+        <div className="flex items-center gap-1.5 ml-auto">
 
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
@@ -124,16 +82,17 @@ const Header = () => {
                 setShowNotifications(!showNotifications);
                 setShowProfile(false);
               }}
+              aria-label="Notifications"
               className={clsx(
-                'relative p-2.5 rounded-xl transition-all duration-200',
+                'relative p-2 rounded-lg transition-colors duration-150',
                 showNotifications
-                  ? 'bg-neutral-100 text-neutral-800'
-                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
+                  ? 'bg-neutral-100 text-neutral-900'
+                  : 'text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100'
               )}
             >
-              <Bell className="w-[18px] h-[18px]" />
+              <Bell className="w-[17px] h-[17px]" strokeWidth={2} />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-white" />
+                <span className="absolute top-[5px] right-[6px] w-[7px] h-[7px] bg-primary rounded-full ring-[1.5px] ring-white" />
               )}
             </button>
 
@@ -237,8 +196,18 @@ const Header = () => {
             )}
           </div>
 
+          {/* Help */}
+          <button
+            onClick={() => navigate('/notifications')}
+            aria-label="Help & support"
+            title="Help & support"
+            className="p-2 rounded-lg text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 transition-colors duration-150"
+          >
+            <HelpCircle className="w-[17px] h-[17px]" strokeWidth={2} />
+          </button>
+
           {/* Divider */}
-          <div className="hidden md:block w-px h-6 bg-neutral-200 mx-2" />
+          <div className="hidden md:block w-px h-6 bg-neutral-200 mx-2.5" />
 
           {/* Profile */}
           <div className="relative" ref={profileRef}>
@@ -248,21 +217,21 @@ const Header = () => {
                 setShowNotifications(false);
               }}
               className={clsx(
-                'flex items-center gap-2.5 py-1.5 px-2 rounded-xl transition-all duration-200',
+                'flex items-center gap-2 py-1 pl-1 pr-2 rounded-lg transition-colors duration-150',
                 showProfile ? 'bg-neutral-100' : 'hover:bg-neutral-100'
               )}
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-brand flex items-center justify-center ring-2 ring-white shadow-sm">
-                <span className="text-white font-semibold text-xs">{initials}</span>
-              </div>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-[30px] h-[30px] rounded-full object-cover border border-neutral-200" />
+              ) : (
+                <div className="w-[30px] h-[30px] rounded-full bg-gradient-brand flex items-center justify-center">
+                  <span className="text-white font-semibold text-[11px]">{initials}</span>
+                </div>
+              )}
               <div className="hidden md:block text-left">
-                <p className="text-[13px] font-semibold text-neutral-800 leading-tight max-w-[140px] truncate">{displayName}</p>
-                <p className="text-[11px] text-neutral-400 leading-tight max-w-[140px] truncate">{displayEmail}</p>
+                <p className="text-[13px] font-semibold text-neutral-900 leading-tight max-w-[140px] truncate">{displayName}</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-neutral-500 leading-tight max-w-[140px] truncate">{roleLabel}</p>
               </div>
-              <ChevronDown className={clsx(
-                'w-3.5 h-3.5 text-neutral-400 hidden md:block transition-transform duration-200',
-                showProfile && 'rotate-180'
-              )} />
             </button>
 
             {showProfile && (

@@ -34,7 +34,7 @@ const MainLayout = () => {
       <Sidebar />
       <Header />
 
-      <main className="pt-[68px] min-h-screen lg:pl-[260px] transition-all duration-300">
+      <main className="pt-[52px] min-h-screen lg:pl-[260px] transition-all duration-300">
         <div className="p-4 sm:p-6 lg:p-7 max-w-[1640px] mx-auto">
           <Outlet />
         </div>

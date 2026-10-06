@@ -299,7 +299,7 @@ export default function PolicyEditor() {
     <>
       <style>{EDITOR_STYLES}</style>
 
-      <div className="flex flex-col -mx-4 md:-mx-6 -my-4 md:-my-6" style={{ height: 'calc(100vh - 68px)' }}>
+      <div className="flex flex-col -mx-4 md:-mx-6 -my-4 md:-my-6" style={{ height: 'calc(100vh - 52px)' }}>
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-neutral-200 flex-shrink-0 gap-3">

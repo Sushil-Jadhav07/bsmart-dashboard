@@ -270,7 +270,7 @@ const CustomerQueriesDetails = () => {
   return (
     <>
       {/* Page container */}
-      <div className="flex flex-col h-[calc(100vh-68px)] -m-6">
+      <div className="flex flex-col h-[calc(100vh-52px)] -m-6">
 
         {/* ── Top bar ── */}
         <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-neutral-100 flex-shrink-0">

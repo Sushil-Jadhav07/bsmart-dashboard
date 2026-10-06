@@ -1,326 +1,166 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchUsers, deleteUserById, toggleUserActive } from '../store/usersSlice.js'
-import { fetchMemberWalletHistory, resetMemberHistory } from '../store/walletSlice.js'
-import { formatDateTime, capitalize, formatNumber } from '../utils/helpers.jsx'
 import {
-  ChevronLeft, Mail, Phone, Calendar, Image as ImageIcon,
-  Film, Heart, MessageCircle, ShieldCheck, UserCircle, MapPin,
-  CheckCircle, XCircle, Trash2, Wallet, TrendingUp, TrendingDown,
-  ArrowRightLeft, Star, Eye, Bookmark, RefreshCw, Loader2
+  ArrowLeft, ArrowRightLeft, BadgeCheck, Ban, Bookmark, Calendar, Check, CircleSlash, Copy, Download, Eye, Film,
+  Heart, Image as ImageIcon, Loader2, Mail, MapPin, Megaphone, MessageCircle, MessageSquare, MessagesSquare, Pencil,
+  Phone, Play, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Star, Store, Trash2, Wallet, XCircle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { ConfirmModal } from '../components/Modal.jsx'
-import Badge from '../components/Badge.jsx'
+import { fetchUsers, deleteUserById } from '../store/usersSlice.js'
+import { fetchMemberWalletHistory, resetMemberHistory } from '../store/walletSlice.js'
+import { formatCompactNumber, formatDateTime, formatNumber, formatRelativeTime } from '../utils/helpers.jsx'
+import { downloadCsv, getThumbnailUrl, toAbsoluteMediaUrl } from '../utils/contentHelpers.js'
+import Modal, { ConfirmModal } from '../components/Modal.jsx'
+import Button from '../components/Button.jsx'
 import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
-const AVATAR_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0Y0RjRGNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTQlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmaWxsPSIjQzRDNEM0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+VVM8L3RleHQ+PC9zdmc+'
-
-const getThumbnailUrl = (m) => {
-  if (!m) return ''
-  if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl
-  if (m.thumbnail?.fileUrl) return m.thumbnail.fileUrl
-  return ''
+// ─── Wallet transaction labels ───────────────────────────────────────────────
+const TYPE_CONFIG = {
+  LIKE: { icon: Heart, color: 'text-rose-500 bg-rose-50', label: 'Post Like' },
+  COMMENT: { icon: MessageCircle, color: 'text-blue-500 bg-blue-50', label: 'Post Comment' },
+  REPLY: { icon: MessageCircle, color: 'text-indigo-500 bg-indigo-50', label: 'Post Reply' },
+  SAVE: { icon: Bookmark, color: 'text-amber-500 bg-amber-50', label: 'Post Save' },
+  REEL_VIEW_REWARD: { icon: Eye, color: 'text-purple-500 bg-purple-50', label: 'Reel View Reward' },
+  AD_REWARD: { icon: Star, color: 'text-emerald-500 bg-emerald-50', label: 'Ad Reward' },
+  AD_VIEW_REWARD: { icon: Eye, color: 'text-cyan-500 bg-cyan-50', label: 'Ad View Reward' },
+  AD_LIKE_REWARD: { icon: Heart, color: 'text-pink-500 bg-pink-50', label: 'Ad Like Reward' },
+  AD_COMMENT_REWARD: { icon: MessageCircle, color: 'text-blue-500 bg-blue-50', label: 'Ad Comment Reward' },
+  AD_REPLY_REWARD: { icon: MessageCircle, color: 'text-indigo-500 bg-indigo-50', label: 'Ad Reply Reward' },
+  AD_SAVE_REWARD: { icon: Bookmark, color: 'text-amber-500 bg-amber-50', label: 'Ad Save Reward' },
+}
+const normalizeType = (v) => String(v || '').trim().replace(/[\s-]+/g, '_').toUpperCase()
+const typeConfig = (type) => TYPE_CONFIG[normalizeType(type)] || {
+  icon: ArrowRightLeft,
+  color: 'text-neutral-500 bg-neutral-100',
+  label: String(type || 'Transaction').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
 }
 
-function Divider() {
-  return <div className="h-px bg-neutral-100 mx-6" />
+const ROLE_LABEL = { admin: 'Admin', vendor: 'Vendor', influencer: 'Influencer & Creator', sales: 'Sales Officer', member: 'Member' }
+const ROLE_TONE = {
+  admin: 'bg-[#1F2340] text-white',
+  vendor: 'bg-purple-100 text-[#8E35B5]',
+  influencer: 'bg-pink-100 text-[#C81345]',
+  sales: 'bg-blue-100 text-blue-700',
+  member: 'bg-[#E9EBFA] text-neutral-700',
 }
 
-function SectionLabel({ children, icon: Icon, iconColor }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-3">
-      {Icon && <Icon className={clsx('w-3 h-3', iconColor || 'text-neutral-300')} />}
-      <p className="text-[10px] font-bold tracking-[0.12em] text-neutral-400 uppercase">{children}</p>
-    </div>
-  )
-}
-
-function StatBox({ label, value, color = 'text-neutral-900' }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-4 px-2">
-      <p className={clsx('text-xl font-bold leading-none', color)}>{value ?? 0}</p>
-      <p className="text-[10px] text-neutral-400 mt-1 text-center leading-tight">{label}</p>
-    </div>
-  )
-}
-
-function PostCard({ post, onClick }) {
-  const media = Array.isArray(post.media) ? post.media[0] : null
-  const isVideo = media?.type === 'video'
-  const thumb = getThumbnailUrl(media)
-  const fileUrl = media?.fileUrl || ''
-  const likes = post.likes_count ?? post.likes?.length ?? 0
-  const comments = post.comments_count ?? post.comments?.length ?? 0
-  const showVideo = isVideo && !thumb
-
-  return (
-    <div onClick={onClick} className="group relative rounded-xl overflow-hidden bg-neutral-100 aspect-square cursor-pointer">
-      {thumb || (!showVideo && fileUrl) ? (
-        <img src={thumb || fileUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-      ) : showVideo ? (
-        <video src={fileUrl} className="w-full h-full object-cover" muted />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          {isVideo ? <Film className="w-6 h-6 text-neutral-400" /> : <ImageIcon className="w-6 h-6 text-neutral-400" />}
-        </div>
-      )}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 z-10">
-        <div className="flex items-center gap-1 text-white text-xs font-semibold"><Heart className="w-3.5 h-3.5 fill-white" /> {likes}</div>
-        <div className="flex items-center gap-1 text-white text-xs font-semibold"><MessageCircle className="w-3.5 h-3.5 fill-white" /> {comments}</div>
-      </div>
-      {isVideo && (
-        <div className="absolute top-1.5 right-1.5 bg-black/50 backdrop-blur-sm rounded-md p-0.5 z-10">
-          <Film className="w-3 h-3 text-white" />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function stringifyLocation(value) {
+const stringifyLocation = (value) => {
   if (!value) return ''
   if (typeof value === 'string') return value
-  const parts = []
-  const keys = ['city', 'region', 'state', 'province', 'district', 'country', 'country_code', 'name', 'label']
-  for (const k of keys) {
-    const v = value?.[k]
-    if (typeof v === 'string' && v.trim()) parts.push(v.trim())
-  }
-  return parts.filter(Boolean).join(', ')
+  return ['city', 'state', 'country'].map((k) => value?.[k]).filter((v) => typeof v === 'string' && v.trim()).join(', ')
 }
 
-function pickLocation(u) {
-  const candidates = [
-    u?.location, u?.location_name, u?.city, u?.address,
-    u?.profile?.location, u?.profile?.city, u?.profile?.address,
-    u?.vendor?.location, u?.vendor?.city, u?.vendor?.address,
-    u?.vendor?.online_presence?.address, u?.vendor_profile?.location,
-    u?.vendor_profile?.city, u?.vendor_profile?.address,
-    u?.vendor_profile?.online_presence?.address,
-  ]
-  for (const c of candidates) {
-    const s = stringifyLocation(c)
-    if (s) return s
-  }
-  return ''
-}
+const card = 'rounded-2xl border border-neutral-200/70 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-shadow hover:shadow-[0_10px_28px_-18px_rgba(16,24,40,0.3)]'
 
-function pickGender(u) {
-  const candidates = [
-    u?.gender, u?.sex, u?.profile?.gender, u?.profile?.sex,
-    u?.vendor?.gender, u?.vendor_profile?.gender,
-    u?.vendor?.profile?.gender, u?.vendor?.representative?.gender,
-    u?.vendor_profile?.representative?.gender,
-  ]
-  for (const c of candidates) {
-    if (typeof c === 'string' && c.trim()) return c.trim()
-  }
-  return ''
-}
-
-function ContentTabPanel({ items, loading, error, onNavigate }) {
-  if (loading) {
-    return (
-      <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm flex items-center justify-center py-16 gap-3">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-        <p className="text-sm text-neutral-400">Loading content…</p>
-      </div>
-    )
-  }
-  if (error) {
-    return (
-      <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm px-6 py-12 text-center">
-        <XCircle className="w-8 h-8 text-red-300 mx-auto mb-2" />
-        <p className="text-sm text-red-400">{error}</p>
-      </div>
-    )
-  }
-  if (!items || items.length === 0) {
-    return (
-      <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm px-6 py-12 text-center">
-        <ImageIcon className="w-8 h-8 text-neutral-200 mx-auto mb-2" />
-        <p className="text-sm text-neutral-300">No content found</p>
-      </div>
-    )
-  }
-  return (
-    <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-800">{items.length} item{items.length !== 1 ? 's' : ''}</p>
-      </div>
-      <div className="p-6">
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {items.map((item) => {
-            const media = Array.isArray(item.media) ? item.media[0] : null
-            const isVideo = String(media?.type || media?.media_type || '').toLowerCase().includes('video')
-            const thumb =
-              (Array.isArray(media?.thumbnail) ? media.thumbnail[0]?.fileUrl : media?.thumbnail?.fileUrl) ||
-              media?.thumbnails?.[0]?.fileUrl ||
-              (!isVideo && media?.fileUrl) ||
-              ''
-            const text = item.caption || item.content || item.title || item.headline || ''
-            const likes = item.likes_count ?? item.likes?.length ?? 0
-            const comments = item.comments_count ?? item.comments?.length ?? 0
-            return (
-              <div
-                key={item._id || item.id}
-                onClick={() => onNavigate(item)}
-                className="group relative rounded-xl overflow-hidden bg-neutral-100 aspect-square cursor-pointer"
-              >
-                {thumb ? (
-                  <img src={thumb} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { e.target.style.display = 'none' }} />
-                ) : text ? (
-                  <div className="w-full h-full flex items-center justify-center p-3 bg-neutral-50">
-                    <p className="text-xs text-neutral-500 text-center line-clamp-4 leading-relaxed">{text}</p>
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    {isVideo ? <Film className="w-6 h-6 text-neutral-400" /> : <ImageIcon className="w-6 h-6 text-neutral-400" />}
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 z-10">
-                  <div className="flex items-center gap-1 text-white text-xs font-semibold"><Heart className="w-3.5 h-3.5 fill-white" /> {likes}</div>
-                  <div className="flex items-center gap-1 text-white text-xs font-semibold"><MessageCircle className="w-3.5 h-3.5 fill-white" /> {comments}</div>
-                </div>
-                {isVideo && (
-                  <div className="absolute top-1.5 right-1.5 bg-black/50 backdrop-blur-sm rounded-md p-0.5 z-10">
-                    <Film className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+const SectionHead = ({ title, subtitle, icon: Icon, iconClass = 'text-[#C81345]', actions }) => (
+  <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-4">
+    <div className="min-w-0">
+      <h2 className="flex items-center gap-2 font-display text-[15px] font-bold tracking-tight text-neutral-900">
+        {Icon && <Icon className={clsx('h-4 w-4', iconClass)} />}{title}
+      </h2>
+      {subtitle && <p className="mt-0.5 text-[12px] text-neutral-500">{subtitle}</p>}
     </div>
-  )
+    {actions && <div className="flex flex-shrink-0 items-center gap-2">{actions}</div>}
+  </div>
+)
+
+const MiniStat = ({ label, value, sub, subClass = 'text-neutral-500', icon: Icon, iconTone }) => (
+  <div className={clsx(card, 'group p-4 hover:-translate-y-0.5')}>
+    <div className="flex items-start justify-between gap-2">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-700">{label}</p>
+      {Icon && <span className={clsx('flex h-7 w-7 items-center justify-center rounded-md transition-transform group-hover:scale-110', iconTone)}><Icon className="h-3.5 w-3.5" /></span>}
+    </div>
+    <p className="mt-1.5 font-display text-[22px] font-extrabold leading-tight text-neutral-900">{value}</p>
+    {sub && <p className={clsx('mt-0.5 text-[10.5px] font-semibold', subClass)}>{sub}</p>}
+  </div>
+)
+
+const contentThumb = (item) => {
+  const media = Array.isArray(item.media) ? item.media[0] : null
+  const isVideo = String(media?.type || media?.media_type || '').toLowerCase().includes('video')
+  return { url: getThumbnailUrl(media) || (!isVideo ? toAbsoluteMediaUrl(media?.fileUrl || media?.url) : ''), isVideo }
 }
 
-// ── Wallet transaction type config ─────────────────────────────────────────
-const TYPE_CONFIG = {
-  LIKE:                  { icon: Heart,          color: 'text-red-500 bg-red-50',       label: 'Post Like' },
-  COMMENT:               { icon: MessageCircle,  color: 'text-blue-500 bg-blue-50',     label: 'Post Comment' },
-  REPLY:                 { icon: MessageCircle,  color: 'text-indigo-500 bg-indigo-50', label: 'Post Reply' },
-  SAVE:                  { icon: Bookmark,       color: 'text-yellow-500 bg-yellow-50', label: 'Post Save' },
-  REEL_VIEW_REWARD:      { icon: Eye,            color: 'text-purple-500 bg-purple-50', label: 'Reel View Reward' },
-  AD_REWARD:             { icon: Star,           color: 'text-green-500 bg-green-50',   label: 'Ad Reward' },
-  AD_VIEW_REWARD:        { icon: Eye,            color: 'text-cyan-500 bg-cyan-50',     label: 'Ad View Reward' },
-  AD_LIKE_REWARD:        { icon: Heart,          color: 'text-pink-500 bg-pink-50',     label: 'Ad Like Reward' },
-  AD_COMMENT_REWARD:     { icon: MessageCircle,  color: 'text-blue-500 bg-blue-50',     label: 'Ad Comment Reward' },
-  AD_REPLY_REWARD:       { icon: MessageCircle,  color: 'text-indigo-500 bg-indigo-50', label: 'Ad Reply Reward' },
-  AD_SAVE_REWARD:        { icon: Bookmark,       color: 'text-amber-500 bg-amber-50',   label: 'Ad Save Reward' },
-}
-
-const normalizeType = (v) => String(v || '').trim().replace(/[\s-]+/g, '_').toUpperCase()
-
-const getTypeConfig = (type) =>
-  TYPE_CONFIG[normalizeType(type)] || { icon: ArrowRightLeft, color: 'text-neutral-500 bg-neutral-100', label: String(type || 'Unknown') }
-
-function WalletHistoryPanel({ userId }) {
-  const dispatch = useDispatch()
-  const { memberHistory, memberWallet, memberStatus, memberError } = useSelector((s) => s.wallet)
-
-  useEffect(() => {
-    if (userId) dispatch(fetchMemberWalletHistory(userId))
-    return () => { dispatch(resetMemberHistory()) }
-  }, [dispatch, userId])
-
-  const totalEarned = useMemo(() =>
-    memberHistory.filter(t => (t.amount ?? 0) > 0).reduce((sum, t) => sum + (t.amount ?? 0), 0),
-    [memberHistory]
-  )
-
-  if (memberStatus === 'loading') {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <Loader2 className="w-7 h-7 text-purple-500 animate-spin" />
-        <p className="text-sm text-neutral-400">Loading wallet history…</p>
-      </div>
-    )
-  }
-
-  if (memberStatus === 'failed') {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <XCircle className="w-8 h-8 text-red-400" />
-        <p className="text-sm text-red-500 font-medium">Failed to load wallet history</p>
-        <p className="text-xs text-neutral-400">{memberError}</p>
-        <button onClick={() => dispatch(fetchMemberWalletHistory(userId))} className="text-xs text-purple-500 hover:underline">Retry</button>
-      </div>
-    )
-  }
-
+const ContentCard = ({ item, kind, onOpen }) => {
+  const [failed, setFailed] = useState(false)
+  const { url, isVideo } = contentThumb(item)
+  const text = item.caption || item.content || item.title || item.headline || ''
+  const likes = Number(item.likes_count ?? item.likesCount ?? 0) || 0
+  const views = Number(item.views_count ?? item.viewsCount ?? 0) || 0
+  const comments = Number(item.comments_count ?? item.commentsCount ?? 0) || 0
+  const badge = { posts: ['Moment', 'bg-[#C81345]'], reels: ['bSpark', 'bg-[#8E35B5]'], promote_reels: ['Campaign', 'bg-[#8E35B5]'], tweets: ['Buzz', 'bg-blue-600'], ads: ['Spotlight', 'bg-amber-600'] }[kind]
   return (
-    <div className="space-y-4">
-      {/* Wallet summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-purple-50 rounded-2xl p-4 text-center">
-          <p className="text-xs text-purple-500 font-medium mb-1">Balance</p>
-          <p className="text-xl font-bold text-purple-700">{formatNumber(memberWallet?.balance ?? 0)}</p>
-          <p className="text-[10px] text-purple-400 mt-0.5">Coins</p>
-        </div>
-        <div className="bg-green-50 rounded-2xl p-4 text-center">
-          <p className="text-xs text-green-500 font-medium mb-1">Total Earned</p>
-          <p className="text-xl font-bold text-green-700">{formatNumber(totalEarned)}</p>
-          <p className="text-[10px] text-green-400 mt-0.5">Coins</p>
-        </div>
-        <div className="bg-neutral-50 rounded-2xl p-4 text-center">
-          <p className="text-xs text-neutral-500 font-medium mb-1">Transactions</p>
-          <p className="text-xl font-bold text-neutral-700">{memberHistory.length}</p>
-          <p className="text-[10px] text-neutral-400 mt-0.5">Total</p>
-        </div>
-      </div>
-
-      {/* Transaction list */}
-      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
-          <p className="text-sm font-semibold text-neutral-800">Transaction History</p>
-          <button
-            onClick={() => dispatch(fetchMemberWalletHistory(userId))}
-            className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-        {memberHistory.length === 0 ? (
-          <div className="py-12 text-center">
-            <Wallet className="w-8 h-8 text-neutral-200 mx-auto mb-2" />
-            <p className="text-sm text-neutral-300">No transactions yet</p>
-          </div>
+    <button type="button" onClick={onOpen} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white text-left transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_-16px_rgba(16,24,40,0.4)]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
+        {url && !failed ? (
+          <img src={url} alt="" onError={() => setFailed(true)} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        ) : text ? (
+          <p className="line-clamp-5 p-3 text-[11.5px] leading-relaxed text-neutral-600">{text}</p>
         ) : (
-          <div className="divide-y divide-neutral-50 max-h-80 overflow-y-auto">
-            {memberHistory.map((tx, i) => {
-              const cfg = getTypeConfig(tx.type)
-              const Icon = cfg.icon
-              const isCredit = (tx.amount ?? 0) >= 0
-              return (
-                <div key={tx._id || i} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-neutral-700 font-medium truncate">{cfg.label}</p>
-                    <p className="text-[10px] text-neutral-400">{formatDateTime(tx.createdAt || tx.transactionDate)}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className={`text-sm font-bold ${isCredit ? 'text-green-600' : 'text-red-500'}`}>
-                      {isCredit ? '+' : ''}{formatNumber(tx.amount ?? 0)}
-                    </p>
-                    <Badge variant={tx.status === 'SUCCESS' ? 'success' : 'secondary'} className="text-[9px]">
-                      {tx.status || 'N/A'}
-                    </Badge>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <div className="flex h-full items-center justify-center text-neutral-300">{isVideo ? <Film className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}</div>
         )}
+        <span className={clsx('absolute left-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white', badge[1])}>{badge[0]}</span>
+        {isVideo && <span className="absolute bottom-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/60"><Play className="h-2.5 w-2.5 fill-white text-white" /></span>}
       </div>
-    </div>
+      <div className="px-3 py-2.5">
+        <p className="truncate text-[12.5px] font-bold text-neutral-900">{text || 'Untitled'}</p>
+        <p className="mt-1 flex items-center gap-2.5 text-[11px] text-neutral-500">
+          <span className="inline-flex items-center gap-0.5"><Heart className="h-3 w-3 text-[#E8194E]" />{formatCompactNumber(likes)}</span>
+          {views > 0 ? <span className="inline-flex items-center gap-0.5"><Eye className="h-3 w-3" />{formatCompactNumber(views)}</span>
+            : <span className="inline-flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{formatCompactNumber(comments)}</span>}
+        </p>
+      </div>
+    </button>
   )
 }
+
+const LedgerTable = ({ rows }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full min-w-[560px] text-left">
+      <thead>
+        <tr className="border-y border-neutral-100 bg-[#F7F8FD]">
+          {['Transaction Type', 'Amount', 'Date & Time', 'Status', 'Reference ID'].map((h) => (
+            <th key={h} className={clsx('px-5 py-2.5 text-[10px] font-bold uppercase tracking-wide text-neutral-700', h === 'Reference ID' && 'text-right')}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-neutral-100">
+        {rows.map((tx, i) => {
+          const cfg = typeConfig(tx.type)
+          const Icon = cfg.icon
+          const amount = Number(tx.amount) || 0
+          const ok = String(tx.status || '').toUpperCase() === 'SUCCESS'
+          return (
+            <tr key={tx._id || i} className="transition-colors hover:bg-[#FDF2F6]">
+              <td className="px-5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <span className={clsx('flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg', cfg.color)}><Icon className="h-4 w-4" /></span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-bold text-neutral-900">{cfg.label}</p>
+                    {tx.description && <p className="max-w-[200px] truncate text-[11px] text-neutral-500">{tx.description}</p>}
+                  </div>
+                </div>
+              </td>
+              <td className={clsx('px-5 py-3 text-[13px] font-bold', amount >= 0 ? 'text-emerald-600' : 'text-[#C81345]')}>
+                {amount >= 0 ? '+' : ''}{formatNumber(amount)} <span className="text-[11px] font-semibold">Bcoins</span>
+              </td>
+              <td className="whitespace-nowrap px-5 py-3 text-[12px] text-neutral-700">{formatDateTime(tx.createdAt || tx.transactionDate)}</td>
+              <td className="px-5 py-3">
+                <span className={clsx('rounded-md px-2 py-0.5 text-[10.5px] font-bold', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
+                  {ok ? (amount >= 0 ? 'Settled' : 'Deducted') : (tx.status || 'Pending')}
+                </span>
+              </td>
+              <td className="px-5 py-3 text-right font-mono text-[11px] text-neutral-500">#TXN-{String(tx._id || '').slice(-7).toUpperCase() || '—'}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  </div>
+)
+
+const EMPTY_FORM = { full_name: '', username: '', email: '', phone: '' }
 
 export default function UserDetails() {
   const { id } = useParams()
@@ -328,377 +168,612 @@ export default function UserDetails() {
   const navigate = useNavigate()
   const token = useSelector((s) => s.auth.token)
   const listItems = useSelector((s) => s.users.items)
+  const { memberHistory, memberWallet, memberStatus, memberError } = useSelector((s) => s.wallet)
 
   const [activeTab, setActiveTab] = useState('overview')
-  const [userDetail, setUserDetail] = useState(null)
-  const [userDetailLoading, setUserDetailLoading] = useState(true)
-  const [userDetailError, setUserDetailError] = useState(null)
-  const [deleteModal, setDeleteModal] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [activeToggleLoading, setActiveToggleLoading] = useState(false)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-
-  const [contentData, setContentData] = useState(null)
+  const [content, setContent] = useState(null)
   const [contentLoading, setContentLoading] = useState(false)
   const [contentError, setContentError] = useState(null)
+  const [reports, setReports] = useState({ status: 'idle', items: [] })
+  const [ledgerFilter, setLedgerFilter] = useState('all')
 
-  const listItem = useMemo(() => {
-    return (listItems || []).find((item) => {
-      const u = item?.user || item
-      return u._id === id || u.id === id
-    })
-  }, [listItems, id])
+  const [deleteModal, setDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [suspendModal, setSuspendModal] = useState(false)
+  const [banType, setBanType] = useState('temporary')
+  const [banReason, setBanReason] = useState('')
+  const [editModal, setEditModal] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const headers = useMemo(() => ({ Accept: 'application/json', Authorization: `Bearer ${token}` }), [token])
+  const showToast = (message, tone = 'success') => { setToast({ message, tone }); setTimeout(() => setToast(null), 3000) }
 
   useEffect(() => {
     if (!id || !token) return
-    setUserDetailLoading(true)
-    setUserDetailError(null)
-    fetch(`${API_BASE_WITH_PATH}/users/${id}`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-    })
+    setLoading(true)
+    setError(null)
+    fetch(`${API_BASE_WITH_PATH}/users/${id}`, { headers })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
         return data?.data || data?.user || data
       })
-      .then((data) => { setUserDetail(data); setUserDetailLoading(false) })
-      .catch((e) => { setUserDetailError(e.message || 'Failed to load user'); setUserDetailLoading(false) })
-  }, [id, token, refreshKey])
+      .then((data) => { setUser(data); setLoading(false) })
+      .catch((e) => { setError(e.message || 'Failed to load user'); setLoading(false) })
+  }, [id, token, headers, refreshKey])
 
-  useEffect(() => {
-    if (!listItems || listItems.length === 0) dispatch(fetchUsers())
-  }, [dispatch, listItems])
+  useEffect(() => { if (!listItems || listItems.length === 0) dispatch(fetchUsers()) }, [dispatch, listItems])
 
   useEffect(() => {
     if (!id || !token) return
     setContentLoading(true)
     setContentError(null)
-    fetch(`${API_BASE_WITH_PATH}/admin/users/${id}/content`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-    })
+    fetch(`${API_BASE_WITH_PATH}/admin/users/${id}/content`, { headers })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
         return data?.data || data
       })
-      .then((data) => { setContentData(data); setContentLoading(false) })
+      .then((data) => { setContent(data); setContentLoading(false) })
       .catch((e) => { setContentError(e.message || 'Failed to load content'); setContentLoading(false) })
-  }, [id, token])
+  }, [id, token, headers])
+
+  useEffect(() => {
+    if (id) dispatch(fetchMemberWalletHistory(id))
+    return () => { dispatch(resetMemberHistory()) }
+  }, [dispatch, id])
+
+  // Reports where this user owns the reported content (latest 100 of all types).
+  const loadReports = useCallback(async () => {
+    if (!token || !id) return
+    setReports((r) => ({ ...r, status: 'loading' }))
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/content-reports/admin?limit=100`, { headers })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error()
+      const items = (Array.isArray(json?.reports) ? json.reports : []).filter((r) => String(r.owner_id?._id || r.owner_id || '') === String(id))
+      setReports({ status: 'succeeded', items })
+    } catch {
+      setReports({ status: 'failed', items: [] })
+    }
+  }, [token, id, headers])
+  useEffect(() => { loadReports() }, [loadReports])
 
   const profile = useMemo(() => {
-    const u = userDetail || {}
-    const listUser = listItem?.user || {}
+    const u = user || {}
+    const role = String(u.role || 'member').toLowerCase()
+    const banned = u.is_active === false || (u.ban_type && u.ban_type !== 'none')
     return {
-      id: u._id || u.id || id,
-      full_name: u.full_name || listUser.full_name || 'Unknown',
-      username: u.username || listUser.username || '',
+      id: String(u._id || u.id || id),
+      name: u.full_name || u.username || 'Unknown',
+      username: u.username || '',
       email: u.email || '',
-      phone: u.phone || listUser.phone || '',
-      gender: pickGender(u) || pickGender(listUser) || '',
-      location: pickLocation(u) || pickLocation(listUser) || '',
-      bio: u.bio || '',
-      role: u.role || listUser.role || 'member',
-      avatar_url: u.avatar_url || listUser.avatar_url || '',
-      followers_count: u.followers_count ?? listUser.followers_count ?? 0,
-      following_count: u.following_count ?? listUser.following_count ?? 0,
-      is_active: u.is_active !== undefined ? u.is_active : true,
-      validated: u.validated ?? listUser.validated ?? false,
-      createdAt: u.createdAt || listUser.createdAt || '',
-      updatedAt: u.updatedAt || listUser.updatedAt || '',
+      phone: u.phone || '',
+      bio: u.bio || u.influencer_profile?.store_description || '',
+      location: stringifyLocation(u.location) || stringifyLocation(u.address),
+      avatar: u.avatar_url ? toAbsoluteMediaUrl(u.avatar_url) : '',
+      role: ROLE_LABEL[role] ? role : 'member',
+      active: !banned,
+      banType: u.ban_type,
+      banReason: u.ban_reason,
+      banUntil: u.ban_until,
+      followers: Number(u.followers_count) || 0,
+      following: Number(u.following_count) || 0,
+      emailVerified: !!u.is_email_verified,
+      phoneVerified: !!u.is_phone_verified,
+      entity: u.company_details?.company_name || u.influencer_profile?.store_name || '',
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+      summary: u.summary || {},
     }
-  }, [userDetail, listItem, id])
+  }, [user, id])
 
-  const summary = listItem?.summary || {}
-  const posts = Array.isArray(listItem?.posts) ? listItem.posts : []
+  const counts = useMemo(() => ({
+    posts: (content?.posts || []).length,
+    reels: (content?.reels || []).length,
+    tweets: (content?.tweets || []).length,
+    promote_reels: (content?.promote_reels || []).length,
+    ads: (content?.ads || []).length,
+  }), [content])
 
-  const isLoading = userDetailLoading
-  const error = userDetailError
+  const summary = profile.summary
+  const totalPosts = (summary.posts_count ?? counts.posts) + (summary.reels_count ?? counts.reels)
+  const likesTotal = Number(summary.likes_count_total) || 0
+  const commentsTotal = Number(summary.comments_count_total) || 0
+  const viewsTotal = Number(summary.views_count_total) || 0
+  const engagement = viewsTotal ? ((likesTotal + commentsTotal) / viewsTotal) * 100 : null
 
-  const roleStyles = {
-    admin: 'bg-neutral-900 text-white',
-    vendor: 'bg-violet-50 text-violet-600',
-    member: 'bg-rose-50 text-rose-500',
+  const recentContent = useMemo(() => {
+    const tagged = ['posts', 'reels', 'promote_reels', 'tweets', 'ads'].flatMap((kind) => (content?.[kind] || []).map((item) => ({ item, kind })))
+    return tagged.sort((a, b) => new Date(b.item.createdAt || 0) - new Date(a.item.createdAt || 0)).slice(0, 4)
+  }, [content])
+
+  const wallet = useMemo(() => {
+    const earned = memberHistory.filter((t) => (t.amount ?? 0) > 0).reduce((s, t) => s + (t.amount ?? 0), 0)
+    const spent = memberHistory.filter((t) => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
+    return { balance: Number(memberWallet?.balance ?? earned - spent) || 0, earned, spent }
+  }, [memberHistory, memberWallet])
+
+  const ledger = useMemo(() => memberHistory.filter((t) => (
+    ledgerFilter === 'all' || (ledgerFilter === 'credit' ? (t.amount ?? 0) >= 0 : (t.amount ?? 0) < 0)
+  )), [memberHistory, ledgerFilter])
+
+  const risk = useMemo(() => {
+    const strikes = reports.items.filter((r) => r.status === 'action_taken').length
+    const pending = reports.items.filter((r) => r.status === 'pending').length
+    const level = !profile.active || strikes >= 3 ? 'high' : strikes > 0 || pending >= 3 ? 'medium' : 'low'
+    return { strikes, pending, total: reports.items.length, level }
+  }, [reports.items, profile.active])
+
+  const openContent = (kind, item) => {
+    const route = { posts: 'posts', reels: 'reels', promote_reels: 'promote', tweets: 'tweets', ads: 'ads' }[kind]
+    navigate(`/${route}/${item._id || item.id}`)
+  }
+
+  const patchUser = async (body) => {
+    const res = await fetch(`${API_BASE_WITH_PATH}/users/${profile.id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.message || 'Update failed')
+    return data
+  }
+
+  const handleSuspend = async () => {
+    setSaving(true)
+    try {
+      await patchUser(profile.active ? { is_active: false, ban_type: banType, ban_reason: banReason.trim() || undefined } : { is_active: true })
+      showToast(profile.active ? 'Account suspended' : 'Account reactivated')
+      setSuspendModal(false)
+      setBanReason('')
+      setRefreshKey((k) => k + 1)
+    } catch (e) {
+      showToast(e.message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openEdit = () => {
+    setForm({ full_name: user?.full_name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '' })
+    setFormError('')
+    setEditModal(true)
+  }
+
+  const handleSave = async () => {
+    const changes = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()]).filter(([k, v]) => v !== (user?.[k] || '')))
+    if (!Object.keys(changes).length) { setEditModal(false); return }
+    if ('username' in changes && !changes.username) { setFormError('Username cannot be empty'); return }
+    setSaving(true)
+    try {
+      await patchUser(changes)
+      showToast('Profile updated')
+      setEditModal(false)
+      setRefreshKey((k) => k + 1)
+    } catch (e) {
+      setFormError(e.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = () => {
     setDeleting(true)
-    dispatch(deleteUserById(profile.id))
-      .unwrap()
+    dispatch(deleteUserById(profile.id)).unwrap()
       .then(() => navigate('/users', { replace: true }))
       .catch(() => setDeleting(false))
       .finally(() => setDeleteModal(false))
   }
 
-  const handleToggleActive = () => {
-    if (!profile.id || activeToggleLoading) return
-    setActiveToggleLoading(true)
-    dispatch(toggleUserActive({ id: profile.id, is_active: !profile.is_active }))
-      .unwrap()
-      .then(() => setRefreshKey((key) => key + 1))
-      .catch(() => {})
-      .finally(() => setActiveToggleLoading(false))
+  const copyId = async () => {
+    try { await navigator.clipboard.writeText(profile.id); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* clipboard blocked */ }
   }
 
-  return (
-    <div className="max-w-7xl mx-auto pb-10">
-      <div className="flex items-center justify-between mb-8">
-        <button
-          onClick={() => navigate('/users')}
-          className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group"
-        >
-          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Users
-        </button>
-        <div className="flex items-center gap-2">
-          {!isLoading && (
-            <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full', roleStyles[profile.role] || 'bg-neutral-100 text-neutral-600')}>
-              <ShieldCheck className="w-3 h-3" />
-              {capitalize(profile.role)}
-            </span>
-          )}
-          <button
-            onClick={handleToggleActive}
-            disabled={activeToggleLoading}
-            className={clsx(
-              'inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors',
-              activeToggleLoading && 'opacity-50 cursor-not-allowed',
-              profile.is_active ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-green-600 bg-green-50 hover:bg-green-100'
-            )}
-          >
-            {profile.is_active ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-            {profile.is_active ? 'Ban User' : 'Activate User'}
-          </button>
-          <button onClick={() => setDeleteModal(true)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full text-red-500 bg-red-50 hover:bg-red-100 transition-colors">
-            <Trash2 className="w-3 h-3" />
-            Delete
-          </button>
-        </div>
-      </div>
+  const exportLedger = () => downloadCsv(`wallet-${profile.username || profile.id}.csv`, [
+    ['Reference', 'Type', 'Amount (Bcoins)', 'Status', 'Date', 'Description'],
+    ...ledger.map((t) => [t._id, typeConfig(t.type).label, t.amount, t.status, t.createdAt || t.transactionDate, t.description || '']),
+  ])
 
-      {isLoading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <div className="h-40 bg-neutral-100 rounded-3xl animate-pulse" />
-            <div className="h-64 bg-neutral-100 rounded-3xl animate-pulse" />
-          </div>
-          <div className="bg-neutral-100 rounded-3xl h-[500px] animate-pulse" />
-        </div>
-      )}
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'posts', label: `Posts & Moments (${counts.posts})` },
+    { key: 'reels', label: `bSparks Reels (${counts.reels})` },
+    { key: 'tweets', label: `Buzz Threads (${counts.tweets})` },
+    { key: 'promote_reels', label: `Campaigns (${counts.promote_reels})` },
+    ...(profile.role === 'vendor' || counts.ads ? [{ key: 'ads', label: `Spotlights (${counts.ads})` }] : []),
+    { key: 'wallet', label: 'Wallet & Vault' },
+  ]
 
-      {!isLoading && error && (
-        <div className="p-10 text-center rounded-3xl border border-red-100 bg-red-50">
-          <p className="font-semibold text-red-500">Could not load user</p>
-          <p className="text-sm text-red-400 mt-1">{error}</p>
-        </div>
-      )}
-
-      {!isLoading && !error && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-
-          {/* LEFT COLUMN */}
-          <div className="space-y-6">
-            {/* Tabs */}
-            <div className="flex gap-1 bg-neutral-100 rounded-xl p-1 overflow-x-auto">
-              {[
-                { key: 'overview', label: 'Overview', icon: null },
-                { key: 'posts', label: 'Posts', icon: ImageIcon },
-                { key: 'reels', label: 'Reels', icon: Film },
-                { key: 'promote_reels', label: 'Promote', icon: TrendingUp },
-                { key: 'tweets', label: 'Tweets', icon: MessageCircle },
-                ...(profile.role === 'vendor' ? [{ key: 'ads', label: 'Ads', icon: Star }] : []),
-                { key: 'wallet', label: 'Wallet', icon: Wallet },
-              ].map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={clsx(
-                    'flex items-center gap-1.5 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-                    activeTab === key ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
-                  )}
-                >
-                  {Icon && <Icon className="w-3.5 h-3.5" />}
+  const ledgerCard = (limit) => (
+    <section className={card}>
+      <SectionHead
+        icon={Wallet}
+        title="Financial Ledger & Bcoin Activity"
+        subtitle="Rewards, ad spends and other coin movements on this account."
+        actions={(
+          <>
+            <div className="flex rounded-lg bg-[#F1F3FC] p-0.5">
+              {[['all', 'All'], ['credit', 'Credits'], ['debit', 'Debits']].map(([value, label]) => (
+                <button key={value} type="button" onClick={() => setLedgerFilter(value)} className={clsx('rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition', ledgerFilter === value ? 'bg-white text-[#C81345] shadow-sm' : 'text-neutral-600 hover:text-neutral-900')}>
                   {label}
                 </button>
               ))}
             </div>
+            <button type="button" onClick={exportLedger} disabled={!ledger.length} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 text-[12px] font-semibold text-neutral-800 transition hover:-translate-y-0.5 hover:shadow-sm disabled:opacity-40">
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+            <button type="button" onClick={() => dispatch(fetchMemberWalletHistory(profile.id))} aria-label="Refresh ledger" className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition hover:shadow-sm">
+              <RefreshCw className={clsx('h-3.5 w-3.5', memberStatus === 'loading' && 'animate-spin')} />
+            </button>
+          </>
+        )}
+      />
+      {memberStatus === 'loading' ? (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-neutral-400"><Loader2 className="h-5 w-5 animate-spin" /> Loading ledger…</div>
+      ) : memberStatus === 'failed' ? (
+        <p className="px-5 pb-6 text-sm text-red-500">{memberError || 'Failed to load wallet history'}</p>
+      ) : ledger.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-10"><Wallet className="h-7 w-7 text-neutral-200" /><p className="text-[12.5px] text-neutral-400">No transactions</p></div>
+      ) : (
+        <>
+          <LedgerTable rows={limit ? ledger.slice(0, limit) : ledger} />
+          {limit && ledger.length > limit && (
+            <button type="button" onClick={() => setActiveTab('wallet')} className="w-full border-t border-neutral-100 py-2.5 text-[12px] font-bold text-[#C81345] transition hover:bg-pink-50/50">
+              View all {formatNumber(ledger.length)} transactions
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  )
 
-            {/* Overview Tab */}
-            {activeTab === 'overview' && (
-              <>
-                {listItem && (
-                  <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                    <div className="px-6 pt-5 pb-1">
-                      <SectionLabel>Activity Summary</SectionLabel>
-                    </div>
-                    <div className="grid grid-cols-3 divide-x divide-neutral-100 border-t border-neutral-100">
-                      <StatBox label="Posts" value={summary.posts_count} />
-                      <StatBox label="Reels" value={summary.reels_count} />
-                      <StatBox label="Total Likes" value={summary.likes_count_total} color="text-rose-500" />
-                    </div>
-                    <div className="grid grid-cols-3 divide-x divide-neutral-100 border-t border-neutral-100">
-                      <StatBox label="Comments" value={summary.comments_count_total} color="text-blue-500" />
-                      <StatBox label="Views" value={summary.views_count_total} />
-                      <StatBox label="Unique Views" value={summary.unique_views_count_total} />
-                    </div>
-                  </div>
-                )}
+  return (
+    <div className="mx-auto max-w-[1400px] pb-10">
+      {/* Top bar */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <button type="button" onClick={() => navigate('/users')} className="group inline-flex items-center gap-1.5 text-[14px] font-bold text-[#C81345]">
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> Back to Users
+          </button>
+          <p className="mt-1 text-[10.5px] font-bold uppercase tracking-widest text-neutral-600">Business / User Directory / <span className="text-neutral-900">User Profile</span></p>
+        </div>
+        {!loading && !error && (
+          <div className="flex items-center gap-2.5">
+            <button type="button" onClick={() => setSuspendModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 text-[13px] font-semibold text-neutral-900 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition hover:-translate-y-0.5 hover:shadow-md">
+              {profile.active ? <CircleSlash className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4 text-emerald-600" />}
+              {profile.active ? 'Suspend Account' : 'Reactivate Account'}
+            </button>
+            <button type="button" onClick={() => setDeleteModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#B3122F] px-4 text-[13px] font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#9A0F28] hover:shadow-[0_10px_22px_-10px_rgba(179,18,47,0.7)]">
+              <Trash2 className="h-4 w-4" /> Delete User
+            </button>
+          </div>
+        )}
+      </div>
 
-                <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                  <div className="px-6 py-5 flex items-center justify-between">
-                    <SectionLabel icon={ImageIcon}>Content Summary</SectionLabel>
+      {loading && <div className="space-y-4"><div className="h-64 animate-pulse rounded-2xl bg-neutral-100" /><div className="h-96 animate-pulse rounded-2xl bg-neutral-100" /></div>}
+      {!loading && error && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-10 text-center">
+          <p className="font-semibold text-red-600">Could not load user</p>
+          <p className="mt-1 text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="space-y-5">
+          {/* Hero */}
+          <section className={clsx(card, 'overflow-hidden')}>
+            <div className="relative h-36 bg-gradient-to-r from-[#E8194E] via-[#C0114A] to-[#8E35B5]">
+              <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:14px_14px]" />
+            </div>
+            <div className="px-6 pb-5">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="flex items-end gap-4">
+                  <div className="relative -mt-12 flex-shrink-0">
+                    <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-white shadow-md">
+                      {profile.avatar
+                        ? <img src={profile.avatar} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        : <div className="flex h-full w-full items-center justify-center bg-gradient-brand text-2xl font-bold text-white">{profile.name[0]?.toUpperCase()}</div>}
+                    </div>
+                    <span className={clsx('absolute bottom-1.5 right-1.5 h-4 w-4 rounded-full border-2 border-white', profile.active ? 'bg-emerald-500' : 'bg-neutral-400')} />
                   </div>
-                  {contentLoading ? (
-                    <div className="flex items-center justify-center py-10 gap-3">
-                      <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                      <p className="text-sm text-neutral-400">Loading content…</p>
+                  <div className="pb-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h1 className="font-display text-[24px] font-bold tracking-tight text-neutral-900">{profile.name}</h1>
+                      {profile.username && <span className="text-[15px] font-semibold text-neutral-600">@{profile.username}</span>}
+                      <span className={clsx('rounded-md px-2 py-0.5 text-[11px] font-bold', ROLE_TONE[profile.role])}>{ROLE_LABEL[profile.role]}</span>
+                      <span className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold', profile.active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
+                        <span className={clsx('h-1.5 w-1.5 rounded-full', profile.active ? 'bg-emerald-500' : 'bg-rose-500')} /> {profile.active ? 'Active' : 'Suspended'}
+                      </span>
                     </div>
-                  ) : contentError ? (
-                    <div className="px-6 py-8 text-center">
-                      <p className="text-sm text-red-400">{contentError}</p>
-                    </div>
-                  ) : contentData ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-neutral-100 border-t border-neutral-100">
-                      {[
-                        { label: 'Posts', key: 'posts', color: 'text-primary' },
-                        { label: 'Reels', key: 'reels', color: 'text-violet-500' },
-                        { label: 'Promote', key: 'promote_reels', color: 'text-emerald-500' },
-                        { label: 'Tweets', key: 'tweets', color: 'text-blue-500' },
-                      ].map(({ label, key, color }) => (
-                        <div key={key} className="flex flex-col items-center justify-center py-4 px-2">
-                          <p className={clsx('text-xl font-bold leading-none', color)}>{(contentData[key] || []).length}</p>
-                          <p className="text-[10px] text-neutral-400 mt-1">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-6 py-10 text-center">
-                      <ImageIcon className="w-8 h-8 text-neutral-200 mx-auto mb-2" />
-                      <p className="text-sm text-neutral-300">No content found</p>
-                    </div>
-                  )}
+                    <p className="mt-0.5 max-w-xl text-[13px] text-neutral-500">{profile.bio || 'No bio added'}</p>
+                  </div>
                 </div>
-              </>
-            )}
-
-            {/* Content Tabs: Posts / Reels / Promote Reels / Tweets / Ads */}
-            {['posts', 'reels', 'promote_reels', 'tweets', 'ads'].includes(activeTab) && (
-              <ContentTabPanel
-                items={contentData?.[activeTab] || []}
-                loading={contentLoading}
-                error={contentError}
-                onNavigate={(item) => {
-                  const routeMap = { posts: 'posts', reels: 'reels', promote_reels: 'promote', tweets: 'tweets', ads: 'ads' }
-                  const base = routeMap[activeTab] || activeTab
-                  navigate(`/${base}/${item._id || item.id}`)
-                }}
-              />
-            )}
-
-            {/* Wallet Tab */}
-            {activeTab === 'wallet' && (
-              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm p-6">
-                <SectionLabel icon={Wallet} iconColor="text-purple-400">Wallet & Coin History</SectionLabel>
-                <WalletHistoryPanel userId={profile.id} />
+                <div className="flex items-center gap-2.5 pb-1">
+                  {profile.email && (
+                    <a href={`mailto:${profile.email}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#E9EBFA] px-4 text-[13px] font-semibold text-neutral-900 transition hover:-translate-y-0.5 hover:bg-[#DFE2F7]">
+                      <Mail className="h-4 w-4" /> Message
+                    </a>
+                  )}
+                  <button type="button" onClick={openEdit} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#C81345] px-4 text-[13px] font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#A50F39] hover:shadow-[0_10px_22px_-10px_rgba(200,19,69,0.7)]">
+                    <Pencil className="h-4 w-4" /> Edit Details
+                  </button>
+                </div>
               </div>
-            )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-[#F1F3FC] px-4 py-2.5 text-[12.5px] text-neutral-700">
+                <span className="inline-flex items-center gap-1.5"><Mail className="h-4 w-4 text-[#6E72A8]" />{profile.email || 'No email'}</span>
+                <span className="inline-flex items-center gap-1.5"><Phone className="h-4 w-4 text-[#6E72A8]" />{profile.phone || 'No phone'}</span>
+                <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-[#6E72A8]" />{profile.location || 'No location'}</span>
+                <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4 text-[#6E72A8]" />Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {[
+                  { label: 'Followers', value: formatCompactNumber(profile.followers) },
+                  { label: 'Following', value: formatNumber(profile.following) },
+                  { label: 'Published Media', value: `${formatNumber(totalPosts)} Posts & Reels` },
+                  { label: 'Avg Engagement', value: engagement === null ? '—' : `${engagement.toFixed(2)}%`, accent: true },
+                ].map((tile) => (
+                  <div key={tile.label} className="rounded-xl bg-[#F1F3FC] px-4 py-3 transition hover:-translate-y-0.5 hover:bg-[#E9EBFA]">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-700">{tile.label}</p>
+                    <p className={clsx('mt-0.5 text-[17px] font-bold', tile.accent ? 'text-emerald-600' : 'text-neutral-900')}>{tile.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Tabs */}
+          <div className="flex gap-1 overflow-x-auto border-b border-neutral-200">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={clsx(
+                  '-mb-px whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13px] font-semibold transition',
+                  activeTab === tab.key ? 'border-[#E8194E] text-[#C81345]' : 'border-transparent text-neutral-600 hover:border-neutral-300 hover:text-neutral-900'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* RIGHT COLUMN — Profile Card */}
-          <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm lg:sticky lg:top-6">
-            <div className="flex flex-col items-center px-6 py-8 text-center">
-              <div className="relative mb-4">
-                <img
-                  src={profile.avatar_url || AVATAR_PLACEHOLDER}
-                  alt={profile.full_name}
-                  onError={(e) => { e.target.src = AVATAR_PLACEHOLDER }}
-                  className="w-24 h-24 rounded-full object-cover bg-neutral-100 border-4 border-white shadow-sm"
-                />
-                <span className={clsx('absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white', profile.is_active ? 'bg-green-400' : 'bg-neutral-300')} />
-              </div>
-              <h1 className="font-bold text-neutral-900 text-xl leading-tight">{profile.full_name}</h1>
-              {profile.username && <p className="text-sm text-neutral-400 mt-1">@{profile.username}</p>}
-              {profile.bio && <p className="text-xs text-neutral-500 mt-3 leading-relaxed max-w-[240px]">{profile.bio}</p>}
-              {profile.validated && (
-                <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  Verified Account
-                </div>
+          <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            {/* Main column */}
+            <div className="min-w-0 space-y-5">
+              {activeTab === 'overview' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <MiniStat label="Total Posts" value={formatNumber(totalPosts)} icon={ImageIcon} iconTone="bg-pink-100 text-[#C81345]" sub={`${formatNumber(summary.posts_count ?? counts.posts)} Moments · ${formatNumber(summary.reels_count ?? counts.reels)} bSparks`} />
+                    <MiniStat label="Total Likes" value={formatCompactNumber(likesTotal)} icon={Heart} iconTone="bg-pink-100 text-[#C81345]" sub={totalPosts ? `${formatCompactNumber(Math.round(likesTotal / totalPosts))} avg per post` : null} subClass="text-emerald-600" />
+                    <MiniStat label="Total Comments" value={formatCompactNumber(commentsTotal)} icon={MessagesSquare} iconTone="bg-indigo-50 text-indigo-600" sub={likesTotal ? `${((commentsTotal / likesTotal) * 100).toFixed(1)}% of likes` : null} subClass="text-[#8E35B5]" />
+                    <MiniStat label="Total Views" value={formatCompactNumber(viewsTotal)} icon={Eye} iconTone="bg-purple-100 text-[#8E35B5]" sub={summary.unique_views_count_total ? `${formatCompactNumber(summary.unique_views_count_total)} unique` : null} />
+                  </div>
+
+                  <section className={card}>
+                    <SectionHead
+                      title="Recent Content & Media"
+                      subtitle="Latest posts, reels, buzz and campaigns from this user."
+                      actions={counts.posts + counts.reels + counts.tweets > 0 ? (
+                        <button type="button" onClick={() => setActiveTab(counts.posts ? 'posts' : counts.reels ? 'reels' : 'tweets')} className="text-[12.5px] font-bold text-[#C81345] hover:underline">View All Feed</button>
+                      ) : null}
+                    />
+                    <div className="px-5 pb-5">
+                      {contentLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-10 text-sm text-neutral-400"><Loader2 className="h-5 w-5 animate-spin" /> Loading content…</div>
+                      ) : contentError ? (
+                        <p className="py-6 text-center text-sm text-red-500">{contentError}</p>
+                      ) : recentContent.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-10"><ImageIcon className="h-7 w-7 text-neutral-200" /><p className="text-[12.5px] text-neutral-400">No content yet</p></div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                          {recentContent.map(({ item, kind }) => <ContentCard key={`${kind}-${item._id}`} item={item} kind={kind} onOpen={() => openContent(kind, item)} />)}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  {ledgerCard(5)}
+                </>
               )}
+
+              {['posts', 'reels', 'tweets', 'promote_reels', 'ads'].includes(activeTab) && (
+                <section className={card}>
+                  <SectionHead title={tabs.find((t) => t.key === activeTab)?.label} />
+                  <div className="px-5 pb-5">
+                    {contentLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-10 text-sm text-neutral-400"><Loader2 className="h-5 w-5 animate-spin" /> Loading content…</div>
+                    ) : (content?.[activeTab] || []).length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-10"><ImageIcon className="h-7 w-7 text-neutral-200" /><p className="text-[12.5px] text-neutral-400">Nothing here yet</p></div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {content[activeTab].map((item) => <ContentCard key={item._id || item.id} item={item} kind={activeTab} onOpen={() => openContent(activeTab, item)} />)}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {activeTab === 'wallet' && ledgerCard(null)}
             </div>
 
-            <Divider />
-
-            <div className="grid grid-cols-2 divide-x divide-neutral-100">
-              <div className="flex flex-col items-center justify-center py-4">
-                <p className="text-lg font-bold text-neutral-900 leading-none">{profile.followers_count}</p>
-                <p className="text-[10px] text-neutral-400 mt-1">Followers</p>
-              </div>
-              <div className="flex flex-col items-center justify-center py-4">
-                <p className="text-lg font-bold text-neutral-900 leading-none">{profile.following_count}</p>
-                <p className="text-[10px] text-neutral-400 mt-1">Following</p>
-              </div>
-            </div>
-
-            <Divider />
-
-            <div className="px-6 py-5 space-y-4">
-              <div className="space-y-3">
-                <SectionLabel>Contact Info</SectionLabel>
-                {profile.email ? (
-                  <div className="flex items-center gap-3 text-sm text-neutral-600">
-                    <div className="w-8 h-8 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0 text-neutral-400"><Mail className="w-4 h-4" /></div>
-                    <span className="truncate">{profile.email}</span>
+            {/* Side column */}
+            <div className="space-y-5 xl:sticky xl:top-[72px]">
+              <section className={card}>
+                <SectionHead title="Security & Account" actions={<ShieldCheck className="h-4 w-4 text-[#C81345]" />} />
+                <div className="space-y-3 px-5 pb-5">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Account ID</p>
+                    <div className="mt-1 flex items-center justify-between rounded-lg bg-[#F1F3FC] px-3 py-2">
+                      <span className="truncate font-mono text-[12px] font-bold text-neutral-800">#USR-{profile.id.slice(-6).toUpperCase()}</span>
+                      <button type="button" onClick={copyId} title="Copy full ID" aria-label="Copy full ID" className="text-neutral-500 transition hover:text-[#C81345]">
+                        {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
                   </div>
-                ) : <p className="text-xs text-neutral-300 italic">No email provided</p>}
-                {profile.phone ? (
-                  <div className="flex items-center gap-3 text-sm text-neutral-600">
-                    <div className="w-8 h-8 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0 text-neutral-400"><Phone className="w-4 h-4" /></div>
-                    <span>{profile.phone}</span>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Verification</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {[['Email', profile.emailVerified], ['Phone', profile.phoneVerified]].map(([label, ok]) => (
+                        <span key={label} className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px] font-semibold', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-500')}>
+                          {ok ? <BadgeCheck className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />} {label} {ok ? 'verified' : 'unverified'}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                ) : <p className="text-xs text-neutral-300 italic">No phone provided</p>}
-                {profile.location ? (
-                  <div className="flex items-center gap-3 text-sm text-neutral-600">
-                    <div className="w-8 h-8 rounded-lg bg-neutral-50 flex items-center justify-center flex-shrink-0 text-neutral-400"><MapPin className="w-4 h-4" /></div>
-                    <span className="truncate">{profile.location}</span>
-                  </div>
-                ) : <p className="text-xs text-neutral-300 italic">No location provided</p>}
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <SectionLabel>Metadata</SectionLabel>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-neutral-500">
-                    <UserCircle className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0" />
-                    Gender: <span className="font-medium text-neutral-700">{profile.gender ? capitalize(profile.gender) : 'Not provided'}</span>
-                  </div>
-                  {profile.createdAt && (
-                    <div className="flex items-center gap-2 text-xs text-neutral-500">
-                      <Calendar className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0" />
-                      Joined {formatDateTime(profile.createdAt)}
+                  {profile.entity && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">{profile.role === 'vendor' ? 'Associated Vendor Entity' : 'Storefront'}</p>
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#C81345]"><Store className="h-4 w-4" />{profile.entity}</p>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-xs text-neutral-500">
-                    <span className={clsx('w-2 h-2 rounded-full', profile.is_active ? 'bg-green-500' : 'bg-neutral-300')} />
-                    Status: <span className="font-medium text-neutral-700">{profile.is_active ? 'Active' : 'Inactive'}</span>
+                  <div className="rounded-lg bg-[#F1F3FC] px-3 py-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Account Activity</p>
+                    <p className="mt-0.5 text-[12.5px] text-neutral-800">Profile updated {profile.updatedAt ? formatRelativeTime(profile.updatedAt).toLowerCase() : '—'}</p>
+                    {!profile.active && (
+                      <p className="mt-1 text-[11.5px] text-rose-700">
+                        {profile.banType === 'permanent' ? 'Permanently banned' : `Banned until ${profile.banUntil ? new Date(profile.banUntil).toLocaleDateString() : '—'}`}
+                        {profile.banReason ? ` · ${profile.banReason}` : ''}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[10px] font-mono text-neutral-300 break-all pt-1">ID: {profile.id}</p>
                 </div>
-              </div>
+              </section>
+
+              <section className={card}>
+                <SectionHead title="Coin Wallet Summary" actions={<span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[11px] font-extrabold text-amber-600">B</span>} />
+                <div className="px-5 pb-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Current Balance</p>
+                  <p className="mt-0.5 font-display text-[26px] font-extrabold leading-tight text-neutral-900">{formatNumber(wallet.balance)} <span className="text-[13px] font-semibold text-neutral-500">Bcoins</span></p>
+                  <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-[#EEF0FA]">
+                    <div className="h-full bg-emerald-500" style={{ width: `${wallet.earned + wallet.spent ? (wallet.earned / (wallet.earned + wallet.spent)) * 100 : 0}%` }} />
+                    <div className="h-full bg-[#E8194E]" style={{ width: `${wallet.earned + wallet.spent ? (wallet.spent / (wallet.earned + wallet.spent)) * 100 : 0}%` }} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
+                    <div className="rounded-lg bg-[#F1F3FC] px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Total Earned</p><p className="text-[15px] font-bold text-emerald-600">{formatNumber(wallet.earned)}</p></div>
+                    <div className="rounded-lg bg-[#F1F3FC] px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Total Spent</p><p className="text-[15px] font-bold text-[#C81345]">{formatNumber(wallet.spent)}</p></div>
+                  </div>
+                  <button type="button" onClick={() => navigate('/wallets')} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#E9EBFA] text-[13px] font-semibold text-neutral-900 transition hover:-translate-y-0.5 hover:bg-[#DFE2F7]">
+                    <Wallet className="h-4 w-4" /> Adjust Balance in Vault
+                  </button>
+                </div>
+              </section>
+
+              <section className={card}>
+                <SectionHead
+                  title="Moderation & Risk Health"
+                  actions={reports.status === 'succeeded' ? (
+                    <span className={clsx('rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', { low: 'bg-emerald-50 text-emerald-700', medium: 'bg-amber-50 text-amber-700', high: 'bg-rose-100 text-rose-700' }[risk.level])}>
+                      {risk.level} risk
+                    </span>
+                  ) : null}
+                />
+                <div className="px-5 pb-5">
+                  {reports.status === 'loading' ? <div className="h-16 animate-pulse rounded-xl bg-neutral-100" /> : reports.status === 'failed' ? (
+                    <p className="rounded-lg bg-neutral-50 px-3 py-3 text-[12.5px] text-neutral-500">Reports couldn't be loaded.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#F1F3FC] p-3 text-center">
+                      <div><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Reports</p><p className="text-[17px] font-extrabold text-neutral-900">{risk.total}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Open</p><p className="text-[17px] font-extrabold text-amber-600">{risk.pending}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">Strikes</p><p className={clsx('text-[17px] font-extrabold', risk.strikes ? 'text-[#C81345]' : 'text-emerald-600')}>{risk.strikes}</p></div>
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-neutral-500">Reports filed against this user's content. A strike is a report where action was taken.</p>
+                  <button type="button" onClick={() => navigate('/reports/content')} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#8E35B5] text-[13px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#7A2C9C] hover:shadow-[0_10px_22px_-10px_rgba(142,53,181,0.7)]">
+                    <ShieldAlert className="h-4 w-4" /> Open Content Reports
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
         </div>
       )}
+
+      {/* Suspend / reactivate */}
+      <Modal
+        isOpen={suspendModal}
+        onClose={() => setSuspendModal(false)}
+        title={profile.active ? 'Suspend account' : 'Reactivate account'}
+        description={`${profile.name}${profile.username ? ` (@${profile.username})` : ''}`}
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setSuspendModal(false)} disabled={saving}>Cancel</Button>
+            <Button variant={profile.active ? 'danger' : 'primary'} onClick={handleSuspend} loading={saving}>{profile.active ? 'Suspend' : 'Reactivate'}</Button>
+          </>
+        )}
+      >
+        {profile.active ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[['temporary', 'Temporary', '30-day ban'], ['permanent', 'Permanent', 'Until reactivated']].map(([value, label, hint]) => (
+                <button key={value} type="button" onClick={() => setBanType(value)} className={clsx('rounded-xl border px-3 py-2.5 text-left transition', banType === value ? 'border-pink-300 bg-pink-50' : 'border-neutral-200 hover:bg-neutral-50')}>
+                  <p className={clsx('text-[13px] font-bold', banType === value ? 'text-[#C81345]' : 'text-neutral-800')}><Ban className="mr-1 inline h-3.5 w-3.5" />{label}</p>
+                  <p className="text-[11.5px] text-neutral-500">{hint}</p>
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">Reason (optional)</label>
+              <textarea value={banReason} onChange={(e) => setBanReason(e.target.value)} rows={3} placeholder="Why is this account being suspended?" className="w-full resize-none rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-600">This lifts the ban and restores full access to the account.</p>
+        )}
+      </Modal>
+
+      {/* Edit details */}
+      <Modal
+        isOpen={editModal}
+        onClose={() => setEditModal(false)}
+        title="Edit details"
+        description="Changes apply to the user's account immediately."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setEditModal(false)} disabled={saving}>Cancel</Button>
+            <Button variant="primary" onClick={handleSave} loading={saving}>Save changes</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[['full_name', 'Full name'], ['username', 'Username'], ['email', 'Email'], ['phone', 'Phone']].map(([key, label]) => (
+            <div key={key}>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-500">{label}</label>
+              <input value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
+            </div>
+          ))}
+        </div>
+        {formError && <p className="mt-3 text-[12.5px] font-semibold text-red-600">{formError}</p>}
+      </Modal>
 
       <ConfirmModal
         isOpen={deleteModal}
         onClose={() => setDeleteModal(false)}
         onConfirm={handleDelete}
         title="Delete User"
-        description={`Are you sure you want to permanently delete ${profile.full_name}? This will remove all their posts and data. This cannot be undone.`}
+        description={`Permanently delete ${profile.name}? This removes their posts and data.`}
         confirmText="Delete User"
         confirmVariant="danger"
         loading={deleting}
       />
+
+      {toast && (
+        <div className={clsx('fixed bottom-6 right-6 z-50 rounded-xl border px-4 py-3 text-sm font-semibold shadow-soft', toast.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
+          {toast.message}
+        </div>
+      )}
     </div>
   )
 }
