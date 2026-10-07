@@ -65,12 +65,6 @@ const normalizeRole = (value) => {
   return 'member';
 };
 
-const walletUserId = (tx) => {
-  const ref = tx.user_id || tx.user;
-  if (ref && typeof ref === 'object') return String(ref._id || ref.id || '');
-  return ref ? String(ref) : '';
-};
-
 const LabeledSelect = ({ label, value, options, onChange, icon: Icon = ChevronDown }) => {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
@@ -181,7 +175,7 @@ const Users = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { items, status, error } = useSelector((s) => s.users);
-  const { transactions = [], status: walletStatus } = useSelector((s) => s.wallet) || {};
+  const { wallets = [], status: walletStatus } = useSelector((s) => s.wallet) || {};
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -199,14 +193,8 @@ const Users = () => {
   useEffect(() => { dispatch(fetchUsers()); }, [dispatch]);
   useEffect(() => { if (walletStatus === 'idle') dispatch(fetchAllWallets()); }, [dispatch, walletStatus]);
 
-  const balances = useMemo(() => {
-    const map = new Map();
-    transactions.forEach((tx) => {
-      const id = walletUserId(tx);
-      if (id) map.set(id, (map.get(id) || 0) + (Number(tx.amount) || 0));
-    });
-    return map;
-  }, [transactions]);
+  // Real wallet balances from the Vault (not a sum of recent transactions).
+  const balances = useMemo(() => new Map(wallets.map((w) => [String(w.user?._id || ''), Number(w.balance) || 0])), [wallets]);
 
   const users = useMemo(() => (items || []).map((u) => {
     const base = u && u.user ? u.user : u || {};

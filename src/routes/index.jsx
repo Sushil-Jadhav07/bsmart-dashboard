@@ -50,6 +50,7 @@ import BugReportDetail from '../pages/BugReportDetail.jsx';
 import ContentReports from '../pages/ContentReports.jsx';
 import MarketplaceInfluencers from '../pages/MarketplaceInfluencers.jsx';
 import MarketplaceProducts from '../pages/MarketplaceProducts.jsx';
+import InfluencerProducts from '../pages/InfluencerProducts.jsx';
 import MarketplaceProductDetail from '../pages/MarketplaceProductDetail.jsx';
 import MarketplaceServices from '../pages/MarketplaceServices.jsx';
 import MarketplaceServiceDetail from '../pages/MarketplaceServiceDetail.jsx';
@@ -267,6 +268,10 @@ export const router = createBrowserRouter([
       {
         path: '/marketplace/influencers',
         element: <MarketplaceInfluencers />
+      },
+      {
+        path: '/marketplace/influencers/:id/products',
+        element: <InfluencerProducts />
       },
       {
         path: '/marketplace/products',

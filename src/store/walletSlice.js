@@ -2,6 +2,8 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
 const initialState = {
+  // Every wallet with its real balance and lifetime totals (GET /wallet → wallets)
+  wallets: [],
   transactions: [],
   summary: null,
   total: 0,
@@ -167,6 +169,7 @@ const walletSlice = createSlice({
       .addCase(fetchAllWallets.pending, (state) => { state.status = 'loading'; state.error = null })
       .addCase(fetchAllWallets.fulfilled, (state, action) => {
         state.status = 'succeeded'
+        state.wallets = action.payload.wallets || action.payload.data?.wallets || []
         state.transactions = action.payload.transactions || action.payload.data?.transactions || []
         state.summary = action.payload.summary || action.payload.data?.summary || null
         state.total = action.payload.total || action.payload.data?.total || 0
