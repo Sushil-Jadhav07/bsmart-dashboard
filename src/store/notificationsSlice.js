@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { io } from 'socket.io-client'
 import { API_BASE_URL, API_BASE_WITH_PATH } from '../lib/apiBase.js'
+import { alertForNotification } from '../utils/consolePrefs.js'
 
 const getToken = () => {
   try {
@@ -66,19 +67,25 @@ export const fetchNotifications = createAsyncThunk(
   'notifications/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch(`${API_BASE_WITH_PATH}/notifications?limit=500`, { headers: authHeaders() })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch')
-      const items = Array.isArray(data?.notifications)
-        ? data.notifications
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data)
-            ? data
-            : Array.isArray(data?.items)
-              ? data.items
-              : []
-      return (items || [])
+      // The API caps each page at 100, so walk pages (max 20) until hasMore is false.
+      const items = []
+      for (let page = 1; page <= 20; page += 1) {
+        const res = await fetch(`${API_BASE_WITH_PATH}/notifications?limit=100&page=${page}`, { headers: authHeaders() })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch')
+        const batch = Array.isArray(data?.notifications)
+          ? data.notifications
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data)
+              ? data
+              : Array.isArray(data?.items)
+                ? data.items
+                : []
+        items.push(...batch)
+        if (!data?.hasMore || !batch.length) break
+      }
+      return items
         .map((n) => normalizeNotificationPayload(n, n?.type))
         .filter(Boolean)
     } catch (e) {
@@ -253,6 +260,7 @@ export const connectSocket = (userId, dispatch) => {
     const normalized = normalizeNotificationPayload(payload, fallbackType)
     if (normalized?.message) {
       dispatch(addRealtimeNotification(normalized))
+      alertForNotification(normalized)
       return
     }
     dispatch(fetchNotifications())

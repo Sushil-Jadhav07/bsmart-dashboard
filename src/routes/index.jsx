@@ -30,6 +30,7 @@ import AdminVendors from '../pages/AdminVendors.jsx';
 import AdminAds from '../pages/AdminAds.jsx';
 import Notifications from '../pages/Notifications.jsx';
 import SalesOfficers from '../pages/SalesOfficers.jsx';
+import SalesOfficerDetails from '../pages/SalesOfficerDetails.jsx';
 import VendorPackages from '../pages/VendorPackages.jsx';
 import Inquiries from '../pages/Inquiries.jsx';
 import CustomerQueries from '../pages/CustomerQueries.jsx';
@@ -47,8 +48,8 @@ import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
 import BugReports from '../pages/BugReports.jsx';
 import BugReportDetail from '../pages/BugReportDetail.jsx';
 import ContentReports from '../pages/ContentReports.jsx';
+import ContentReportDetail from '../pages/ContentReportDetail.jsx';
 import TransactionHistory from '../pages/TransactionHistory.jsx';
-
 
 export const router = createBrowserRouter([
   {
@@ -77,7 +78,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/posts',
-        element: <Posts forcedType="post" title="Posts" />
+        element: <Posts forcedType="post" title="Moments" />
       },
       {
         path: '/posts/:id',
@@ -180,6 +181,10 @@ export const router = createBrowserRouter([
         element: <SalesOfficers />
       },
       {
+        path: '/sales/:id',
+        element: <SalesOfficerDetails />
+      },
+      {
         path: '/vendor-packages',
         element: <VendorPackages />
       },
@@ -246,6 +251,10 @@ export const router = createBrowserRouter([
       {
         path: '/reports/content',
         element: <ContentReports />
+      },
+      {
+        path: '/reports/content/:id',
+        element: <ContentReportDetail />
       },
     ]
   },

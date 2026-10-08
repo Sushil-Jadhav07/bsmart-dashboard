@@ -1,25 +1,31 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  ArrowUpRight,
-  BarChart3,
-  Briefcase,
-  CheckCircle2,
-  Clock3,
-  Coins,
+  Archive,
+  ArrowRight,
+  BadgeCheck,
+  ChartColumn,
+  ChevronRight,
+  Clock,
+  Contact,
+  Download,
+  EllipsisVertical,
+  Hourglass,
   Image,
-  Layers3,
   Megaphone,
-  Package,
-  Send,
-  ShieldCheck,
-  TrendingUp,
+  MessageSquare,
+  MousePointerClick,
+  SlidersHorizontal,
+  SquarePlay,
+  Store,
   Users,
-  Video,
+  Wallet,
+  Zap,
 } from 'lucide-react';
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
@@ -33,9 +39,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import Card, { CardDescription, CardHeader, CardTitle } from '../components/Card.jsx';
-import Button from '../components/Button.jsx';
 import LoginAlertPanel from '../components/LoginAlertPanel.jsx';
+import { API_BASE_URL } from '../lib/apiBase.js';
 import { fetchUsers } from '../store/usersSlice.js';
 import { fetchVendors } from '../store/vendorsSlice.js';
 import { fetchPosts } from '../store/postsSlice.js';
@@ -44,26 +49,29 @@ import { fetchTweets } from '../store/tweetsSlice.js';
 import { fetchAllWallets } from '../store/walletSlice.js';
 import { fetchSalesOfficers } from '../store/salesSlice.js';
 import { adminFetchAllPurchases, fetchAllPackages } from '../store/vendorPackagesSlice.js';
-import { formatCompactNumber, formatNumber, truncateText } from '../utils/helpers.jsx';
+import { formatCompactNumber, formatNumber, formatRelativeTime, truncateText } from '../utils/helpers.jsx';
 
 const COLORS = {
   pink: '#E8194E',
-  purple: '#833AB4',
-  green: '#16A34A',
-  orange: '#F97316',
-  blue: '#2563EB',
-  slate: '#334155',
-  amber: '#D97706',
-  cyan: '#0891B2',
+  purple: '#8E35B5',
+  green: '#10B981',
+  orange: '#F59E0B',
+  barOrange: '#FB923C',
+  blue: '#3B82F6',
+  cyan: '#9BDCEB',
+  grey: '#9CA3AF',
+  red: '#EF4444',
 };
 
 const chartTooltip = {
   backgroundColor: '#FFFFFF',
   border: '1px solid #E5E7EB',
-  borderRadius: '8px',
+  borderRadius: '10px',
   boxShadow: '0 4px 16px -2px rgba(0,0,0,0.08)',
   fontSize: '12px',
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const toArray = (value) => (Array.isArray(value) ? value : []);
 const getRecord = (entry) => entry?.post || entry?.tweet || entry?.ad || entry?.vendor || entry?.user || entry || {};
@@ -73,11 +81,16 @@ const getId = (entry, fallback) => String(entry?._id || entry?.id || entry?.post
 const getPostType = (entry) => String(entry?.item_type || entry?.type || entry?.post?.type || '').toLowerCase();
 const getStatus = (entry, fallback = 'live') => String(entry?.status || entry?.validated_status || entry?.approval_status || fallback).toLowerCase();
 const getUserRecord = (entry) => entry?.user || entry || {};
+const getOwner = (entry) => {
+  const record = getRecord(entry);
+  return record?.author || record?.user_id || record?.user || record?.vendor_id?.user_id || record?.vendor_id || record;
+};
 const getUserName = (entry) => {
   const record = getRecord(entry);
-  const user = record?.author || record?.user_id || record?.user || record?.vendor_id?.user_id || record?.vendor_id || record;
+  const user = getOwner(entry);
   return user?.full_name || user?.username || user?.business_name || user?.email || record?.business_name || 'Unknown';
 };
+const getUserHandle = (entry) => getOwner(entry)?.username || '';
 const numberValue = (...values) => {
   for (const value of values) {
     const parsed = Number(value);
@@ -85,17 +98,52 @@ const numberValue = (...values) => {
   }
   return 0;
 };
-const moneyValue = (entry) => numberValue(entry?.amount_paid, entry?.final_price, entry?.base_price, entry?.amount, entry?.price);
 const percent = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const toTime = (value) => {
+  const time = value ? new Date(value).getTime() : NaN;
+  return Number.isNaN(time) ? null : time;
+};
+
+const toAbsoluteMediaUrl = (value = '') => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return `${API_BASE_URL}${raw}`;
+  if (raw.startsWith('uploads/')) return `${API_BASE_URL}/${raw}`;
+  return `${API_BASE_URL}/uploads/${raw}`;
+};
+
+const getMediaThumb = (record) => {
+  const media = Array.isArray(record?.media) ? record.media[0] : null;
+  if (!media) return '';
+  const thumbs = [media.thumbnail, media.thumbnails].flat().filter(Boolean);
+  const thumb = thumbs.find((t) => t?.fileUrl || t?.url || t?.fileName);
+  if (thumb) return toAbsoluteMediaUrl(thumb.fileUrl || thumb.url || thumb.fileName);
+  const isVideo = String(media.type || media.mimeType || '').includes('video');
+  return isVideo ? '' : toAbsoluteMediaUrl(media.fileUrl || media.url || media.fileName);
+};
+
+// Growth of the last 30 days vs the 30 days before, by creation date (or by a
+// summed value such as wallet volume). Null when there's no prior period to compare.
+const periodGrowth = (items, readTime, readValue = () => 1) => {
+  const now = Date.now();
+  let recent = 0;
+  let prior = 0;
+  items.forEach((item) => {
+    const time = readTime(item);
+    if (!time) return;
+    if (time > now - 30 * DAY_MS) recent += readValue(item);
+    else if (time > now - 60 * DAY_MS) prior += readValue(item);
+  });
+  if (!prior) return null;
+  return ((recent - prior) / prior) * 100;
+};
 
 const createRecentDays = (count) => Array.from({ length: count }, (_, index) => {
   const date = new Date();
   date.setDate(date.getDate() - (count - 1 - index));
   date.setHours(0, 0, 0, 0);
-  return {
-    key: date.toISOString().slice(0, 10),
-    label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  };
+  return { key: date.toISOString().slice(0, 10), date };
 });
 
 const createRecentMonths = (count) => Array.from({ length: count }, (_, index) => {
@@ -104,185 +152,329 @@ const createRecentMonths = (count) => Array.from({ length: count }, (_, index) =
   date.setHours(0, 0, 0, 0);
   return {
     key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-    label: date.toLocaleDateString('en-US', { month: 'short' }),
+    label: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
   };
 });
 
-const incrementByDay = (rows, items, field, reader = getCreatedAt) => {
-  const byKey = new Map(rows.map((row) => [row.key, row]));
-  items.forEach((entry) => {
-    const createdAt = reader(getRecord(entry));
-    if (!createdAt) return;
-    const date = new Date(createdAt);
-    if (Number.isNaN(date.getTime())) return;
-    const key = date.toISOString().slice(0, 10);
-    if (byKey.has(key)) byKey.get(key)[field] += 1;
-  });
+const dayKeyOf = (value) => {
+  const time = toTime(value);
+  return time ? new Date(time).toISOString().slice(0, 10) : null;
 };
 
 const buildDailyMomentum = (users, posts, tweets, ads) => {
-  const rows = createRecentDays(14).map((row) => ({ ...row, users: 0, content: 0, tweets: 0, ads: 0 }));
-  incrementByDay(rows, users, 'users', (entry) => getCreatedAt(getUserRecord(entry)));
-  incrementByDay(rows, posts, 'content', (entry) => getCreatedAt(getPostRecord(entry)));
-  incrementByDay(rows, tweets, 'tweets');
-  incrementByDay(rows, ads, 'ads');
-  return rows.map(({ key, ...row }) => row);
+  const rows = createRecentDays(14).map((row, index) => ({
+    key: row.key,
+    label: index === 13 ? 'Day 14 (Today)' : `Day ${index + 1}`,
+    users: 0,
+    content: 0,
+    tweets: 0,
+    ads: 0,
+  }));
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  const add = (items, field, reader) => items.forEach((entry) => {
+    const row = byKey.get(dayKeyOf(reader(entry)));
+    if (row) row[field] += 1;
+  });
+  add(users, 'users', (entry) => getCreatedAt(getUserRecord(entry)));
+  add(posts, 'content', (entry) => getCreatedAt(getPostRecord(entry)));
+  add(tweets, 'tweets', (entry) => getCreatedAt(getRecord(entry)));
+  add(ads, 'ads', (entry) => getCreatedAt(getRecord(entry)));
+  return rows;
 };
 
 const buildContentMix = (posts, tweets, ads) => {
   const months = createRecentMonths(6).map((row) => ({ ...row, posts: 0, reels: 0, tweets: 0, ads: 0 }));
   const byKey = new Map(months.map((row) => [row.key, row]));
+  const monthKey = (value) => {
+    const time = toTime(value);
+    if (!time) return null;
+    const date = new Date(time);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  };
   posts.forEach((entry) => {
     const record = getPostRecord(entry);
-    const createdAt = getCreatedAt(record);
-    if (!createdAt) return;
-    const date = new Date(createdAt);
-    const bucket = byKey.get(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+    const bucket = byKey.get(monthKey(getCreatedAt(record)));
     if (!bucket) return;
     const type = getPostType(entry) || getPostType(record);
     if (type === 'reel') bucket.reels += 1;
     else bucket.posts += 1;
   });
   [...tweets.map((tweet) => [tweet, 'tweets']), ...ads.map((ad) => [ad, 'ads'])].forEach(([entry, field]) => {
-    const createdAt = getCreatedAt(getRecord(entry));
-    if (!createdAt) return;
-    const date = new Date(createdAt);
-    const bucket = byKey.get(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+    const bucket = byKey.get(monthKey(getCreatedAt(getRecord(entry))));
     if (bucket) bucket[field] += 1;
   });
-  return months.map(({ key, ...row }) => row);
+  return months;
 };
 
-const buildEngagement = (posts, tweets, ads) => {
-  const months = createRecentMonths(6).map((row) => ({ ...row, likes: 0, comments: 0, views: 0, clicks: 0 }));
-  const byKey = new Map(months.map((row) => [row.key, row]));
-  [...posts, ...tweets, ...ads].forEach((entry) => {
-    const record = getRecord(entry);
-    const createdAt = getCreatedAt(record);
-    if (!createdAt) return;
-    const date = new Date(createdAt);
-    const bucket = byKey.get(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
-    if (!bucket) return;
-    bucket.likes += numberValue(record.likes_count, record.like_count, record.likes);
-    bucket.comments += numberValue(record.comments_count, record.replies_count, record.comment_count, record.comments);
-    bucket.views += numberValue(record.views_count, record.impressions, record.views);
-    bucket.clicks += numberValue(record.clicks_count, record.clicks, record.cta_clicks);
+// Engagement totals bucketed by the content's creation day over the last 14
+// days; the first 7 rows are the previous week, the last 7 this week.
+const buildEngagementDays = (posts, tweets, ads) => {
+  const rows = createRecentDays(14).map((row) => ({
+    key: row.key,
+    label: row.date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+    likes: 0,
+    comments: 0,
+    views: 0,
+    clicks: 0,
+  }));
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  [...posts.map(getPostRecord), ...tweets.map(getRecord), ...ads.map(getRecord)].forEach((record) => {
+    const row = byKey.get(dayKeyOf(getCreatedAt(record)));
+    if (!row) return;
+    row.likes += numberValue(record.likes_count, record.like_count, record.likes);
+    row.comments += numberValue(record.comments_count, record.replies_count, record.comment_count, record.comments);
+    row.views += numberValue(record.views_count, record.impressions, record.views);
+    row.clicks += numberValue(record.clicks_count, record.clicks, record.cta_clicks);
   });
-  return months.map(({ key, ...row }) => row);
+  return rows;
 };
 
-const buildStatusData = (items, colorMap) => {
-  const counts = items.reduce((acc, entry) => {
+const clickThroughRate = (rows) => {
+  const views = rows.reduce((sum, row) => sum + row.views, 0);
+  const clicks = rows.reduce((sum, row) => sum + row.clicks, 0);
+  return views > 0 ? (clicks / views) * 100 : null;
+};
+
+const AD_STATUS_META = {
+  active: { label: 'Active', color: COLORS.green },
+  pending: { label: 'Pending Review', color: COLORS.pink },
+  paused: { label: 'Paused', color: COLORS.grey },
+  rejected: { label: 'Rejected', color: COLORS.red },
+};
+
+const buildAdStatus = (ads) => {
+  const counts = ads.reduce((acc, entry) => {
     const status = getStatus(getRecord(entry));
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
-  return Object.entries(counts).map(([status, value], index) => ({
-    name: status.charAt(0).toUpperCase() + status.slice(1),
-    value,
-    color: colorMap[status] || Object.values(COLORS)[index % Object.values(COLORS).length],
+  const ordered = Object.keys(AD_STATUS_META).filter((key) => counts[key]);
+  const others = Object.keys(counts).filter((key) => !AD_STATUS_META[key]);
+  return [...ordered, ...others].map((status) => ({
+    name: AD_STATUS_META[status]?.label || status.charAt(0).toUpperCase() + status.slice(1),
+    value: counts[status],
+    color: AD_STATUS_META[status]?.color || '#C4B5FD',
   }));
+};
+
+const TYPE_STYLE = {
+  Moment: { text: 'text-[#E8194E]', tile: 'bg-pink-50 text-[#E8194E]', icon: Image },
+  bSpark: { text: 'text-[#8E35B5]', tile: 'bg-purple-50 text-[#8E35B5]', icon: Zap },
+  Buzz: { text: 'text-[#3B82F6]', tile: 'bg-blue-50 text-[#3B82F6]', icon: MessageSquare },
+  Spotlight: { text: 'text-[#F59E0B]', tile: 'bg-amber-50 text-[#F59E0B]', icon: Megaphone },
 };
 
 const buildRecentContent = (posts, tweets, ads) => [
   ...posts.map((entry) => {
     const record = getPostRecord(entry);
-    const type = getPostType(entry) === 'reel' ? 'bSpark' : 'Moment';
+    const likes = numberValue(record.likes_count);
     return {
       id: getId(record),
-      type,
-      title: truncateText(record.caption || record.title || 'Media content', 64),
+      type: getPostType(entry) === 'reel' ? 'bSpark' : 'Moment',
+      title: truncateText(record.caption || record.title || 'Media content', 40),
       owner: getUserName(record),
+      handle: getUserHandle(record),
+      thumb: getMediaThumb(record),
       status: getStatus(record),
-      engagement: numberValue(record.likes_count) + numberValue(record.comments_count) + numberValue(record.views_count),
+      engagement: likes + numberValue(record.comments_count) + numberValue(record.views_count),
+      engDetail: `${formatCompactNumber(likes)} likes`,
       createdAt: getCreatedAt(record),
     };
   }),
   ...tweets.map((tweet) => ({
     id: getId(tweet),
     type: 'Buzz',
-    title: truncateText(tweet.content || 'Buzz content', 64),
+    title: truncateText(tweet.content || 'Buzz content', 40),
     owner: getUserName(tweet),
+    handle: getUserHandle(tweet),
+    thumb: '',
     status: getStatus(tweet),
     engagement: numberValue(tweet.likes_count) + numberValue(tweet.reposts_count) + numberValue(tweet.replies_count),
+    engDetail: `${formatCompactNumber(numberValue(tweet.replies_count))} replies`,
     createdAt: getCreatedAt(tweet),
   })),
-  ...ads.map((ad) => ({
-    id: getId(ad),
-    type: 'Spotlight',
-    title: truncateText(ad.title || ad.headline || ad.caption || ad.description || 'Campaign', 64),
-    owner: getUserName(ad),
-    status: getStatus(ad),
-    engagement: numberValue(ad.views_count, ad.impressions) + numberValue(ad.clicks_count, ad.clicks),
-    createdAt: getCreatedAt(ad),
-  })),
-].filter((item) => item.id).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 8);
+  ...ads.map((ad) => {
+    const clicks = numberValue(ad.clicks_count, ad.clicks);
+    return {
+      id: getId(ad),
+      type: 'Spotlight',
+      title: truncateText(ad.title || ad.headline || ad.caption || ad.description || 'Campaign', 40),
+      owner: getUserName(ad),
+      handle: getUserHandle(ad),
+      thumb: getMediaThumb(ad),
+      status: getStatus(ad),
+      engagement: numberValue(ad.views_count, ad.impressions) + clicks,
+      engDetail: `${formatCompactNumber(clicks)} clicks`,
+      createdAt: getCreatedAt(ad),
+    };
+  }),
+].filter((item) => item.id).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 6);
+
+// ─── UI pieces ──────────────────────────────────────────────────────────────
 
 const KPI_TONES = {
-  brand: { icon: 'bg-primary/10 text-primary', accent: 'text-primary' },
-  emerald: { icon: 'bg-emerald-50 text-emerald-600', accent: 'text-emerald-600' },
-  rose: { icon: 'bg-rose-50 text-rose-600', accent: 'text-rose-600' },
-  neutral: { icon: 'bg-neutral-100 text-neutral-600', accent: 'text-neutral-600' },
+  pink: { tile: 'bg-pink-50 text-[#E8194E]', bar: 'linear-gradient(90deg, #E8194E, #8E35B5)' },
+  purple: { tile: 'bg-purple-50 text-[#8E35B5]', bar: 'linear-gradient(90deg, #E8194E, #E8194E)' },
+  blue: { tile: 'bg-indigo-50 text-[#4F46E5]', bar: 'linear-gradient(90deg, #8E35B5, #3B82F6)' },
+  green: { tile: 'bg-emerald-50 text-emerald-600', bar: 'linear-gradient(90deg, #10B981, #059669)' },
+  orange: { tile: 'bg-orange-50 text-orange-500', bar: 'linear-gradient(90deg, #F59E0B, #F97316)' },
+  rose: { tile: 'bg-rose-50 text-rose-500', bar: 'linear-gradient(90deg, #E8194E, #FB7185)' },
+  violet: { tile: 'bg-violet-50 text-violet-600', bar: 'linear-gradient(90deg, #8E35B5, #6366F1)' },
+  cyan: { tile: 'bg-cyan-50 text-cyan-600', bar: 'linear-gradient(90deg, #06B6D4, #3B82F6)' },
 };
 
-const KPI = ({ title, value, caption, icon: Icon, tone = 'brand', meter = 0, to }) => {
-  const navigate = useNavigate();
-  const styles = KPI_TONES[tone] || KPI_TONES.brand;
+const BADGE_TONES = {
+  up: 'text-emerald-600',
+  down: 'text-rose-600',
+  orange: 'text-orange-500',
+  purple: 'text-[#8E35B5]',
+  green: 'text-emerald-600',
+};
 
+const growthBadge = (value) => (value === null || !Number.isFinite(value)
+  ? null
+  : { text: `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`, tone: value >= 0 ? 'up' : 'down', title: 'vs previous 30 days' });
+
+const KPI = ({ title, value, badge, caption, icon: Icon, tone, to }) => {
+  const navigate = useNavigate();
+  const styles = KPI_TONES[tone];
   return (
-    <div
-      onClick={to ? () => navigate(to) : undefined}
-      className={clsx(
-        'bg-white rounded-lg border border-neutral-200/80 px-4 py-3 transition-all duration-200',
-        to && 'cursor-pointer hover:border-neutral-300/80 hover:shadow-sm'
-      )}
+    <button
+      type="button"
+      onClick={() => navigate(to)}
+      className="group relative overflow-hidden rounded-2xl border border-neutral-200/70 bg-white p-4 pb-5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition hover:shadow-[0_8px_24px_-12px_rgba(16,24,40,0.18)]"
     >
-      <div className="flex items-center gap-3">
-        <div className={clsx('w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0', styles.icon)}>
-          <Icon className="w-4 h-4" />
+      <div className="flex items-start justify-between">
+        <div className={clsx('flex h-9 w-9 items-center justify-center rounded-lg', styles.tile)}>
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-xl font-bold tracking-tight text-neutral-900">{value}</h3>
-            <span className={clsx('text-[9px] font-bold uppercase tracking-wide flex-shrink-0', styles.accent)}>Live</span>
-          </div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">{title}</p>
-          <p className="text-[11px] text-neutral-500 mt-0.5 truncate">{caption}</p>
-        </div>
+        <ArrowRight className="h-4 w-4 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-neutral-600" />
       </div>
-      <div className="mt-2.5 h-0.5 overflow-hidden rounded-full bg-neutral-100">
-        <div
-          className="h-full rounded-full bg-gradient-brand transition-all duration-500"
-          style={{ width: `${Math.min(100, Math.max(6, meter))}%` }}
-        />
+      <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-neutral-700">{title}</p>
+      <div className="mt-0.5 flex items-baseline gap-2">
+        <h3 className="font-display text-[28px] font-extrabold leading-tight tracking-tight text-neutral-900">{value}</h3>
+        {badge && <span title={badge.title} className={clsx('text-[11px] font-bold', BADGE_TONES[badge.tone])}>{badge.text}</span>}
       </div>
-    </div>
+      <p className="mt-0.5 truncate text-[12.5px] text-neutral-500">{caption}</p>
+      <span className="absolute inset-x-0 bottom-0 h-[3px]" style={{ background: styles.bar }} />
+    </button>
   );
 };
 
-const StatusRow = ({ label, value, total, color }) => (
-  <div className="space-y-1">
-    <div className="flex items-center justify-between text-xs">
-      <span className="font-medium text-neutral-700">{label}</span>
-      <span className="text-[11px] text-neutral-500">{formatNumber(value)} / {formatNumber(total)}</span>
+const Panel = ({ title, subtitle, action, children, className }) => (
+  <section className={clsx('rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h2 className="font-display text-[17px] font-bold tracking-tight text-neutral-900">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[12px] text-neutral-500">{subtitle}</p>}
+      </div>
+      {action}
     </div>
-    <div className="h-1 overflow-hidden rounded-full bg-neutral-100">
-      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent(value, total)}%`, background: color }} />
+    {children}
+  </section>
+);
+
+const Legend = ({ items, shape = 'dot' }) => (
+  <div className="flex max-w-[260px] flex-wrap justify-end gap-x-3 gap-y-1">
+    {items.map((item) => (
+      <span key={item.label} className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-neutral-700">
+        <span className={clsx('h-2.5 w-2.5', shape === 'dot' ? 'rounded-full' : 'rounded-[3px]')} style={{ background: item.color }} />
+        {item.label}
+      </span>
+    ))}
+  </div>
+);
+
+const IconButton = ({ icon: Icon, onClick, title }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title}
+    aria-label={title}
+    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800"
+  >
+    <Icon className="h-4 w-4" />
+  </button>
+);
+
+const QueueRow = ({ label, value, pct, color, valueTone, extra }) => (
+  <div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[13px] font-semibold text-neutral-900">{label}</span>
+      <span className="flex items-baseline gap-1.5">
+        <span className={clsx('text-[13px] font-bold', valueTone || 'text-neutral-900')}>{value}</span>
+        <span className="text-[11px] font-semibold" style={{ color }}>{extra}</span>
+      </span>
+    </div>
+    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EEF0FA]">
+      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
     </div>
   </div>
 );
 
-const statusBadgeClass = (status) => {
-  const normalized = String(status || '').toLowerCase();
-  if (['active', 'approved', 'validated', 'live', 'completed'].includes(normalized)) return 'bg-green-50 text-green-700 border-green-200';
-  if (['pending', 'draft', 'in_review'].includes(normalized)) return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (['paused', 'inactive'].includes(normalized)) return 'bg-blue-50 text-blue-700 border-blue-200';
-  if (['rejected', 'deleted', 'failed'].includes(normalized)) return 'bg-red-50 text-red-700 border-red-200';
-  return 'bg-neutral-100 text-neutral-700 border-neutral-200';
+const STATUS_PILL = {
+  published: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  pending: 'bg-pink-50 text-[#E8194E] border-pink-200',
+  in_review: 'bg-pink-50 text-[#E8194E] border-pink-200',
+  processing: 'bg-purple-50 text-[#8E35B5] border-purple-200',
+  draft: 'bg-purple-50 text-[#8E35B5] border-purple-200',
+  paused: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+  rejected: 'bg-red-50 text-red-600 border-red-200',
+  failed: 'bg-red-50 text-red-600 border-red-200',
 };
+
+const StatusPill = ({ status }) => {
+  const key = status === 'live' ? 'published' : status;
+  return (
+    <span className={clsx('inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10.5px] font-semibold capitalize', STATUS_PILL[key] || 'bg-neutral-100 text-neutral-600 border-neutral-200')}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {key.replace(/_/g, ' ')}
+    </span>
+  );
+};
+
+const AVATAR_TONES = ['bg-pink-100 text-[#E8194E]', 'bg-purple-100 text-[#8E35B5]', 'bg-blue-100 text-blue-600', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700', 'bg-indigo-100 text-indigo-600'];
+const initialsOf = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || '?';
+const toneOf = (name) => AVATAR_TONES[[...String(name)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % AVATAR_TONES.length];
+
+const ContentThumb = ({ item }) => {
+  const [failed, setFailed] = useState(false);
+  const style = TYPE_STYLE[item.type];
+  const Icon = style.icon;
+  if (item.thumb && !failed) {
+    return <img src={item.thumb} alt="" onError={() => setFailed(true)} className="h-9 w-9 flex-shrink-0 rounded-lg object-cover" />;
+  }
+  return (
+    <span className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', style.tile)}>
+      <Icon className="h-4 w-4" />
+    </span>
+  );
+};
+
+const MonthTick = ({ x, y, payload, currentLabel }) => (
+  <text x={x} y={y + 14} textAnchor="middle" fontSize={11} fontWeight={700} fill={payload.value === currentLabel ? COLORS.pink : '#6B7280'}>
+    {payload.value}
+  </text>
+);
+
+const downloadCsv = (filename, rows) => {
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 const Dashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const usersState = useSelector((state) => state.users);
   const vendorsState = useSelector((state) => state.vendors);
   const postsState = useSelector((state) => state.posts);
@@ -325,6 +517,20 @@ const Dashboard = () => {
     walletState?.status,
   ]);
 
+  // "Updated …" reflects when the last data load finished; re-render each minute.
+  const isLoading = [usersState?.status, vendorsState?.status, postsState?.status, adsState?.status, tweetsState?.status]
+    .includes('loading');
+  const [updatedAt, setUpdatedAt] = useState(() => new Date().toISOString());
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isLoading) setUpdatedAt(new Date().toISOString());
+  }, [isLoading]);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const updatedLabel = formatRelativeTime(updatedAt);
+
   const totals = useMemo(() => {
     const postItems = posts.filter((item) => (getPostType(item) || getPostType(getPostRecord(item))) !== 'reel');
     const reelItems = posts.filter((item) => (getPostType(item) || getPostType(getPostRecord(item))) === 'reel');
@@ -332,12 +538,8 @@ const Dashboard = () => {
     const pendingAds = ads.filter((ad) => getStatus(ad) === 'pending').length;
     const validatedVendors = vendors.filter((vendor) => Boolean(getRecord(vendor)?.validated) || getStatus(vendor) === 'validated').length;
     const walletVolume = transactions.reduce((sum, tx) => sum + Math.abs(numberValue(tx.amount)), 0);
-    const packageRevenue = purchases.reduce((sum, purchase) => sum + moneyValue(purchase), 0);
-    const tweetEngagement = tweets.reduce((sum, tweet) => sum + numberValue(tweet.likes_count) + numberValue(tweet.reposts_count) + numberValue(tweet.replies_count), 0);
-    const contentEngagement = posts.reduce((sum, entry) => {
-      const record = getPostRecord(entry);
-      return sum + numberValue(record.likes_count) + numberValue(record.comments_count) + numberValue(record.views_count);
-    }, 0);
+    const activeOfficers = salesOfficers.filter((officer) => officer?.is_active !== false && getStatus(officer, 'active') !== 'inactive').length;
+    const activePackages = packages.filter((pkg) => pkg?.is_active !== false && getStatus(pkg, 'active') === 'active').length;
 
     return {
       totalUsers: usersState?.total || users.length,
@@ -350,225 +552,375 @@ const Dashboard = () => {
       pendingAds,
       validatedVendors,
       walletVolume,
-      packageRevenue,
       salesOfficers: salesOfficers.length,
+      activeOfficers,
       packages: packages.length,
-      totalEngagement: tweetEngagement + contentEngagement,
+      activePackages,
     };
-  }, [ads, packages.length, posts, purchases, salesOfficers.length, transactions, tweets, users.length, usersState?.total, vendors]);
+  }, [ads, packages, posts, salesOfficers, transactions, tweets, users.length, usersState?.total, vendors]);
+
+  const growth = useMemo(() => ({
+    users: periodGrowth(users, (entry) => toTime(getCreatedAt(getUserRecord(entry)))),
+    vendors: periodGrowth(vendors, (entry) => toTime(getCreatedAt(getRecord(entry)))),
+    content: periodGrowth(posts, (entry) => toTime(getCreatedAt(getPostRecord(entry)))),
+    buzz: periodGrowth(tweets, (entry) => toTime(getCreatedAt(getRecord(entry)))),
+    vault: periodGrowth(transactions, (tx) => toTime(getCreatedAt(tx)), (tx) => Math.abs(numberValue(tx.amount))),
+  }), [posts, transactions, tweets, users, vendors]);
 
   const dailyMomentum = useMemo(() => buildDailyMomentum(users, posts, tweets, ads), [ads, posts, tweets, users]);
   const contentMix = useMemo(() => buildContentMix(posts, tweets, ads), [ads, posts, tweets]);
-  const engagementData = useMemo(() => buildEngagement(posts, tweets, ads), [ads, posts, tweets]);
-  const adStatusData = useMemo(() => buildStatusData(ads, {
-    active: COLORS.green,
-    pending: COLORS.amber,
-    paused: COLORS.blue,
-    rejected: '#DC2626',
-    draft: COLORS.slate,
-  }), [ads]);
+  const engagementDays = useMemo(() => buildEngagementDays(posts, tweets, ads), [ads, posts, tweets]);
+  const adStatusData = useMemo(() => buildAdStatus(ads), [ads]);
   const recentContent = useMemo(() => buildRecentContent(posts, tweets, ads), [ads, posts, tweets]);
-  const operatingQueues = [
-    { label: 'Pending ads', value: totals.pendingAds, total: Math.max(totals.totalAds, 1), color: COLORS.amber },
-    { label: 'Active ads', value: totals.activeAds, total: Math.max(totals.totalAds, 1), color: COLORS.green },
-    { label: 'Validated vendors', value: totals.validatedVendors, total: Math.max(totals.totalVendors, 1), color: COLORS.blue },
-    { label: 'Sales coverage', value: totals.salesOfficers, total: Math.max(totals.totalVendors, totals.salesOfficers, 1), color: COLORS.purple },
+
+  const engagementWeek = engagementDays.slice(7);
+  const ctr = clickThroughRate(engagementWeek);
+  const prevCtr = clickThroughRate(engagementDays.slice(0, 7));
+  const ctrDelta = ctr !== null && prevCtr !== null ? ctr - prevCtr : null;
+
+  const mixAverages = ['posts', 'reels', 'tweets', 'ads'].reduce((acc, key) => {
+    acc[key] = contentMix.reduce((sum, row) => sum + row[key], 0) / Math.max(contentMix.length, 1);
+    return acc;
+  }, {});
+  const currentMonthLabel = contentMix[contentMix.length - 1]?.label;
+  const totalContent = posts.length + tweets.length + ads.length;
+  const lastMomentumIndex = dailyMomentum.length - 1;
+  const momentumTicks = new Set([0, 2, 4, 6, 8, 10, lastMomentumIndex]);
+
+  const kpis = [
+    { title: 'Total Users', value: formatCompactNumber(totals.totalUsers), badge: growthBadge(growth.users), caption: 'Members, vendors, sales & admins', icon: Users, tone: 'pink', to: '/users' },
+    { title: 'Total Vendors', value: formatCompactNumber(totals.totalVendors), badge: growthBadge(growth.vendors), caption: `${formatNumber(totals.validatedVendors)} validated vendor profiles`, icon: Store, tone: 'purple', to: '/vendors' },
+    { title: 'Moments + bSparks', value: formatCompactNumber(totals.totalPosts + totals.totalReels), badge: growthBadge(growth.content), caption: `${formatNumber(totals.totalPosts)} moments, ${formatNumber(totals.totalReels)} bSparks`, icon: SquarePlay, tone: 'blue', to: '/posts' },
+    { title: 'Buzz Posts', value: formatCompactNumber(totals.totalTweets), badge: growthBadge(growth.buzz), caption: 'Text posts & replies feed', icon: MessageSquare, tone: 'green', to: '/tweets' },
+    { title: 'Spotlights', value: formatCompactNumber(totals.totalAds), badge: totals.pendingAds ? { text: `${formatNumber(totals.pendingAds)} queue`, tone: 'orange' } : null, caption: `${formatNumber(totals.activeAds)} active, ${formatNumber(totals.pendingAds)} pending review`, icon: Megaphone, tone: 'orange', to: '/ads' },
+    { title: 'Vault Volume', value: formatCompactNumber(totals.walletVolume), badge: growthBadge(growth.vault), caption: `${formatNumber(transactions.length)} vault transactions`, icon: Wallet, tone: 'rose', to: '/wallets' },
+    { title: 'Packages Active', value: formatCompactNumber(totals.activePackages), badge: purchases.length ? { text: `${formatNumber(purchases.length)} orders`, tone: 'purple' } : null, caption: `${formatNumber(purchases.length)} purchase records`, icon: Archive, tone: 'violet', to: '/vendor-packages' },
+    { title: 'Sales Officers', value: formatCompactNumber(totals.salesOfficers), badge: totals.salesOfficers ? { text: `${percent(totals.activeOfficers, totals.salesOfficers)}% active`, tone: 'green' } : null, caption: 'Assignment team capacity', icon: Contact, tone: 'cyan', to: '/sales' },
   ];
 
+  const handleDownload = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(`bsmart-dashboard-${stamp}.csv`, [
+      ['Metric', 'Value', 'Detail'],
+      ...kpis.map((kpi) => [kpi.title, kpi.value, kpi.caption]),
+      [],
+      ['Ad status', 'Count'],
+      ...adStatusData.map((row) => [row.name, row.value]),
+    ]);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Admin Dashboard</p>
-          <h1 className="font-display text-xl font-bold tracking-tight text-neutral-900 mt-0.5">Dashboard</h1>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Monitor users, vendors, content, campaigns, wallets, packages and sales.
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#E8194E]">Admin Dashboard</p>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Live
+            </span>
+          </div>
+          <h1 className="mt-1 font-display text-[22px] font-bold tracking-tight text-neutral-900">Dashboard Overview</h1>
         </div>
-        <Button variant="outline" size="sm" icon={TrendingUp}>Download Report</Button>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-[12.5px] text-neutral-600">
+            <Clock className="h-3.5 w-3.5 text-[#E8194E]" />
+            {isLoading ? 'Updating…' : `Updated ${updatedLabel.toLowerCase()}`}
+          </span>
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-900 shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition hover:bg-neutral-50"
+          >
+            <Download className="h-4 w-4" />
+            Download Report
+          </button>
+        </div>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <KPI title="Total Users" value={formatCompactNumber(totals.totalUsers)} caption="Members, vendors, sales and admins" icon={Users} tone="brand" meter={percent(totals.totalUsers, totals.totalUsers + totals.totalVendors)} to="/users" />
-        <KPI title="Total Vendors" value={formatCompactNumber(totals.totalVendors)} caption={`${formatNumber(totals.validatedVendors)} validated profiles`} icon={Briefcase} tone="brand" meter={percent(totals.validatedVendors, totals.totalVendors)} to="/vendors" />
-        <KPI title="Moments + bSparks" value={formatCompactNumber(totals.totalPosts + totals.totalReels)} caption={`${formatNumber(totals.totalPosts)} moments, ${formatNumber(totals.totalReels)} bSparks`} icon={Layers3} tone="emerald" meter={percent(totals.totalReels, totals.totalPosts + totals.totalReels)} to="/posts" />
-        <KPI title="Buzz" value={formatCompactNumber(totals.totalTweets)} caption="Text posts and replies feed" icon={Send} tone="brand" meter={percent(totals.totalTweets, totals.totalTweets + totals.totalPosts + totals.totalReels)} to="/tweets" />
-        <KPI title="Spotlights" value={formatCompactNumber(totals.totalAds)} caption={`${formatNumber(totals.activeAds)} active, ${formatNumber(totals.pendingAds)} pending`} icon={Megaphone} tone="rose" meter={percent(totals.activeAds, totals.totalAds)} to="/ads" />
-        <KPI title="Vault Volume" value={formatCompactNumber(totals.walletVolume)} caption={`${formatNumber(transactions.length)} vault transactions`} icon={Coins} tone="emerald" meter={Math.min(100, transactions.length * 8)} to="/wallets" />
-        <KPI title="Packages" value={formatCompactNumber(totals.packages)} caption={`${formatNumber(purchases.length)} purchase records`} icon={Package} tone="brand" meter={Math.min(100, packages.length * 20)} to="/vendor-packages" />
-        <KPI title="Sales Officers" value={formatCompactNumber(totals.salesOfficers)} caption="Assignment team capacity" icon={ShieldCheck} tone="neutral" meter={percent(totals.salesOfficers, totals.totalVendors)} to="/sales" />
+      {/* KPI grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((kpi) => <KPI key={kpi.title} {...kpi} />)}
       </div>
 
       {/* Growth Momentum + Operating Queues */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.25fr_0.75fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Growth Momentum</CardTitle>
-            <CardDescription>Last 14 days across registrations, content, buzz and spotlights</CardDescription>
-          </CardHeader>
-          <div className="h-56">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
+        <Panel
+          title="Growth Momentum"
+          subtitle="Last 14 days across registrations, content, buzz and spotlights"
+          action={<Legend items={[
+            { label: 'Users', color: COLORS.pink },
+            { label: 'Moments', color: COLORS.green },
+            { label: 'Buzz', color: COLORS.blue },
+            { label: 'Spotlights', color: COLORS.barOrange },
+          ]} />}
+        >
+          <div className="mt-3 h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dailyMomentum}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="label" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatCompactNumber} />
+              <ComposedChart data={dailyMomentum} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="usersArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.pink} stopOpacity={0.28} />
+                    <stop offset="100%" stopColor={COLORS.pink} stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="spotBars" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.barOrange} stopOpacity={0.95} />
+                    <stop offset="100%" stopColor={COLORS.barOrange} stopOpacity={0.45} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 4" stroke="#EEF0F4" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  interval={0}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10.5, fontWeight: 700, fill: '#374151' }}
+                  tickFormatter={(value, index) => (momentumTicks.has(index) ? value : '')}
+                />
+                <YAxis hide />
                 <Tooltip contentStyle={chartTooltip} />
-                <Bar dataKey="ads" name="Spotlights" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
-                <Line type="monotone" dataKey="users" name="Users" stroke={COLORS.pink} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="content" name="Moments/bSparks" stroke={COLORS.green} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="tweets" name="Buzz" stroke={COLORS.blue} strokeWidth={2} dot={false} />
+                <Bar dataKey="ads" name="Spotlights" fill="url(#spotBars)" barSize={10} radius={[3, 3, 0, 0]} />
+                <Area type="monotone" dataKey="users" name="Users" stroke={COLORS.pink} strokeWidth={2.5} fill="url(#usersArea)"
+                  dot={(props) => (props.index === lastMomentumIndex
+                    ? <circle key="users-last" cx={props.cx} cy={props.cy} r={4} fill={COLORS.pink} stroke="#fff" strokeWidth={2} />
+                    : <g key={`users-${props.index}`} />)}
+                />
+                <Line type="monotone" dataKey="content" name="Moments/bSparks" stroke={COLORS.green} strokeWidth={2.5}
+                  dot={(props) => (props.index === lastMomentumIndex
+                    ? <circle key="content-last" cx={props.cx} cy={props.cy} r={3.5} fill={COLORS.green} stroke="#fff" strokeWidth={2} />
+                    : <g key={`content-${props.index}`} />)}
+                />
+                <Line type="monotone" dataKey="tweets" name="Buzz" stroke={COLORS.blue} strokeWidth={2} strokeDasharray="2 3" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </Panel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Operating Queues</CardTitle>
-            <CardDescription>Moderation, campaign and vendor readiness</CardDescription>
-          </CardHeader>
-          <div className="space-y-3">
-            {operatingQueues.map((item) => <StatusRow key={item.label} {...item} />)}
+        <Panel
+          title="Operating Queues"
+          subtitle="Moderation, campaign & vendor readiness"
+          action={<IconButton icon={SlidersHorizontal} title="Review spotlight queue" onClick={() => navigate('/ads')} />}
+        >
+          <div className="mt-5 space-y-4">
+            <QueueRow label="Active ads" value={formatNumber(totals.activeAds)} pct={percent(totals.activeAds, totals.totalAds)} extra={`${percent(totals.activeAds, totals.totalAds)}%`} color={COLORS.green} />
+            <QueueRow label="Pending ads" value={formatNumber(totals.pendingAds)} valueTone="text-orange-500" pct={percent(totals.pendingAds, totals.totalAds)} extra={`${percent(totals.pendingAds, totals.totalAds)}%`} color={COLORS.orange} />
+            <QueueRow label="Validated vendors" value={formatNumber(totals.validatedVendors)} pct={percent(totals.validatedVendors, totals.totalVendors)} extra={`${percent(totals.validatedVendors, totals.totalVendors)}%`} color={COLORS.pink} />
+            <QueueRow label="Sales coverage" value={`${percent(totals.activeOfficers, totals.salesOfficers)}%`} pct={percent(totals.activeOfficers, totals.salesOfficers)} extra={`${totals.activeOfficers}/${totals.salesOfficers} active`} color={COLORS.purple} />
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-md bg-neutral-50 border border-neutral-100 px-3 py-2.5">
-              <Clock3 className="h-3.5 w-3.5 text-amber-600" />
-              <p className="mt-1.5 text-lg font-bold text-neutral-900">{formatNumber(totals.pendingAds)}</p>
-              <p className="text-[10px] text-neutral-500">Spotlights waiting</p>
-            </div>
-            <div className="rounded-md bg-neutral-50 border border-neutral-100 px-3 py-2.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-              <p className="mt-1.5 text-lg font-bold text-neutral-900">{formatNumber(totals.activeAds)}</p>
-              <p className="text-[10px] text-neutral-500">Spotlights live</p>
-            </div>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => navigate('/ads')} className="flex items-center gap-3 rounded-xl border border-orange-100 bg-orange-50/70 px-3.5 py-3 text-left transition hover:bg-orange-50">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600"><Hourglass className="h-4 w-4" /></span>
+              <span>
+                <span className="block text-[18px] font-bold leading-tight text-orange-600">{formatNumber(totals.pendingAds)}</span>
+                <span className="block text-[10px] font-bold uppercase tracking-wide text-orange-500">Spotlights waiting</span>
+              </span>
+            </button>
+            <button type="button" onClick={() => navigate('/ads')} className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3 text-left transition hover:bg-emerald-50">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600"><BadgeCheck className="h-4 w-4" /></span>
+              <span>
+                <span className="block text-[18px] font-bold leading-tight text-emerald-700">{formatNumber(totals.activeAds)}</span>
+                <span className="block text-[10px] font-bold uppercase tracking-wide text-emerald-600">Spotlights live</span>
+              </span>
+            </button>
           </div>
-        </Card>
+        </Panel>
       </div>
 
       {/* Content Mix + Ad Status */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Content Mix</CardTitle>
-            <CardDescription>Monthly split for moments, bSparks, buzz and spotlights</CardDescription>
-          </CardHeader>
-          <div className="h-56">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
+        <Panel
+          title="Content Mix"
+          subtitle="Monthly distribution for moments, bSparks, buzz & spotlights"
+          action={<Legend shape="square" items={[
+            { label: 'Moments', color: COLORS.pink },
+            { label: 'bSparks', color: COLORS.purple },
+            { label: 'Buzz', color: COLORS.blue },
+            { label: 'Spotlights', color: COLORS.orange },
+          ]} />}
+        >
+          <div className="mt-3 h-52">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={contentMix}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="label" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatCompactNumber} />
-                <Tooltip contentStyle={chartTooltip} />
-                <Bar dataKey="posts" name="Moments" stackId="a" fill={COLORS.pink} />
-                <Bar dataKey="reels" name="bSparks" stackId="a" fill={COLORS.purple} />
-                <Bar dataKey="tweets" name="Buzz" stackId="a" fill={COLORS.blue} />
-                <Bar dataKey="ads" name="Spotlights" stackId="a" fill={COLORS.orange} radius={[3, 3, 0, 0]} />
+              <BarChart data={contentMix} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} tick={<MonthTick currentLabel={currentMonthLabel} />} />
+                <YAxis hide />
+                <Tooltip contentStyle={chartTooltip} cursor={{ fill: '#F5F6FA' }} />
+                <Bar dataKey="posts" name="Moments" stackId="mix" fill={COLORS.pink} barSize={30} />
+                <Bar dataKey="reels" name="bSparks" stackId="mix" fill={COLORS.purple} barSize={30} />
+                <Bar dataKey="tweets" name="Buzz" stackId="mix" fill={COLORS.blue} barSize={30} />
+                <Bar dataKey="ads" name="Spotlights" stackId="mix" fill={COLORS.orange} barSize={30} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+          <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            {[
+              { label: 'Avg. Moments', value: mixAverages.posts, color: 'text-[#E8194E]' },
+              { label: 'Avg. bSparks', value: mixAverages.reels, color: 'text-[#8E35B5]' },
+              { label: 'Avg. Buzz', value: mixAverages.tweets, color: 'text-[#3B82F6]' },
+              { label: 'Avg. Spotlights', value: mixAverages.ads, color: 'text-[#D97706]' },
+            ].map((tile) => (
+              <div key={tile.label} className="rounded-xl border border-[#E4E7F5] bg-[#F1F3FC] px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-600">{tile.label}</p>
+                <p className={clsx('mt-0.5 text-[17px] font-bold', tile.color)}>{formatCompactNumber(Math.round(tile.value))}/mo</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Ad Status</CardTitle>
-            <CardDescription>Campaign pipeline by state</CardDescription>
-          </CardHeader>
-          <div className="h-40">
+        <Panel
+          title="Ad Status"
+          subtitle="Campaign pipeline by state"
+          action={<IconButton icon={EllipsisVertical} title="Open Spotlights" onClick={() => navigate('/ads')} />}
+        >
+          <div className="relative mt-2 h-52">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={adStatusData} cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={3} dataKey="value">
-                  {adStatusData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                <Pie
+                  data={adStatusData.length ? adStatusData : [{ name: 'No ads', value: 1, color: '#EEF0F4' }]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={68}
+                  outerRadius={90}
+                  paddingAngle={adStatusData.length > 1 ? 2 : 0}
+                  dataKey="value"
+                  stroke="none"
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  {(adStatusData.length ? adStatusData : [{ name: 'No ads', color: '#EEF0F4' }]).map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={chartTooltip} formatter={(value) => formatNumber(value)} />
+                {adStatusData.length > 0 && <Tooltip contentStyle={chartTooltip} formatter={(value) => formatNumber(value)} />}
               </PieChart>
             </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <p className="font-display text-[26px] font-extrabold leading-none text-neutral-900">{formatCompactNumber(totals.totalAds)}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-neutral-500">Total ads</p>
+            </div>
           </div>
-          <div className="space-y-2 mt-2">
+          <div className="mt-3 space-y-2">
             {adStatusData.length > 0 ? adStatusData.map((entry) => (
-              <div key={entry.name} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-neutral-600">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+              <div key={entry.name} className="flex items-center justify-between text-[13px]">
+                <span className="flex items-center gap-2 text-neutral-700">
+                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: entry.color }} />
                   {entry.name}
                 </span>
-                <span className="font-semibold text-neutral-800">{formatNumber(entry.value)}</span>
+                <span>
+                  <span className="font-bold text-neutral-900">{formatNumber(entry.value)}</span>
+                  <span className="ml-1.5 text-[11.5px] text-neutral-500">({((entry.value / Math.max(totals.totalAds, 1)) * 100).toFixed(1)}%)</span>
+                </span>
               </div>
-            )) : <p className="py-6 text-center text-sm text-neutral-400">No ad data available</p>}
+            )) : <p className="py-4 text-center text-sm text-neutral-400">No ad data available</p>}
           </div>
-        </Card>
+        </Panel>
       </div>
 
-      {/* Engagement + Recent Content */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Engagement Quality</CardTitle>
-            <CardDescription>Likes, comments, views and campaign clicks</CardDescription>
-          </CardHeader>
-          <div className="h-52">
+      {/* Engagement Quality + Recent Platform Content */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1.45fr]">
+        <Panel title="Engagement Quality" subtitle="Likes, comments, views and campaign clicks">
+          <div className="mt-3">
+            <Legend items={[
+              { label: 'Views', color: '#22B8D6' },
+              { label: 'Likes', color: COLORS.pink },
+              { label: 'Comments', color: COLORS.purple },
+              { label: 'Clicks', color: COLORS.orange },
+            ]} />
+          </div>
+          <div className="mt-2 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={engagementData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="label" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} tickFormatter={formatCompactNumber} />
+              <ComposedChart data={engagementWeek} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 4" stroke="#EEF0F4" vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 10.5, fontWeight: 700, fill: '#374151' }} />
+                <YAxis hide />
                 <Tooltip contentStyle={chartTooltip} />
-                <Bar dataKey="views" name="Views" fill={COLORS.cyan} radius={[3, 3, 0, 0]} />
-                <Line type="monotone" dataKey="likes" name="Likes" stroke={COLORS.pink} strokeWidth={2} dot={false} />
+                <Bar dataKey="views" name="Views" fill={COLORS.cyan} barSize={9} radius={[3, 3, 0, 0]} />
+                <Line type="monotone" dataKey="likes" name="Likes" stroke={COLORS.pink} strokeWidth={2.5}
+                  dot={(props) => (props.index === engagementWeek.length - 1
+                    ? <circle key="likes-last" cx={props.cx} cy={props.cy} r={3.5} fill={COLORS.pink} stroke="#fff" strokeWidth={2} />
+                    : <g key={`likes-${props.index}`} />)}
+                />
                 <Line type="monotone" dataKey="comments" name="Comments" stroke={COLORS.purple} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="clicks" name="Clicks" stroke={COLORS.orange} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="clicks" name="Clicks" stroke={COLORS.orange} strokeWidth={2} strokeDasharray="3 3" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-[#E4E7F5] bg-[#F1F3FC] px-4 py-3">
+            <span className="flex items-center gap-2 text-[13px] font-medium text-neutral-700">
+              <MousePointerClick className="h-4 w-4 text-[#E8194E]" />
+              Avg. Click-Through Rate
+            </span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-[18px] font-bold text-neutral-900">{ctr === null ? '—' : `${ctr.toFixed(2)}%`}</span>
+              {ctrDelta !== null && (
+                <span title="vs previous 7 days" className={clsx('text-[11px] font-bold', ctrDelta >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
+                  {ctrDelta >= 0 ? '+' : ''}{ctrDelta.toFixed(1)}%
+                </span>
+              )}
+            </span>
+          </div>
+        </Panel>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle>Recent Platform Content</CardTitle>
-              <CardDescription>Newest posts, reels, tweets and ad campaigns</CardDescription>
-            </div>
-            <BarChart3 className="h-4 w-4 text-neutral-400" />
-          </CardHeader>
-          <div className="overflow-hidden rounded-lg border border-neutral-200">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
-                <tr>
-                  <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Content</th>
-                  <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Owner</th>
-                  <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Status</th>
-                  <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-500 text-right">Eng.</th>
+        <Panel
+          title="Recent Platform Content"
+          subtitle="Newest posts, reels, tweets and ad campaigns"
+          action={<IconButton icon={ChartColumn} title="Open content" onClick={() => navigate('/posts')} />}
+        >
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left">
+              <thead>
+                <tr className="bg-[#F1F3FC]">
+                  {['Content', 'Owner', 'Eng.', 'Status'].map((head, index) => (
+                    <th key={head} className={clsx('px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-wide text-neutral-600', index === 0 && 'rounded-l-lg', index === 3 && 'rounded-r-lg')}>
+                      {head}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody>
                 {recentContent.length > 0 ? recentContent.map((item) => (
-                  <tr key={`${item.type}-${item.id}`} className="hover:bg-neutral-50/60 transition-colors">
-                    <td className="px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-neutral-100 text-neutral-500 flex-shrink-0">
-                          {item.type === 'Buzz' ? <Send className="h-3 w-3" /> : item.type === 'Spotlight' ? <Megaphone className="h-3 w-3" /> : item.type === 'bSpark' ? <Video className="h-3 w-3" /> : <Image className="h-3 w-3" />}
-                        </span>
+                  <tr key={`${item.type}-${item.id}`} className="transition-colors hover:bg-neutral-50/70">
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <ContentThumb item={item} />
                         <div className="min-w-0">
-                          <p className="text-[11px] font-semibold text-neutral-800">{item.type}</p>
-                          <p className="text-[10px] text-neutral-400 truncate max-w-[160px]">{item.title}</p>
+                          <p className="max-w-[170px] truncate text-[13px] font-semibold text-neutral-900">{item.title}</p>
+                          <p className={clsx('text-[11px] font-semibold', TYPE_STYLE[item.type].text)}>{item.type}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 text-[11px] text-neutral-600">{item.owner}</td>
-                    <td className="px-3 py-1.5">
-                      <span className={`inline-flex rounded-full border px-1.5 py-px text-[9px] font-semibold capitalize ${statusBadgeClass(item.status)}`}>{item.status}</span>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className={clsx('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold', toneOf(item.owner))}>
+                          {initialsOf(item.owner)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="max-w-[120px] truncate text-[12.5px] font-medium text-neutral-800">{item.owner}</p>
+                          {item.handle && <p className="max-w-[120px] truncate text-[11px] text-neutral-500">@{item.handle}</p>}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-3 py-1.5 text-right text-[11px] font-semibold text-neutral-800">{formatCompactNumber(item.engagement)}</td>
+                    <td className="px-3 py-2.5">
+                      <p className="text-[13px] font-bold text-neutral-900">{formatCompactNumber(item.engagement)}</p>
+                      <p className="text-[11px] text-neutral-500">{item.engDetail}</p>
+                    </td>
+                    <td className="px-3 py-2.5"><StatusPill status={item.status} /></td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="4" className="px-3 py-6 text-center text-xs text-neutral-400">No recent content found</td>
+                    <td colSpan="4" className="px-3 py-10 text-center text-sm text-neutral-400">No recent content found</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </Card>
+          <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3">
+            <p className="text-[12px] text-neutral-500">
+              Showing latest {recentContent.length} of {formatNumber(totalContent)} contents
+            </p>
+            <button type="button" onClick={() => navigate('/posts')} className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#E8194E] hover:underline">
+              View All Stream <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </Panel>
       </div>
 
       <LoginAlertPanel />

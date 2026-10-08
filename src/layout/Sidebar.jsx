@@ -2,31 +2,32 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  LayoutDashboard,
-  Users,
-  Image,
+  LayoutGrid,
+  Sparkles,
+  Zap,
   Megaphone,
-  Briefcase,
-  Wallet,
+  AtSign,
+  Star,
+  Users,
+  Store,
+  Archive,
+  ChartColumn,
+  Lock,
+  ReceiptText,
+  HelpCircle,
+  MessagesSquare,
+  NotebookPen,
+  Gift,
+  Ticket,
+  Bug,
+  Flag,
+  Scale,
+  Bell,
   Settings,
   Menu,
   X,
-  Bell,
-  TrendingUp,
-  PackageCheck,
-  MessagesSquare,
-  Film,
-  Sparkles,
   LogOut,
   LifeBuoy,
-  Inbox,
-  MessageSquare,
-  HelpCircle,
-  Scale,
-  Gift,
-  Bug,
-  Flag,
-  Receipt,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import logoIcon from '../assets/bsmart_logo.png';
@@ -35,43 +36,43 @@ const navGroups = [
   {
     label: 'Overview',
     items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
     ],
   },
   {
     label: 'Content',
     items: [
-      { path: '/posts', label: 'Moments', icon: Image },
-      { path: '/reels', label: 'bSparks', icon: Film },
-      { path: '/tweets', label: 'Buzz', icon: MessagesSquare },
-      { path: '/promote', label: 'Campaigns', icon: Sparkles },
-      { path: '/ads', label: 'Spotlights', icon: Megaphone },
+      { path: '/posts', label: 'Moments', icon: Sparkles },
+      { path: '/reels', label: 'bSparks', icon: Zap },
+      { path: '/tweets', label: 'Buzz', icon: Megaphone },
+      { path: '/promote', label: 'Campaigns', icon: AtSign },
+      { path: '/ads', label: 'Spotlights', icon: Star },
     ],
   },
   {
     label: 'Business',
     items: [
       { path: '/users', label: 'Users', icon: Users },
-      { path: '/vendors', label: 'Vendors', icon: Briefcase },
-      { path: '/vendor-packages', label: 'Packages', icon: PackageCheck },
-      { path: '/sales', label: 'Sales', icon: TrendingUp },
-      { path: '/wallets', label: 'Vault', icon: Wallet },
-      { path: '/transactions', label: 'Transaction History', icon: Receipt },
+      { path: '/vendors', label: 'Vendors', icon: Store },
+      { path: '/vendor-packages', label: 'Packages', icon: Archive },
+      { path: '/sales', label: 'Sales', icon: ChartColumn },
+      { path: '/wallets', label: 'Vault', icon: Lock },
+      { path: '/transactions', label: 'Transaction History', icon: ReceiptText },
     ],
   },
   {
     label: 'Help & Ticket',
     items: [
-      { path: '/inquiries', label: 'Inquiry', icon: Inbox },
-      { path: '/customer-queries', label: 'Customer Queries', icon: MessageSquare },
-      { path: '/faq', label: 'FAQ', icon: HelpCircle },
+      { path: '/inquiries', label: 'Inquiry', icon: HelpCircle },
+      { path: '/customer-queries', label: 'Customer Queries', icon: MessagesSquare },
+      { path: '/faq', label: 'FAQ', icon: NotebookPen },
     ],
   },
   {
     label: 'Promotions',
     items: [
       { path: '/gift-cards', label: 'Gift Cards', icon: Gift },
-      { path: '/gift-card-orders', label: 'Gift Card Orders', icon: Gift },
+      { path: '/gift-card-orders', label: 'Gift Card Orders', icon: Ticket },
     ],
   },
   {
@@ -126,19 +127,19 @@ const Sidebar = () => {
         className={clsx(
           'fixed left-0 top-0 h-full z-50 flex w-[260px] flex-col',
           'bg-[#15101F] text-white',
-          'border-r border-white/[0.06]',
+          'border-r border-white/[0.04]',
           'transition-transform duration-300 ease-in-out',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Brand */}
-        <div className="h-[68px] flex items-center gap-3 flex-shrink-0 px-5 border-b border-white/[0.06]">
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10 shadow-lg">
+        <div className="flex items-center gap-2.5 flex-shrink-0 px-4 pt-4 pb-3">
+          <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 shadow-[0_4px_14px_-4px_rgba(232,25,78,0.6)]">
             <img src={logoIcon} alt="B-smart" className="w-full h-full object-cover" />
           </div>
           <div className="leading-tight">
-            <p className="font-display text-[17px] font-bold tracking-tight text-white">B-smart</p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">Admin CRM</p>
+            <p className="font-display text-[16px] font-bold tracking-tight text-white">B-smart</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/40">Admin CRM</p>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
@@ -150,13 +151,13 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar-dark">
-          {navGroups.map((group, groupIdx) => (
-            <div key={group.label} className={clsx(groupIdx > 0 && 'mt-5')}>
-              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
+        <nav className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar-dark">
+          {navGroups.map((group) => (
+            <div key={group.label} className="mt-3.5">
+              <p className="px-1 mb-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/35">
                 {group.label}
               </p>
-              <div className="space-y-0.5">
+              <div className="space-y-px">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
@@ -168,20 +169,14 @@ const Sidebar = () => {
                       to={item.path}
                       onClick={() => setMobileOpen(false)}
                       className={clsx(
-                        'relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 group',
+                        'flex items-center gap-2.5 rounded-lg px-3 py-[6px] transition-colors duration-150',
                         isActive
-                          ? 'bg-gradient-brand text-white shadow-[0_10px_24px_-8px_rgba(232,25,78,0.6)]'
-                          : 'text-white/60 hover:text-white hover:bg-white/[0.06]'
+                          ? 'bg-gradient-to-r from-[#E8194E] to-[#833AB4] text-white shadow-[-4px_0_18px_-2px_rgba(232,25,78,0.7)]'
+                          : 'text-white/75 hover:text-white hover:bg-white/[0.06]'
                       )}
                     >
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-white/90" />
-                      )}
-                      <Icon className={clsx(
-                        'w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200',
-                        !isActive && 'group-hover:scale-110'
-                      )} />
-                      <span className="text-[13.5px] font-medium whitespace-nowrap flex-1">
+                      <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+                      <span className={clsx('text-[13px] whitespace-nowrap flex-1', isActive ? 'font-semibold' : 'font-medium')}>
                         {item.label}
                       </span>
                       {isNotif && unreadCount > 0 && (
@@ -202,10 +197,10 @@ const Sidebar = () => {
 
         {/* Support card */}
         <div className="px-3 pb-3 flex-shrink-0">
-          <div className="rounded-2xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/[0.07] p-4">
+          <div className="rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/[0.07] p-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shadow-brand">
-                <LifeBuoy className="w-[18px] h-[18px] text-white" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center shadow-brand">
+                <LifeBuoy className="w-4 h-4 text-white" strokeWidth={1.75} />
               </div>
               <div className="leading-tight">
                 <p className="text-[13px] font-semibold text-white">Need help?</p>
@@ -214,7 +209,7 @@ const Sidebar = () => {
             </div>
             <button
               onClick={() => navigate('/notifications')}
-              className="mt-3 w-full rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-[12.5px] font-semibold py-2 transition-colors"
+              className="mt-3 w-full rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-[12.5px] font-semibold py-1.5 transition-colors"
             >
               Open Support
             </button>
@@ -222,13 +217,13 @@ const Sidebar = () => {
         </div>
 
         {/* Logout */}
-        <div className="px-3 pb-4 flex-shrink-0 border-t border-white/[0.06] pt-3">
+        <div className="px-3 pb-3 flex-shrink-0 border-t border-white/[0.06] pt-2">
           <button
             onClick={() => navigate('/logout')}
-            className="flex items-center w-full gap-3 rounded-xl px-3 py-2.5 text-white/55 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
+            className="flex items-center w-full gap-2.5 rounded-lg px-3 py-[6px] text-white/75 hover:text-white hover:bg-white/[0.06] transition-colors duration-150"
           >
-            <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-            <span className="text-[13.5px] font-medium">Sign out</span>
+            <LogOut className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+            <span className="text-[13px] font-medium">Sign out</span>
           </button>
         </div>
       </aside>

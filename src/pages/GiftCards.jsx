@@ -1,445 +1,385 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
 import {
-  Gift, Plus, Search, X, Trash2, CheckCircle2,
-  XCircle, Clock, ChevronLeft, ChevronRight,
-  IndianRupee, MoreVertical, Pencil,
-  Building2, Package, Loader2, RefreshCw,
+  BadgeCheck, CheckCircle2, Coins, Download, Eye, Gift, Hourglass, LayoutGrid, List, MoreVertical, Pause, PenLine, Play, Plus,
+  Receipt, ScrollText, Timer, Trash2, Wallet,
 } from 'lucide-react';
-import { fetchGiftCards, deleteGiftCard, clearDeleteStatus } from '../store/giftCardsSlice.js';
-import RowActionMenu from '../components/RowActionMenu.jsx';
+import { Chip, Delta, GradientButton, OutlineButton, Pager, RefreshButton, SearchInput, Select, StatCard, inr } from '../components/MarketplaceKit.jsx';
+import { clearDeleteStatus, deleteGiftCard, fetchGiftCards, updateGiftCard } from '../store/giftCardsSlice.js';
+import { fetchGiftCardOrders } from '../store/giftCardOrdersSlice.js';
+import { formatNumber } from '../utils/helpers.jsx';
+import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
-const PAGE_SIZE = 9; // 3-column grid
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-const STATUS_MAP = {
-  active:   { label: 'Active',   cls: 'bg-emerald-50 text-emerald-600 border-emerald-100', dot: 'bg-emerald-400', icon: CheckCircle2 },
-  inactive: { label: 'Inactive', cls: 'bg-neutral-50 text-neutral-500 border-neutral-200', dot: 'bg-neutral-300', icon: Clock },
-  draft:    { label: 'Draft',    cls: 'bg-amber-50 text-amber-600 border-amber-100',       dot: 'bg-amber-400',   icon: Clock },
-  expired:  { label: 'Expired',  cls: 'bg-red-50 text-red-500 border-red-100',             dot: 'bg-red-400',     icon: XCircle },
+const HOUR = 3600 * 1000;
+const STATUS = {
+  active: { label: 'Active', cls: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
+  draft: { label: 'Draft', cls: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+  inactive: { label: 'Inactive', cls: 'bg-[#E9EBFA] text-neutral-600', dot: 'bg-neutral-400' },
 };
-
-function StatusBadge({ status }) {
-  const cfg = STATUS_MAP[status] ?? STATUS_MAP.inactive;
-  const Icon = cfg.icon;
-  return (
-    <span className={clsx('inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border', cfg.cls)}>
-      <Icon className="w-3 h-3" /> {cfg.label}
-    </span>
-  );
-}
-
-// Gradient backgrounds for cards without media
-const CARD_GRADIENTS = [
-  'from-violet-500 to-purple-700',
-  'from-rose-500 to-pink-700',
-  'from-amber-400 to-orange-600',
-  'from-sky-500 to-blue-700',
-  'from-emerald-400 to-teal-600',
-  'from-indigo-500 to-blue-700',
+const THEMES = [
+  'from-[#C9952B] via-[#E8B64C] to-[#8A5A12]',
+  'from-[#E8194E] via-[#B0278F] to-[#6B2BB5]',
+  'from-[#1F2340] via-[#2B3263] to-[#0F1226]',
+  'from-[#0E7C66] via-[#18A383] to-[#075544]',
+  'from-[#3A47D5] via-[#5B6CF0] to-[#1E2A8C]',
+  'from-[#C2410C] via-[#EA6A2A] to-[#7C2D12]',
+];
+const VALUE_BANDS = [
+  { value: 'all', label: 'All', test: () => true },
+  { value: 'lt1k', label: 'Under ₹1,000', test: (min) => min < 1000 },
+  { value: '1k-5k', label: '₹1,000 – ₹5,000', test: (min, max) => max >= 1000 && min <= 5000 },
+  { value: 'gt5k', label: 'Above ₹5,000', test: (min, max) => max > 5000 },
+];
+const SORTS = [
+  { value: 'revenue', label: 'Highest revenue' },
+  { value: 'sold', label: 'Most sold' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'az', label: 'Title A–Z' },
 ];
 
-// ── Gift Card tile ─────────────────────────────────────────────────────────
+const idOf = (ref) => (ref && typeof ref === 'object' ? String(ref._id || ref.id || '') : ref ? String(ref) : '');
+const cardId = (c) => String(c._id || c.id);
+const shortRef = (id) => `GC-${String(id).slice(-6).toUpperCase()}`;
+const hashIdx = (s) => [...String(s)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % THEMES.length;
+const monthStart = (offset = 0) => { const d = new Date(); d.setMonth(d.getMonth() + offset, 1); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const duration = (ms) => (!Number.isFinite(ms) ? '—' : ms < HOUR ? `${Math.round(ms / 60000)} min` : ms < DAY_MS ? `${(ms / HOUR).toFixed(1)} hrs` : `${(ms / DAY_MS).toFixed(1)} days`);
 
-function GiftCardTile({ card, idx, onEdit, onDelete, onView }) {
-  const gradient = CARD_GRADIENTS[idx % CARD_GRADIENTS.length];
-  const id = card.id ?? card._id;
-  const status = card.card_status ?? card.status ?? 'inactive';
-
+const CardFace = ({ card, theme, min, count, compact }) => {
+  const [failed, setFailed] = useState(false);
+  const img = card.media?.type !== 'video' && card.media?.url ? toAbsoluteMediaUrl(card.media.url) : '';
   return (
-    <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow group">
-      {/* Media / gradient header */}
-      <div 
-        className={clsx('relative h-32 w-full overflow-hidden bg-gradient-to-br cursor-pointer', gradient)}
-        onClick={() => onView(id)}
-      >
-        {card.media?.url ? (
-          <img src={card.media.url} alt={card.title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Gift className="w-12 h-12 text-white/30" />
-          </div>
-        )}
-        {/* Status badge overlay */}
-        <div className="absolute top-2.5 left-2.5">
-          <StatusBadge status={status} />
+    <div className={clsx('relative overflow-hidden rounded-2xl bg-gradient-to-br text-white shadow-[0_14px_30px_-16px_rgba(31,35,64,0.6)] transition-transform duration-300 group-hover:-rotate-1 group-hover:scale-[1.02]', theme, compact ? 'aspect-[1.6/1]' : 'h-[150px] w-full sm:w-[250px]')}>
+      {img && !failed && <img src={img} alt="" onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />}
+      <div className={clsx('absolute inset-0', img && !failed ? 'bg-gradient-to-t from-black/75 via-black/25 to-black/40' : 'bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.28),transparent_45%)]')} />
+      <div className="relative flex h-full flex-col justify-between p-4">
+        <div className="flex items-start justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-extrabold"><Gift className="h-4 w-4 flex-shrink-0" /><span className="truncate">{card.vendor || 'B-smart'}</span></span>
+          {(card.category || card.type) && <span className="max-w-[110px] truncate rounded-md bg-white/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm">{card.category || card.type}</span>}
         </div>
-        {/* Action menu */}
-        <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
-          <RowActionMenu
-            triggerIcon={MoreVertical}
-            triggerClassName="w-7 h-7 flex items-center justify-center !p-0 rounded-lg !bg-black/30 hover:!bg-black/50 !text-white hover:!text-white transition backdrop-blur-sm border border-white/10 [&_svg]:h-3.5 [&_svg]:w-3.5"
-            actions={[
-              { label: 'View', icon: Gift, onClick: () => onView(id) },
-              { label: 'Edit', icon: Pencil, onClick: () => onEdit(id) },
-              { divider: true },
-              { label: 'Delete', icon: Trash2, tone: 'rose', onClick: () => onDelete(id) },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div className="p-4 space-y-3">
-        {/* Title + vendor */}
         <div>
-          <h3 
-            className="text-[14px] font-bold text-neutral-900 leading-tight line-clamp-1 cursor-pointer hover:text-primary transition-colors"
-            onClick={() => onView(id)}
-          >
-            {card.title || 'Untitled'}
-          </h3>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {card.vendor && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-neutral-500">
-                <Building2 className="w-3 h-3" /> {card.vendor}
-              </span>
-            )}
-            {card.category && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                <Package className="w-2.5 h-2.5" /> {card.category}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Description */}
-        {card.description && (
-          <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">{card.description}</p>
-        )}
-
-        {/* Denominations */}
-        {card.denominations?.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Denominations</p>
-            <div className="flex flex-wrap gap-1.5">
-              {card.denominations.slice(0, 4).map((d, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  {d.bcoins > 0 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-100 text-[10px] font-bold text-amber-700">
-                      🪙 {Number(d.bcoins).toLocaleString()}
-                    </span>
-                  )}
-                  {d.amount > 0 && (
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[10px] font-bold text-emerald-700">
-                      <IndianRupee className="w-2.5 h-2.5" />{Number(d.amount).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {card.denominations.length > 4 && (
-                <span className="text-[10px] text-neutral-400 font-semibold self-center">+{card.denominations.length - 4} more</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Footer: edit button */}
-        <div className="pt-1 flex items-center justify-between">
-          <button
-            onClick={() => onEdit(id)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-[12px] font-semibold text-neutral-600 hover:bg-neutral-50 hover:border-primary hover:text-primary transition"
-          >
-            <Pencil className="w-3 h-3" /> Edit
-          </button>
-          <button
-            onClick={() => onDelete(id)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg border border-neutral-200 text-neutral-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/75">{count > 1 ? 'From' : 'Denomination'}</p>
+          <p className="font-display text-[22px] font-extrabold leading-tight">{inr(min)}{count > 1 && <span className="ml-1.5 text-[11px] font-semibold text-white/80">+{count - 1} more</span>}</p>
         </div>
       </div>
     </div>
   );
-}
+};
 
-// ── Delete confirm modal ────────────────────────────────────────────────────
-
-function DeleteModal({ card, onConfirm, onCancel, loading }) {
+const RowMenu = ({ card, onView, onToggle, onDelete }) => {
+  const [open, setOpen] = useState(false);
+  const item = 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50';
+  const act = (fn) => () => { setOpen(false); fn(); };
+  const active = card.card_status === 'active';
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 w-full max-w-sm p-6">
-        <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center mb-4">
-          <Trash2 className="w-5 h-5 text-red-500" />
-        </div>
-        <h2 className="text-[16px] font-bold text-neutral-900">Delete Gift Card?</h2>
-        <p className="text-[13px] text-neutral-500 mt-1.5 leading-relaxed">
-          <strong className="text-neutral-800">{card?.title || 'This gift card'}</strong> will be permanently removed.
-          This action cannot be undone.
-        </p>
-        <div className="flex gap-3 mt-5">
-          <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl border border-neutral-200 text-[13px] font-semibold text-neutral-600 hover:bg-neutral-50 transition disabled:opacity-50">
-            Cancel
-          </button>
-          <button onClick={onConfirm} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-red-500 text-[13px] font-semibold text-white hover:bg-red-600 transition flex items-center justify-center gap-2 disabled:opacity-50">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete
-          </button>
-        </div>
-      </div>
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-label="More actions" className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-[#EEF0FA] hover:text-neutral-900"><MoreVertical className="h-4 w-4" /></button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-10 z-20 w-48 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+            <button type="button" onClick={act(onView)} className={item}><Eye className="h-3.5 w-3.5 text-neutral-400" /> View details</button>
+            <button type="button" onClick={act(onToggle)} className={item}>{active ? <Pause className="h-3.5 w-3.5 text-neutral-400" /> : <Play className="h-3.5 w-3.5 text-neutral-400" />}{active ? 'Deactivate' : 'Activate'}</button>
+            <button type="button" onClick={act(onDelete)} className={clsx(item, 'text-red-600 hover:bg-red-50')}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+          </div>
+        </>
+      )}
     </div>
   );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────
+};
 
 export default function GiftCards() {
-  const navigate  = useNavigate();
-  const dispatch  = useDispatch();
-
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { list, listStatus, listError, deleteStatus } = useSelector((s) => s.giftCards);
+  const orders = useSelector((s) => s.giftCardOrders?.list || []);
+  const ordersStatus = useSelector((s) => s.giftCardOrders?.listStatus);
 
-  const [search,       setSearch]       = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [page,         setPage]         = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, title }
+  const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [band, setBand] = useState('all');
+  const [sort, setSort] = useState('revenue');
+  const [view, setView] = useState('list');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  // Fetch on mount
+  const load = () => { dispatch(fetchGiftCards()); dispatch(fetchGiftCardOrders()); };
+  useEffect(() => { dispatch(fetchGiftCards()); dispatch(fetchGiftCardOrders()); }, [dispatch]);
   useEffect(() => {
-    dispatch(fetchGiftCards());
-  }, [dispatch]);
-
-  // After successful delete, close modal
-  useEffect(() => {
-    if (deleteStatus === 'succeeded') {
-      setDeleteTarget(null);
-      dispatch(clearDeleteStatus());
-    }
+    if (deleteStatus === 'succeeded') { setDeleteTarget(null); dispatch(clearDeleteStatus()); showToast('Gift card deleted'); }
+    if (deleteStatus === 'failed') { setDeleteTarget(null); dispatch(clearDeleteStatus()); showToast('Delete failed', 'error'); }
   }, [deleteStatus, dispatch]);
+  const showToast = (message, tone = 'success') => { setToast({ message, tone }); setTimeout(() => setToast(null), 2600); };
 
-  // Stats
-  const total    = list.length;
-  const active   = list.filter((c) => (c.card_status ?? c.status) === 'active').length;
-  const draft    = list.filter((c) => (c.card_status ?? c.status) === 'draft').length;
-  const inactive = list.filter((c) => (c.card_status ?? c.status) === 'inactive').length;
-
-  // Filtered list
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return list.filter((c) => {
-      const matchQ = !q ||
-        (c.title ?? '').toLowerCase().includes(q) ||
-        (c.vendor ?? '').toLowerCase().includes(q) ||
-        (c.description ?? '').toLowerCase().includes(q);
-      const st = c.card_status ?? c.status ?? '';
-      const matchS = filterStatus === 'all' || st === filterStatus;
-      return matchQ && matchS;
+  // Per-card sales from orders (cancelled orders were refunded, so they don't count).
+  const sales = useMemo(() => {
+    const map = new Map();
+    orders.forEach((o) => {
+      const key = idOf(o.gift_card_id);
+      const e = map.get(key) || { sold: 0, value: 0, bcoins: 0, completed: 0, cancelled: 0, pending: 0, total: 0 };
+      e.total += 1;
+      if (o.status === 'cancelled') e.cancelled += 1;
+      else {
+        e.sold += 1;
+        e.value += Number(o.amount) || 0;
+        e.bcoins += Number(o.bcoins) || 0;
+        if (o.status === 'completed') e.completed += 1; else e.pending += 1;
+      }
+      map.set(key, e);
     });
-  }, [list, search, filterStatus]);
+    return map;
+  }, [orders]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const rows = useMemo(() => list.map((c) => {
+    const id = cardId(c);
+    const denoms = (c.denominations || []).map((d) => ({ amount: Number(d.amount) || 0, bcoins: Number(d.bcoins) || 0 })).sort((a, b) => a.amount - b.amount);
+    const amounts = denoms.map((d) => d.amount);
+    const s = sales.get(id) || { sold: 0, value: 0, bcoins: 0, completed: 0, cancelled: 0, pending: 0, total: 0 };
+    return {
+      ...c,
+      id,
+      status: STATUS[c.card_status] ? c.card_status : 'draft',
+      denoms,
+      min: amounts.length ? Math.min(...amounts) : 0,
+      max: amounts.length ? Math.max(...amounts) : 0,
+      theme: THEMES[hashIdx(id)],
+      ...s,
+      fulfilRate: s.completed + s.cancelled ? (s.completed / (s.completed + s.cancelled)) * 100 : null,
+    };
+  }), [list, sales]);
 
-  const handleView   = (id) => navigate(`/gift-cards/${id}`);
-  const handleEdit   = (id) => navigate(`/gift-cards/${id}/edit`);
-  const handleDelete = (id) => {
-    const card = list.find((c) => (c.id ?? c._id) === id);
-    setDeleteTarget({ id, title: card?.title });
+  const stats = useMemo(() => {
+    const live = orders.filter((o) => o.status !== 'cancelled');
+    const thisM = monthStart(0);
+    const lastM = monthStart(-1);
+    const t = (o) => new Date(o.createdAt).getTime();
+    const monthValue = live.filter((o) => t(o) >= thisM).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+    const prevValue = live.filter((o) => t(o) >= lastM && t(o) < thisM).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+    const open = orders.filter((o) => o.status === 'pending' || o.status === 'processing');
+    const done = orders.filter((o) => o.status === 'completed');
+    const times = done.map((o) => new Date(o.updatedAt).getTime() - t(o)).filter((ms) => Number.isFinite(ms) && ms >= 0);
+    const closed = done.length + orders.filter((o) => o.status === 'cancelled').length;
+    return {
+      active: rows.filter((r) => r.status === 'active').length,
+      newThisMonth: rows.filter((r) => new Date(r.createdAt).getTime() >= thisM).length,
+      soldValue: live.reduce((s, o) => s + (Number(o.amount) || 0), 0),
+      soldCount: live.length,
+      bcoins: live.reduce((s, o) => s + (Number(o.bcoins) || 0), 0),
+      mom: prevValue ? ((monthValue - prevValue) / prevValue) * 100 : null,
+      openValue: open.reduce((s, o) => s + (Number(o.amount) || 0), 0),
+      openCount: open.length,
+      openOld: open.filter((o) => Date.now() - t(o) > DAY_MS).length,
+      avgFulfil: times.length ? times.reduce((a, b) => a + b, 0) / times.length : null,
+      fulfilRate: closed ? (done.length / closed) * 100 : null,
+    };
+  }, [orders, rows]);
+
+  const categories = useMemo(() => {
+    const counts = new Map();
+    rows.forEach((r) => { if (r.category) counts.set(r.category, (counts.get(r.category) || 0) + 1); });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows]);
+
+  const tabs = [
+    { key: 'all', label: 'All Vouchers', test: () => true },
+    ...categories.slice(0, 4).map(([name, count]) => ({ key: `cat:${name}`, label: name, count, test: (r) => r.category === name })),
+    { key: 'unpublished', label: 'Draft & Inactive', test: (r) => r.status !== 'active' },
+  ].map((t) => ({ ...t, count: rows.filter(t.test).length }));
+
+  const filtered = (() => {
+    const q = search.trim().toLowerCase();
+    const test = tabs.find((t) => t.key === tab)?.test || (() => true);
+    const bandTest = VALUE_BANDS.find((b) => b.value === band)?.test || (() => true);
+    const list2 = rows.filter((r) => test(r)
+      && (category === 'all' || r.category === category)
+      && (statusFilter === 'all' || r.status === statusFilter)
+      && (!r.denoms.length || bandTest(r.min, r.max))
+      && (!q || [r.title, r.vendor, r.description, r.category, r.type, shortRef(r.id)].some((v) => String(v || '').toLowerCase().includes(q))));
+    const sorters = {
+      revenue: (a, b) => b.value - a.value || b.sold - a.sold,
+      sold: (a, b) => b.sold - a.sold,
+      newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+      az: (a, b) => String(a.title).localeCompare(String(b.title)),
+    };
+    return list2.sort(sorters[sort]);
+  })();
+
+  useEffect(() => { setPage(1); }, [tab, search, category, statusFilter, band, sort]);
+  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const toggleStatus = async (r) => {
+    const next = r.status === 'active' ? 'inactive' : 'active';
+    try { await dispatch(updateGiftCard({ id: r.id, card_status: next })).unwrap(); showToast(next === 'active' ? 'Gift card is live in the app' : 'Gift card hidden from the app'); }
+    catch (msg) { showToast(msg || 'Update failed', 'error'); }
   };
-  const confirmDelete = () => dispatch(deleteGiftCard(deleteTarget.id));
 
-  const isLoading = listStatus === 'idle' || listStatus === 'loading';
+  const exportCsv = () => downloadCsv(`gift-cards-${new Date().toISOString().slice(0, 10)}.csv`, [
+    ['Reference', 'ID', 'Title', 'Vendor', 'Category', 'Type', 'Status', 'Denominations (INR / Bcoins)', 'Orders sold', 'Face value sold (INR)', 'Bcoins spent', 'Completed', 'Cancelled', 'Created'],
+    ...filtered.map((r) => [shortRef(r.id), r.id, r.title, r.vendor, r.category, r.type, STATUS[r.status].label, r.denoms.map((d) => `${d.amount}/${d.bcoins}`).join(' | '), r.sold, r.value, r.bcoins, r.completed, r.cancelled, r.createdAt]),
+  ]);
+
+  const isLoading = (listStatus === 'idle' || listStatus === 'loading') && !list.length;
 
   return (
     <>
-      {deleteTarget && (
-        <DeleteModal
-          card={deleteTarget}
-          onConfirm={confirmDelete}
-          onCancel={() => setDeleteTarget(null)}
-          loading={deleteStatus === 'loading'}
-        />
-      )}
-
-      <div className="space-y-6">
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Promotions</p>
-            <h1 className="text-xl font-bold text-neutral-900 mt-1">Gift Cards</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Create and manage gift card products</p>
+      <div className="space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-widest">
+              <span className="text-[#E8194E]">Promotions</span><span className="text-neutral-300">·</span><span className="text-neutral-500">Digital Vouchers & Store Credit</span>
+              {stats.active > 0 && <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9.5px] text-emerald-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />{stats.active} live in app</span>}
+            </p>
+            <h1 className="mt-1 font-display text-[24px] font-bold tracking-tight text-neutral-900">Gift Cards Catalog & Inventory</h1>
+            <p className="mt-0.5 max-w-2xl text-[13px] text-neutral-500">Voucher designs members can buy with Bcoins: denominations, vendors, terms and live status.</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => dispatch(fetchGiftCards())}
-              disabled={isLoading}
-              className="p-2.5 rounded-xl border border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 transition"
-              title="Refresh"
-            >
-              <RefreshCw className={clsx('w-4 h-4', isLoading && 'animate-spin')} />
-            </button>
-            <button
-              onClick={() => navigate('/gift-cards/create')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-brand text-white text-[13px] font-semibold shadow-soft hover:opacity-90 transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">New Gift Card</span>
-            </button>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2.5">
+            <OutlineButton icon={Download} onClick={exportCsv} disabled={!filtered.length}>Export Vouchers (CSV)</OutlineButton>
+            <GradientButton icon={Plus} onClick={() => navigate('/gift-cards/create')} className="!bg-gradient-to-r !from-[#E8194E] !to-[#8E35B5]">Create Gift Card</GradientButton>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Total',    value: total,    dot: 'bg-primary',      bg: 'bg-primary/5' },
-            { label: 'Active',   value: active,   dot: 'bg-emerald-400',  bg: 'bg-emerald-50' },
-            { label: 'Draft',    value: draft,    dot: 'bg-amber-400',    bg: 'bg-amber-50' },
-            { label: 'Inactive', value: inactive, dot: 'bg-neutral-300',  bg: 'bg-neutral-50' },
-          ].map(({ label, value, dot, bg }) => (
-            <div key={label} className={clsx('rounded-xl border border-neutral-200 px-4 py-3.5 flex items-center gap-3', bg)}>
-              <div className={clsx('w-2.5 h-2.5 rounded-full flex-shrink-0', dot)} />
-              <div>
-                <p className="text-[20px] font-bold text-neutral-900 leading-none">{isLoading ? '—' : value}</p>
-                <p className="text-[11px] text-neutral-400 mt-0.5">{label}</p>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total Gift Cards Active" value={`${formatNumber(stats.active)}`} icon={BadgeCheck} tone="pink" foot={<><Chip tone="lavender">{formatNumber(rows.length)} in catalog</Chip>{stats.newThisMonth > 0 ? `+${stats.newThisMonth} this month` : 'none added this month'}</>} />
+          <StatCard label="Total Sold Volume" value={inr(stats.soldValue)} icon={Receipt} tone="purple" foot={<>{stats.mom !== null && <Delta value={stats.mom} suffix=" MoM" />}{formatNumber(stats.soldCount)} vouchers · {formatNumber(stats.bcoins)} Bcoins</>} />
+          <StatCard label="Awaiting Fulfilment" value={inr(stats.openValue)} icon={Hourglass} tone="rose" valueClass={stats.openOld ? 'text-[#E8194E]' : undefined} foot={<>{stats.openOld > 0 ? <Chip tone="rose">{stats.openOld} over 24h</Chip> : <Chip tone="emerald">On time</Chip>}{formatNumber(stats.openCount)} paid orders, voucher not sent</>} />
+          <StatCard label="Avg Fulfilment Time" value={stats.avgFulfil === null ? '—' : duration(stats.avgFulfil)} icon={Timer} tone="indigo" foot={stats.fulfilRate !== null ? <><Chip tone="emerald">{stats.fulfilRate.toFixed(1)}%</Chip>delivered vs cancelled</> : 'No completed orders yet'} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {tabs.map((t) => (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)} className={clsx('rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition', tab === t.key ? 'bg-gradient-to-r from-[#E8194E] to-[#8E35B5] text-white shadow-[0_6px_14px_-8px_rgba(232,25,78,0.7)]' : 'bg-white text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-50')}>{t.label} ({formatNumber(t.count)})</button>
           ))}
         </div>
 
-        {/* Search + filter */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by title, vendor or description…"
-              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-neutral-200 bg-white text-[13px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-neutral-400 hover:text-neutral-700">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-xl px-1.5 py-1.5 flex-shrink-0 flex-wrap">
-            {['all', 'active', 'draft', 'inactive'].map((s) => (
-              <button
-                key={s}
-                onClick={() => { setFilterStatus(s); setPage(1); }}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-[12px] font-semibold capitalize transition-all',
-                  filterStatus === s ? 'bg-gradient-brand text-white shadow-soft' : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100'
-                )}
-              >
-                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search title, vendor, category or GC-ID…" />
+          <Select prefix="Category" value={category} onChange={setCategory} options={[{ value: 'all', label: 'All' }, ...categories.map(([c]) => ({ value: c, label: c }))]} />
+          <Select prefix="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All' }, ...Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label }))]} />
+          <Select prefix="Denomination" value={band} onChange={setBand} options={VALUE_BANDS} />
+          <Select prefix="Sort" value={sort} onChange={setSort} options={SORTS} />
+          <div className="flex rounded-lg border border-[#E2E5F4] bg-[#EEF0FA] p-0.5">
+            {[['list', List], ['grid', LayoutGrid]].map(([v, Icon]) => (
+              <button key={v} type="button" onClick={() => setView(v)} aria-label={`${v} view`} className={clsx('flex h-8 w-8 items-center justify-center rounded-md transition', view === v ? 'bg-white text-[#C81345] shadow-sm' : 'text-neutral-500 hover:text-neutral-800')}><Icon className="h-4 w-4" /></button>
             ))}
           </div>
+          <RefreshButton onClick={load} spinning={listStatus === 'loading' || ordersStatus === 'loading'} />
         </div>
 
-        {/* Loading skeleton */}
-        {isLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden animate-pulse">
-                <div className="h-32 bg-neutral-100" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-neutral-100 rounded-lg w-3/4" />
-                  <div className="h-3 bg-neutral-100 rounded-lg w-1/2" />
-                  <div className="h-3 bg-neutral-100 rounded-lg w-full" />
-                  <div className="h-3 bg-neutral-100 rounded-lg w-2/3" />
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-neutral-200/70 bg-white py-16"><div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" /><p className="mt-3 text-sm text-neutral-400">Loading gift cards…</p></div>
+        ) : !visible.length ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-neutral-200/70 bg-white py-16">
+            <Gift className="h-8 w-8 text-neutral-200" />
+            <p className="text-sm font-medium text-neutral-500">{listError ? `Error: ${listError}` : rows.length ? 'No gift cards match these filters' : 'No gift cards yet'}</p>
+            <button type="button" onClick={() => navigate('/gift-cards/create')} className="mt-1 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-[#C81345] hover:underline"><Plus className="h-3.5 w-3.5" /> Create a gift card</button>
+          </div>
+        ) : view === 'grid' ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visible.map((r) => {
+              const st = STATUS[r.status];
+              return (
+                <div key={r.id} className="group rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition hover:-translate-y-1 hover:border-pink-200 hover:shadow-[0_14px_30px_-16px_rgba(232,25,78,0.45)]">
+                  <button type="button" onClick={() => navigate(`/gift-cards/${r.id}`)} className="block w-full text-left"><CardFace card={r} theme={r.theme} min={r.min} count={r.denoms.length} compact /></button>
+                  <div className="mt-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-bold text-neutral-900 group-hover:text-[#C81345]">{r.title || 'Untitled'}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px]"><span className={clsx('inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold', st.cls)}><span className={clsx('h-1.5 w-1.5 rounded-full', st.dot)} />{st.label}</span><span className="text-neutral-500">{formatNumber(r.sold)} sold · {inr(r.value)}</span></p>
+                    </div>
+                    <RowMenu card={r} onView={() => navigate(`/gift-cards/${r.id}`)} onToggle={() => toggleStatus(r)} onDelete={() => setDeleteTarget(r)} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visible.map((r) => {
+              const st = STATUS[r.status];
+              const terms = (r.terms_and_conditions || []).filter(Boolean);
+              return (
+                <article key={r.id} className="group grid grid-cols-1 gap-4 rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition hover:border-pink-200 hover:shadow-[0_14px_30px_-18px_rgba(232,25,78,0.45)] lg:grid-cols-[250px_minmax(0,1fr)_150px_170px_130px] lg:items-start">
+                  <button type="button" onClick={() => navigate(`/gift-cards/${r.id}`)} className="block text-left"><CardFace card={r} theme={r.theme} min={r.min} count={r.denoms.length} /></button>
+
+                  <div className="min-w-0">
+                    <button type="button" onClick={() => navigate(`/gift-cards/${r.id}`)} className="text-left"><h3 className="font-display text-[17px] font-bold leading-snug text-neutral-900 transition-colors group-hover:text-[#C81345]">{r.title || 'Untitled'}</h3></button>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold', st.cls)}><span className={clsx('h-1.5 w-1.5 rounded-full', st.dot)} />{st.label}{r.status === 'active' && r.pending > 0 ? ' · In demand' : ''}</span>
+                      {r.category && <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-[10.5px] font-bold text-[#8E35B5]">{r.category}</span>}
+                      {r.type && <span className="rounded-md bg-[#E9EBFA] px-1.5 py-0.5 text-[10.5px] font-bold text-neutral-700">{r.type}</span>}
+                      <span className="font-mono text-[10.5px] text-neutral-400">ID: {shortRef(r.id)}</span>
+                    </div>
+                    <p className="mt-1 text-[11.5px] text-neutral-500">by <b className="font-semibold text-neutral-700">{r.vendor || '—'}</b></p>
+                    {r.denoms.length > 0 && (
+                      <div className="mt-2.5">
+                        <p className="mb-1 text-[9.5px] font-bold uppercase tracking-wide text-neutral-500">Available denominations</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.denoms.slice(0, 5).map((d, i) => (
+                            <span key={i} className={clsx('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold', i === r.denoms.length - 1 && r.denoms.length > 1 ? 'bg-pink-100 text-[#C81345]' : 'bg-[#F1F3FC] text-neutral-800')}>
+                              {inr(d.amount)}<span className="font-medium text-neutral-500">· {formatNumber(d.bcoins)}<Coins className="ml-0.5 inline h-2.5 w-2.5" /></span>
+                            </span>
+                          ))}
+                          {r.denoms.length > 5 && <span className="self-center text-[11px] font-semibold text-neutral-400">+{r.denoms.length - 5}</span>}
+                        </div>
+                      </div>
+                    )}
+                    {r.description && <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-neutral-500">{r.description}</p>}
+                  </div>
+
+                  <div>
+                    <p className="text-[9.5px] font-bold uppercase tracking-wide text-neutral-500">Performance</p>
+                    <p className="mt-1 font-display text-[18px] font-extrabold text-neutral-900">{formatNumber(r.sold)} sold</p>
+                    <p className="text-[11px] text-neutral-500">{inr(r.value)} face value</p>
+                    <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-[#8E35B5]"><Coins className="h-3 w-3" />{formatNumber(r.bcoins)} Bcoins spent</p>
+                    {r.pending > 0 && <p className="mt-1 text-[11px] font-semibold text-amber-600">{r.pending} awaiting voucher</p>}
+                  </div>
+
+                  <div>
+                    <p className="text-[9.5px] font-bold uppercase tracking-wide text-neutral-500">Rules & delivery</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-bold text-neutral-900"><ScrollText className="h-3.5 w-3.5 text-[#E8194E]" />{terms.length ? `${terms.length} term${terms.length === 1 ? '' : 's'}` : 'No terms set'}</p>
+                    {terms[0] && <p className="mt-0.5 line-clamp-2 text-[11px] text-neutral-500">{terms[0]}</p>}
+                    <p className="mt-1.5 text-[11px]">{r.fulfilRate !== null ? <><span className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700">{r.fulfilRate.toFixed(1)}%</span> <span className="text-neutral-500">delivered</span></> : <span className="text-neutral-400">No closed orders yet</span>}</p>
+                  </div>
+
+                  <div className="flex flex-row gap-2 lg:flex-col">
+                    <button type="button" onClick={() => navigate(`/gift-cards/${r.id}/edit`)} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E2E5F4] bg-[#F1F3FC] text-[12.5px] font-semibold text-neutral-800 transition hover:border-pink-200 hover:bg-white lg:flex-none"><PenLine className="h-3.5 w-3.5" /> Edit</button>
+                    <button type="button" onClick={() => navigate(`/gift-card-orders?card=${r.id}`)} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 text-[12.5px] font-semibold text-[#E8194E] transition hover:bg-rose-100 lg:flex-none"><Wallet className="h-3.5 w-3.5" /> Orders ({r.total})</button>
+                    <button type="button" onClick={() => toggleStatus(r)} className={clsx('inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-[12px] font-semibold transition lg:flex-none', r.status === 'active' ? 'text-neutral-500 hover:bg-neutral-100' : 'text-emerald-700 hover:bg-emerald-50')}>{r.status === 'active' ? <><Pause className="h-3.5 w-3.5" />Deactivate</> : <><CheckCircle2 className="h-3.5 w-3.5" />Activate</>}</button>
+                    <button type="button" onClick={() => setDeleteTarget(r)} aria-label="Delete" className="inline-flex h-9 items-center justify-center rounded-lg px-2 text-neutral-400 transition hover:bg-rose-50 hover:text-rose-600 lg:hidden"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
 
-        {/* Error */}
-        {listStatus === 'failed' && (
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-neutral-200">
-            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-3">
-              <Gift className="w-6 h-6 text-red-400" />
-            </div>
-            <p className="text-[14px] font-semibold text-neutral-700">Failed to load gift cards</p>
-            <p className="text-[12px] text-neutral-400 mt-1">{listError}</p>
-            <button
-              onClick={() => dispatch(fetchGiftCards())}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-[13px] font-semibold hover:opacity-90 transition"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Retry
-            </button>
+        {filtered.length > 0 && (
+          <div className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white">
+            <Pager page={page} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize} total={filtered.length} noun="gift cards" />
           </div>
-        )}
-
-        {/* Cards grid */}
-        {!isLoading && listStatus !== 'failed' && (
-          <>
-            {paginated.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-neutral-200">
-                <div className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
-                  <Gift className="w-7 h-7 text-neutral-400" />
-                </div>
-                <p className="text-[15px] font-bold text-neutral-700">
-                  {filtered.length === 0 && list.length > 0 ? 'No matching gift cards' : 'No gift cards yet'}
-                </p>
-                <p className="text-[12px] text-neutral-400 mt-1.5 max-w-xs">
-                  {filtered.length === 0 && list.length > 0
-                    ? 'Try a different search or filter'
-                    : 'Create your first gift card product to get started'}
-                </p>
-                {filtered.length === 0 && list.length > 0 ? (
-                  <button onClick={() => { setSearch(''); setFilterStatus('all'); }} className="mt-4 text-[12px] text-primary font-semibold underline underline-offset-2 hover:opacity-80">
-                    Clear filters
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => navigate('/gift-cards/create')}
-                    className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-brand text-white text-[13px] font-semibold shadow-soft hover:opacity-90 transition"
-                  >
-                    <Plus className="w-4 h-4" /> Create Gift Card
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {paginated.map((card, idx) => (
-                  <GiftCardTile
-                    key={card.id ?? card._id}
-                    card={card}
-                    idx={(page - 1) * PAGE_SIZE + idx}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Pagination */}
-            {filtered.length > PAGE_SIZE && (
-              <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-xl px-5 py-3">
-                <p className="text-[12px] text-neutral-400">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} gift cards
-                </p>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setPage(n)}
-                      className={clsx('w-8 h-8 rounded-lg text-[13px] font-semibold transition', n === page ? 'bg-gradient-brand text-white' : 'text-neutral-500 hover:bg-neutral-100')}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
         )}
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" aria-label="Close" onClick={() => setDeleteTarget(null)} className="absolute inset-0 bg-[#1B1530]/45 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50"><Trash2 className="h-5 w-5 text-rose-500" /></span>
+            <h2 className="mt-4 font-display text-[17px] font-bold text-neutral-900">Delete gift card?</h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-neutral-500"><b className="text-neutral-800">{deleteTarget.title}</b> will be removed from the catalog.{deleteTarget.total > 0 && ` Its ${deleteTarget.total} existing order${deleteTarget.total === 1 ? '' : 's'} keep their own copy of the details.`} To just hide it, deactivate it instead.</p>
+            <div className="mt-5 flex gap-2.5">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="h-10 flex-1 rounded-xl border border-neutral-200 text-[13px] font-semibold text-neutral-700 hover:bg-neutral-50">Cancel</button>
+              <button type="button" onClick={() => dispatch(deleteGiftCard(deleteTarget.id))} disabled={deleteStatus === 'loading'} className="h-10 flex-1 rounded-xl bg-[#C81345] text-[13px] font-bold text-white hover:bg-[#A50F39] disabled:opacity-60">{deleteStatus === 'loading' ? 'Deleting…' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {toast && <div className={clsx('fixed bottom-6 right-6 z-50 rounded-xl border px-4 py-3 text-sm font-semibold shadow-soft', toast.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>{toast.message}</div>}
     </>
   );
 }

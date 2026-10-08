@@ -59,13 +59,13 @@ export const fetchPolicyByType = createAsyncThunk(
 /** POST /api/policies — create a new custom policy type */
 export const createPolicy = createAsyncThunk(
   'policies/create',
-  async ({ type, title, content = '', status = 'draft' }, { getState, rejectWithValue }) => {
+  async ({ type, title, content = '', status = 'draft', app_source = 'both' }, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
     try {
       const res  = await fetch(BASE, {
         method: 'POST',
         headers: authHeader(token),
-        body: JSON.stringify({ type, title, content, status }),
+        body: JSON.stringify({ type, title, content, status, app_source }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || 'Failed to create policy');
@@ -126,13 +126,13 @@ export const fetchPolicyHistory = createAsyncThunk(
   }
 );
 
-/** DELETE /api/policies/:type/meta — permanently remove a policy type */
+/** DELETE /api/policies/:type — permanently remove a policy, its content and history */
 export const deletePolicyMeta = createAsyncThunk(
   'policies/deleteMeta',
   async (type, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
     try {
-      const res  = await fetch(`${BASE}/${type}/meta`, {
+      const res  = await fetch(`${BASE}/${type}`, {
         method: 'DELETE',
         headers: authHeader(token),
       });

@@ -27,16 +27,26 @@ export const fetchBugReports = createAsyncThunk(
       if (params.category && params.category !== 'all') qs.set('category', params.category);
       if (params.priority && params.priority !== 'all') qs.set('priority', params.priority);
       if (params.assigned_to) qs.set('assigned_to', params.assigned_to);
-      qs.set('page', params.page || 1);
-      qs.set('limit', params.limit || 50);
-      const res = await fetch(`${BASE}/admin/all?${qs}`, { headers: authHeader(token) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || 'Failed to load bug reports');
+      // Without an explicit page, walk every page (200 each, max 25) so the list
+      // page can compute stats and filters across all reports.
+      const single = params.page !== undefined;
+      qs.set('limit', params.limit || (single ? 50 : 200));
+      const items = [];
+      let pagination = null;
+      for (let page = params.page || 1; page <= (single ? params.page : 25); page += 1) {
+        qs.set('page', page);
+        const res = await fetch(`${BASE}/admin/all?${qs}`, { headers: authHeader(token) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to load bug reports');
+        items.push(...extractList(json));
+        pagination = json?.pagination || null;
+        if (page >= (pagination?.pages || 1)) break;
+      }
       return {
-        items: extractList(json),
-        total: json?.total ?? json?.data?.total ?? json?.count ?? 0,
-        page: json?.page ?? json?.data?.page ?? params.page ?? 1,
-        totalPages: json?.total_pages ?? json?.totalPages ?? json?.data?.totalPages ?? 1,
+        items,
+        total: pagination?.total ?? items.length,
+        page: single ? params.page : 1,
+        totalPages: single ? (pagination?.pages || 1) : 1,
       };
     } catch (e) { return rejectWithValue(e.message); }
   }

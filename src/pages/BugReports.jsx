@@ -3,366 +3,312 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clsx } from 'clsx';
 import {
-  Bug,
-  RefreshCw,
-  Search,
-  X,
-  Clock,
-  Loader2,
-  CheckCircle2,
-  Ban,
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical,
-  Eye,
-  AlertTriangle,
-  Smartphone,
-  Monitor,
-  Apple,
-  Trash2,
+  AlertOctagon, Bug, CheckCircle2, Download, Eye, Image as ImageIcon, Inbox, Loader2, MoreVertical, ShieldAlert, Smartphone, Timer,
+  Trash2, UserCheck, X,
 } from 'lucide-react';
-import { fetchBugReports, updateBugReport, deleteBugReport } from '../store/bugReportsSlice.js';
-import { formatNumber, formatRelativeTime } from '../utils/helpers.jsx';
-import Button from '../components/Button.jsx';
+import { Chip, Delta, OutlineButton, Pager, RefreshButton, SearchInput, Select, StatCard, StateRow, Th } from '../components/MarketplaceKit.jsx';
 import { ConfirmModal } from '../components/Modal.jsx';
-import RowActionMenu from '../components/RowActionMenu.jsx';
+import { deleteBugReport, fetchBugReports, updateBugReport } from '../store/bugReportsSlice.js';
+import { fetchSalesOfficers } from '../store/salesSlice.js';
+import { formatNumber } from '../utils/helpers.jsx';
+import { prefRows } from '../utils/consolePrefs.js';
+import { DAY_MS, downloadCsv } from '../utils/contentHelpers.js';
+import {
+  BUG_CATEGORY, BUG_SEVERITY, BUG_STATUS, NETWORK_LABEL, OS_LABEL, bugId, bugRef, bugTitle, isOpenBug, platformOf, refOf,
+} from '../utils/bugReportMeta.js';
 
-const STATUS_MAP = {
-  new: { label: 'New', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
-  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: Loader2 },
-  fixed: { label: 'Fixed', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
-  closed: { label: 'Closed', cls: 'bg-neutral-100 text-neutral-500 border-neutral-200', icon: Ban },
-};
+const HOUR = 3600 * 1000;
+const ago = (ms) => (ms < HOUR ? `${Math.max(1, Math.round(ms / 60000))}m ago` : ms < DAY_MS ? `${Math.round(ms / HOUR)}h ago` : `${Math.round(ms / DAY_MS)}d ago`);
+const duration = (ms) => (!Number.isFinite(ms) ? '—' : ms < HOUR ? `${Math.round(ms / 60000)} min` : ms < DAY_MS ? `${(ms / HOUR).toFixed(1)} hrs` : `${(ms / DAY_MS).toFixed(1)} days`);
+const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
-const PRIORITY_MAP = {
-  critical: { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-200' },
-  high: { label: 'High', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  medium: { label: 'Medium', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  low: { label: 'Low', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-};
-
-const CATEGORY_LABELS = {
-  app_crash: 'App Crash',
-  video_not_playing: 'Video Not Playing',
-  login_issue: 'Login Issue',
-  payment_issue: 'Payment Issue',
-  rewards_issue: 'Rewards Issue',
-  upload_issue: 'Upload Issue',
-  ui_problem: 'UI Problem',
-  other: 'Other',
-};
-
-const StatusBadge = ({ status }) => {
-  const cfg = STATUS_MAP[status] || STATUS_MAP.new;
-  const Icon = cfg.icon;
+const RowMenu = ({ row, onView, onStatus, onAssignMe, onDelete }) => {
+  const [open, setOpen] = useState(false);
+  const item = 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50';
+  const act = (fn) => () => { setOpen(false); fn(); };
   return (
-    <span className={clsx('inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border', cfg.cls)}>
-      <Icon className="w-3 h-3" /> {cfg.label}
-    </span>
+    <div className="relative flex justify-center" onClick={(e) => e.stopPropagation()}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-label={`Actions for ${row.ref}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 transition hover:bg-[#EEF0FA]"><MoreVertical className="h-4 w-4" /></button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-20 w-48 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+            <button type="button" onClick={act(onView)} className={item}><Eye className="h-3.5 w-3.5 text-neutral-400" /> Open incident</button>
+            <button type="button" onClick={act(onAssignMe)} className={item}><UserCheck className="h-3.5 w-3.5 text-neutral-400" /> Assign to me</button>
+            {row.status === 'new' && <button type="button" onClick={act(() => onStatus('in_progress'))} className={item}><Loader2 className="h-3.5 w-3.5 text-neutral-400" /> Start investigating</button>}
+            {isOpenBug(row) && <button type="button" onClick={act(() => onStatus('fixed'))} className={clsx(item, 'text-emerald-700')}><CheckCircle2 className="h-3.5 w-3.5" /> Mark fixed</button>}
+            {row.status !== 'closed' && <button type="button" onClick={act(() => onStatus('closed'))} className={item}><X className="h-3.5 w-3.5 text-neutral-400" /> Close</button>}
+            <button type="button" onClick={act(onDelete)} className={clsx(item, 'text-red-600 hover:bg-red-50')}><Trash2 className="h-3.5 w-3.5" /> Delete report</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 };
-
-const PriorityBadge = ({ priority }) => {
-  const cfg = PRIORITY_MAP[priority] || PRIORITY_MAP.low;
-  return (
-    <span className={clsx('inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full border', cfg.cls)}>
-      {cfg.label}
-    </span>
-  );
-};
-
-const OS_ICON = { android: Smartphone, ios: Apple, web: Monitor };
-
-const getReporter = (r) => r.reporter_id || r.user_id || r.user || r.reported_by || r.reporter || {};
-const getReporterName = (r) => {
-  const user = getReporter(r);
-  return user.full_name || user.username || user.email || 'Unknown';
-};
-const getReporterEmail = (r) => getReporter(r).email || '';
-
-const getFirstAttachment = (r) => (Array.isArray(r.attachments) && r.attachments[0]) || null;
 
 const BugReports = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { list = [], listStatus, listError, total, deleteStatus } = useSelector((s) => s.bugReports);
+  const { list = [], listStatus, listError } = useSelector((s) => s.bugReports);
+  const me = useSelector((s) => s.auth.user);
+  const officers = useSelector((s) => s.sales?.officers || []);
+  const officersStatus = useSelector((s) => s.sales?.officersStatus);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [os, setOs] = useState('all');
+  const [severity, setSeverity] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [assignee, setAssignee] = useState('all');
   const [page, setPage] = useState(1);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  const load = () => {
-    dispatch(fetchBugReports({ status: filterStatus, page: 1, limit: 100 }));
-  };
+  const load = () => dispatch(fetchBugReports({}));
+  useEffect(() => { dispatch(fetchBugReports({})); }, [dispatch]);
+  useEffect(() => { if (officersStatus === 'idle') dispatch(fetchSalesOfficers()); }, [officersStatus, dispatch]);
+  const showToast = (message, tone = 'success') => { setToast({ message, tone }); setTimeout(() => setToast(null), 2600); };
+  const myId = String(me?._id || me?.id || '');
 
-  useEffect(() => {
-    dispatch(fetchBugReports({ status: filterStatus, page: 1, limit: 100 }));
-    setPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, filterStatus]);
-
-  const handleQuickStatus = (id, status) => {
-    dispatch(updateBugReport({ id, data: { status } })).then(() => load());
-  };
-
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      const id = deleteTarget._id || deleteTarget.id;
-      dispatch(deleteBugReport(id)).then(() => setDeleteTarget(null));
-    }
-  };
-
-  const filteredReports = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return list;
-    return list.filter((r) => {
-      return (
-        (r.description || '').toLowerCase().includes(query) ||
-        (r.ticket_id || '').toLowerCase().includes(query) ||
-        (CATEGORY_LABELS[r.category] || r.category || '').toLowerCase().includes(query) ||
-        getReporterName(r).toLowerCase().includes(query)
-      );
+  const rows = useMemo(() => {
+    const now = Date.now();
+    const sameCat = new Map();
+    list.forEach((r) => { if (isOpenBug(r)) sameCat.set(r.category, (sameCat.get(r.category) || 0) + 1); });
+    return list.map((r) => {
+      const reporter = r.reporter_id && typeof r.reporter_id === 'object' ? r.reporter_id : {};
+      const assigned = r.assigned_to && typeof r.assigned_to === 'object' ? r.assigned_to : null;
+      const created = new Date(r.createdAt).getTime();
+      return {
+        ...r,
+        id: bugId(r),
+        ref: bugRef(r),
+        title: bugTitle(r),
+        severity: BUG_SEVERITY[r.priority] ? r.priority : 'medium',
+        status: BUG_STATUS[r.status] ? r.status : 'new',
+        reporter: reporter.full_name || reporter.username || 'Unknown user',
+        reporterHandle: reporter.username || '',
+        reporterId: refOf(r.reporter_id),
+        assigneeId: refOf(r.assigned_to),
+        assigneeName: assigned ? assigned.full_name || assigned.email : r.assigned_to ? 'Staff member' : '',
+        platform: platformOf(r),
+        files: Array.isArray(r.attachments) ? r.attachments.length : 0,
+        similar: Math.max(0, (sameCat.get(r.category) || 0) - (isOpenBug(r) ? 1 : 0)),
+        ageMs: Number.isFinite(created) ? now - created : 0,
+        resolveMs: r.resolved_at ? new Date(r.resolved_at).getTime() - created : null,
+      };
     });
-  }, [list, searchTerm]);
+  }, [list]);
 
-  const PAGE_SIZE = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
-  const visibleReports = filteredReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const stats = useMemo(() => {
+    const open = rows.filter(isOpenBug);
+    const resolved = rows.filter((r) => r.resolveMs !== null && r.resolveMs >= 0);
+    const recent = rows.filter((r) => r.ageMs <= 30 * DAY_MS).length;
+    const prior = rows.filter((r) => r.ageMs > 30 * DAY_MS && r.ageMs <= 60 * DAY_MS).length;
+    const fixed30 = rows.filter((r) => r.status === 'fixed' && r.resolved_at && Date.now() - new Date(r.resolved_at).getTime() <= 30 * DAY_MS).length;
+    const crashes = rows.filter((r) => r.category === 'app_crash' && r.ageMs <= 30 * DAY_MS).length;
+    return {
+      open: open.length,
+      critical: open.filter((r) => r.severity === 'critical').length,
+      untriaged: open.filter((r) => r.status === 'new' && !r.assigneeId).length,
+      recent,
+      growth: prior ? ((recent - prior) / prior) * 100 : null,
+      crashes,
+      mttr: resolved.length ? resolved.reduce((s, r) => s + r.resolveMs, 0) / resolved.length : null,
+      fixed30,
+      closedRate: rows.length ? (rows.filter((r) => !isOpenBug(r)).length / rows.length) * 100 : null,
+    };
+  }, [rows]);
 
-  const newCount = list.filter((r) => r.status === 'new').length;
-  const inProgressCount = list.filter((r) => r.status === 'in_progress').length;
-  const fixedCount = list.filter((r) => r.status === 'fixed').length;
+  const cats = useMemo(() => {
+    const counts = new Map();
+    rows.filter(isOpenBug).forEach((r) => counts.set(r.category, (counts.get(r.category) || 0) + 1));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows]);
 
-  const emptyMessage = listError
-    ? `Error: ${listError}`
-    : listStatus === 'loading'
-    ? 'Loading bug reports...'
-    : 'No bug reports found';
+  const tabs = [
+    { key: 'all', label: 'All Bugs', test: () => true },
+    { key: 'p0', label: 'P0 Critical (open)', test: (r) => r.severity === 'critical' && isOpenBug(r), tone: 'rose' },
+    { key: 'untriaged', label: 'Untriaged', test: (r) => r.status === 'new' && !r.assigneeId },
+    ...cats.slice(0, 4).map(([c]) => ({ key: `cat:${c}`, label: BUG_CATEGORY[c] || c, test: (r) => r.category === c })),
+  ].map((t) => ({ ...t, count: rows.filter(t.test).length }));
+
+  const assigneeOptions = useMemo(() => {
+    const map = new Map();
+    if (myId) map.set(myId, 'Me');
+    officers.forEach((o) => map.set(String(o._id || o.id), o.full_name || o.username || 'Officer'));
+    rows.forEach((r) => { if (r.assigneeId && !map.has(r.assigneeId)) map.set(r.assigneeId, r.assigneeName); });
+    return [{ value: 'all', label: 'All' }, { value: 'none', label: 'Unassigned' }, ...[...map.entries()].map(([value, label]) => ({ value, label }))];
+  }, [officers, rows, myId]);
+
+  const filtered = (() => {
+    const q = search.trim().toLowerCase().replace(/^#/, '');
+    const test = tabs.find((t) => t.key === tab)?.test || (() => true);
+    return rows.filter((r) => test(r)
+      && (statusFilter === 'all' || (statusFilter === 'open' ? isOpenBug(r) : r.status === statusFilter))
+      && (os === 'all' || (r.os_type || '') === os)
+      && (severity === 'all' || r.severity === severity)
+      && (assignee === 'all' || (assignee === 'none' ? !r.assigneeId : r.assigneeId === assignee))
+      && (!q || [r.ref, r.id, r.description, r.reporter, r.reporterHandle, r.app_version, r.device_model, BUG_CATEGORY[r.category]].some((v) => String(v || '').toLowerCase().includes(q))))
+      .sort((a, b) => Number(isOpenBug(b)) - Number(isOpenBug(a)) || BUG_SEVERITY[a.severity].rank - BUG_SEVERITY[b.severity].rank || new Date(b.createdAt) - new Date(a.createdAt));
+  })();
+
+  useEffect(() => { setPage(1); }, [tab, search, os, severity, statusFilter, assignee]);
+  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.id));
+
+  const runEach = async (ids, data, verb) => {
+    setBusy(true);
+    let ok = 0;
+    for (const id of ids) { try { await dispatch(updateBugReport({ id, data })).unwrap(); ok += 1; } catch { /* counted below */ } }
+    setBusy(false);
+    setSelected(new Set());
+    showToast(ok === ids.length ? `${ok} report${ok === 1 ? '' : 's'} ${verb}` : `${ok} of ${ids.length} ${verb}`, ok === ids.length ? 'success' : 'error');
+  };
+
+  const runDelete = async () => {
+    const ids = confirm?.ids || [];
+    setConfirm(null);
+    let ok = 0;
+    for (const id of ids) { try { await dispatch(deleteBugReport(id)).unwrap(); ok += 1; } catch { /* counted below */ } }
+    setSelected(new Set());
+    showToast(`${ok} report${ok === 1 ? '' : 's'} deleted`, ok === ids.length ? 'success' : 'error');
+  };
+
+  const exportCsv = () => downloadCsv(`bug-log-${new Date().toISOString().slice(0, 10)}.csv`, [
+    ['Ticket', 'ID', 'Created', 'Severity', 'Status', 'Category', 'Description', 'Reporter', 'Platform', 'App version', 'Device', 'Network', 'Attachments', 'Assigned to', 'Resolved at', 'Admin note'],
+    ...(selected.size ? rows.filter((r) => selected.has(r.id)) : filtered).map((r) => [r.ref, r.id, r.createdAt, BUG_SEVERITY[r.severity].label, BUG_STATUS[r.status].label, BUG_CATEGORY[r.category] || r.category, r.description, r.reporter, r.platform, r.app_version, r.device_model, NETWORK_LABEL[r.network_type] || '', r.files, r.assigneeName, r.resolved_at || '', r.admin_note || '']),
+  ]);
 
   return (
     <>
       <div className="space-y-5">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Reports</p>
-            <h1 className="text-xl font-bold text-neutral-900 mt-1">Bug Reports</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Review and triage bugs reported by users.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-widest">
+              <span className="text-[#E8194E]">Help & Ticket</span><span className="text-neutral-300">·</span><span className="text-neutral-500">Engineering & QA Triage</span>
+              <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[9.5px] text-rose-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />In-app bug reports</span>
+            </p>
+            <h1 className="mt-1 font-display text-[24px] font-bold tracking-tight text-neutral-900">Bug Reports & Technical Incidents</h1>
+            <p className="mt-0.5 max-w-2xl text-[13px] text-neutral-500">Bugs members report from the app, with device, OS and build captured automatically. Triage, assign and track to resolution.</p>
           </div>
-          <Button variant="outline" size="sm" icon={RefreshCw} onClick={load}>
-            Refresh
-          </Button>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2.5">
+            <OutlineButton icon={Download} onClick={exportCsv} disabled={!rows.length}>Export Bug Log (CSV)</OutlineButton>
+          </div>
         </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: 'Total Reports', value: formatNumber(total || list.length), color: 'text-primary bg-primary/10' },
-            { label: 'New', value: formatNumber(newCount), color: 'text-amber-600 bg-amber-50' },
-            { label: 'In Progress', value: formatNumber(inProgressCount), color: 'text-blue-600 bg-blue-50' },
-            { label: 'Fixed', value: formatNumber(fixedCount), color: 'text-emerald-600 bg-emerald-50' },
-          ].map((stat, i) => (
-            <div key={i} className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-3">
-              <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', stat.color)}>
-                <Bug className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-neutral-900 leading-tight">{stat.value}</p>
-                <p className="text-[11px] text-neutral-500 font-medium">{stat.label}</p>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Open defects" value={formatNumber(stats.open)} icon={Bug} tone="rose" valueClass={stats.critical ? 'text-[#E8194E]' : undefined} foot={<>{stats.critical > 0 ? <Chip tone="rose">{stats.critical} P0 critical</Chip> : <Chip tone="emerald">No P0</Chip>}{formatNumber(stats.untriaged)} untriaged</>} />
+          <StatCard label="Reported (30 days)" value={formatNumber(stats.recent)} icon={Inbox} tone="purple" foot={<>{stats.growth !== null && <Delta value={stats.growth} />}{formatNumber(stats.crashes)} app crashes</>} />
+          <StatCard label="Mean time to resolve" value={duration(stats.mttr)} icon={Timer} tone="violet" foot={<><Chip tone="emerald">{formatNumber(stats.fixed30)} fixed</Chip>in the last 30 days</>} />
+          <StatCard label="Closed rate" value={stats.closedRate === null ? '—' : `${stats.closedRate.toFixed(1)}%`} icon={ShieldAlert} tone="emerald" foot={<><Chip tone="lavender">{formatNumber(rows.length - stats.open)} / {formatNumber(rows.length)}</Chip>fixed or closed</>} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {tabs.map((t) => (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)} className={clsx('inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition',
+              tab === t.key ? 'bg-[#1F2340] text-white' : t.tone === 'rose' ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-100 hover:bg-rose-100' : 'bg-white text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-50')}>
+              {t.tone === 'rose' && tab !== t.key && <span className="h-1.5 w-1.5 rounded-full bg-[#E8194E]" />}
+              {t.label}
+              <span className={clsx('rounded-full px-1.5 text-[10.5px] font-bold', tab === t.key ? 'bg-white/20 text-white' : t.tone === 'rose' && t.count ? 'bg-[#E8194E] text-white' : 'bg-[#EEF0FA] text-neutral-700')}>{formatNumber(t.count)}</span>
+            </button>
           ))}
         </div>
 
-        {/* Search & filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search by ticket ID, description or reporter..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-800 placeholder-neutral-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-neutral-400 hover:text-neutral-700"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+        <div className="overflow-hidden rounded-2xl border border-neutral-200/70 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div className="flex flex-wrap items-center gap-2 p-4">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by ticket, description, reporter, build or device…" />
+            <Select prefix="Platform" value={os} onChange={setOs} options={[{ value: 'all', label: 'All' }, ...Object.entries(OS_LABEL).map(([value, label]) => ({ value, label }))]} />
+            <Select prefix="Severity" value={severity} onChange={setSeverity} options={[{ value: 'all', label: 'All' }, ...Object.entries(BUG_SEVERITY).map(([value, s]) => ({ value, label: s.label }))]} />
+            <Select prefix="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'open', label: 'Open' }, { value: 'all', label: 'All' }, ...Object.entries(BUG_STATUS).map(([value, s]) => ({ value, label: s.label }))]} />
+            <Select prefix="Assignee" value={assignee} onChange={setAssignee} options={assigneeOptions} />
+            <RefreshButton onClick={load} spinning={listStatus === 'loading'} />
           </div>
-          <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-xl px-1.5 py-1.5 flex-shrink-0 flex-wrap">
-            {['all', 'new', 'in_progress', 'fixed', 'closed'].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-[12px] font-semibold capitalize transition-all',
-                  filterStatus === s ? 'bg-gradient-brand text-white shadow-soft' : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100'
-                )}
-              >
-                {s === 'all' ? 'All' : (STATUS_MAP[s]?.label || s)}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-y border-pink-100 bg-pink-50/60 px-4 py-2">
+              <p className="text-[12.5px] font-semibold text-neutral-700">{selected.size} selected</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setSelected(new Set())} className="text-[12px] font-semibold text-neutral-600 hover:underline">Clear</button>
+                <button type="button" disabled={busy || !myId} onClick={() => runEach([...selected], { assigned_to: myId }, 'assigned')} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-[12px] font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"><UserCheck className="h-3.5 w-3.5" /> Assign to me</button>
+                <button type="button" disabled={busy} onClick={() => runEach([...selected], { status: 'fixed' }, 'marked fixed')} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Mark fixed</button>
+                <button type="button" disabled={busy} onClick={() => runEach([...selected], { status: 'closed' }, 'closed')} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-[12px] font-bold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"><X className="h-3.5 w-3.5" /> Close</button>
+                <button type="button" disabled={busy} onClick={() => setConfirm({ ids: [...selected] })} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#C81345] px-3 text-[12px] font-bold text-white hover:bg-[#A50F39] disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
+            <table className="w-full min-w-[1180px] text-left">
               <thead>
-                <tr className="border-b border-neutral-100 bg-neutral-50/50">
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Ticket</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Reporter</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Priority</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">OS</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Status</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Reported</th>
-                  <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-right">Actions</th>
+                <tr className="border-y border-neutral-100 bg-[#F7F8FD]">
+                  <th className="w-10 py-3 pl-4"><input type="checkbox" checked={allVisibleSelected} onChange={() => setSelected((prev) => { const n = new Set(prev); if (allVisibleSelected) visible.forEach((r) => n.delete(r.id)); else visible.forEach((r) => n.add(r.id)); return n; })} aria-label="Select page" className="h-4 w-4 rounded accent-[#E8194E]" /></th>
+                  {['Bug ID & created', 'Issue & category', 'Severity', 'Platform & build', 'Reported by', 'Assigned to', 'Status'].map((h) => <Th key={h}>{h}</Th>)}
+                  <th className="w-12 px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {listStatus === 'loading' ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
-                      <Loader2 className="w-6 h-6 text-neutral-300 mx-auto animate-spin" />
-                      <p className="text-sm font-medium text-neutral-500 mt-2">Loading bug reports...</p>
-                    </td>
-                  </tr>
-                ) : visibleReports.length > 0 ? (
-                  visibleReports.map((report) => {
-                    const id = report._id || report.id;
-                    const OsIcon = OS_ICON[report.os_type] || Monitor;
-                    const attachment = getFirstAttachment(report);
-                    return (
-                      <tr
-                        key={id}
-                        className="group bg-white transition-colors hover:bg-neutral-50/60 cursor-pointer"
-                        onClick={() => navigate(`/reports/bugs/${id}`)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {attachment?.url ? (
-                              <img
-                                src={attachment.url}
-                                alt=""
-                                className="w-9 h-9 rounded-lg object-cover border border-neutral-200 flex-shrink-0"
-                              />
+                {listStatus === 'loading' && !rows.length ? <StateRow colSpan={9} loading message="Loading bug reports…" />
+                  : !visible.length ? <StateRow colSpan={9} icon={Bug} message={listError ? `Error: ${listError}` : 'No bug reports match these filters'} />
+                    : visible.map((r) => {
+                      const sv = BUG_SEVERITY[r.severity];
+                      const st = BUG_STATUS[r.status];
+                      const isSel = selected.has(r.id);
+                      const urgent = r.severity === 'critical' && isOpenBug(r);
+                      return (
+                        <tr key={r.id} onClick={() => navigate(`/reports/bugs/${r.id}`)} className={clsx('group cursor-pointer transition-colors hover:bg-[#FDF2F6]', urgent ? 'bg-rose-50/50' : isSel && 'bg-pink-50/60')}>
+                          <td className="py-3 pl-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={isSel} onChange={() => setSelected((prev) => { const n = new Set(prev); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} aria-label={`Select ${r.ref}`} className="h-4 w-4 rounded accent-[#E8194E]" /></td>
+                          <td className="px-4 py-3">
+                            <p className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[12.5px] font-bold text-[#E8194E]">{urgent && <span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />}#{r.ref}</p>
+                            <p className="text-[10.5px] text-neutral-500">{ago(r.ageMs)}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="max-w-[300px] truncate text-[13px] font-bold text-neutral-900 group-hover:text-[#C81345]">{r.title}</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+                              <span className="rounded bg-[#E9EBFA] px-1.5 py-0.5 font-semibold text-neutral-700">{BUG_CATEGORY[r.category] || r.category}</span>
+                              {r.files > 0 && <span className="inline-flex items-center gap-0.5 text-neutral-500"><ImageIcon className="h-3 w-3" />{r.files}</span>}
+                              {r.similar > 0 && isOpenBug(r) && <span className="font-semibold text-[#8E35B5]">+{r.similar} similar open</span>}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3"><span className={clsx('inline-flex whitespace-nowrap rounded-md px-2 py-1 text-[10.5px] font-extrabold uppercase tracking-wide', sv.cls)}>{sv.label}</span></td>
+                          <td className="px-4 py-3">
+                            <p className="flex items-center gap-1 text-[12.5px] font-semibold text-neutral-800"><Smartphone className="h-3.5 w-3.5 text-neutral-400" />{r.platform || 'Unknown'}</p>
+                            <p className="max-w-[180px] truncate text-[10.5px] text-neutral-500">{[r.app_version && `v${r.app_version}`, r.device_model].filter(Boolean).join(' · ') || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="max-w-[140px] truncate text-[12.5px] font-semibold text-neutral-800">{r.reporter}</p>
+                            {r.reporterHandle && <p className="text-[10.5px] text-neutral-500">@{r.reporterHandle}</p>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {r.assigneeId ? (
+                              <div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EEF0FA] text-[10px] font-bold text-[#8E35B5]">{initials(r.assigneeName)}</span><span className="max-w-[110px] truncate text-[12.5px] font-semibold text-neutral-800">{r.assigneeId === myId ? 'You' : r.assigneeName}</span></div>
                             ) : (
-                              <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-                                <AlertTriangle className="w-4 h-4 text-red-500" />
-                              </div>
+                              <button type="button" disabled={!myId || busy} onClick={(e) => { e.stopPropagation(); runEach([r.id], { assigned_to: myId }, 'assigned'); }} className="rounded-lg border border-dashed border-[#C9CFEC] px-2 py-1 text-[11px] font-bold text-[#8E35B5] transition hover:border-[#8E35B5] hover:bg-purple-50 disabled:opacity-50">Unassigned · take it</button>
                             )}
-                            <div className="min-w-0 max-w-[220px]">
-                              <p className="text-sm font-mono font-medium text-neutral-800 truncate">{report.ticket_id || `#${(id || '').slice(-8)}`}</p>
-                              <p className="text-[11px] text-neutral-400 truncate">{CATEGORY_LABELS[report.category] || report.category || '-'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-neutral-700 truncate max-w-[160px]">{getReporterName(report)}</p>
-                          <p className="text-[11px] text-neutral-400 truncate max-w-[160px]">{getReporterEmail(report)}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <PriorityBadge priority={report.priority} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 text-xs text-neutral-600 capitalize">
-                            <OsIcon className="w-3.5 h-3.5 text-neutral-400" /> {report.os_type || '-'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={report.status} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-neutral-500">{formatRelativeTime(report.createdAt || report.created_at)}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                          <RowActionMenu
-                            ariaLabel={`Actions for bug report ${id}`}
-                            actions={[
-                              { label: 'View Details', icon: Eye, onClick: () => navigate(`/reports/bugs/${id}`) },
-                              report.status === 'new' && {
-                                label: 'Mark In Progress',
-                                icon: Loader2,
-                                onClick: () => handleQuickStatus(id, 'in_progress'),
-                              },
-                              (report.status === 'new' || report.status === 'in_progress') && {
-                                label: 'Mark Fixed',
-                                icon: CheckCircle2,
-                                onClick: () => handleQuickStatus(id, 'fixed'),
-                              },
-                              report.status !== 'closed' && {
-                                label: 'Close',
-                                icon: Ban,
-                                onClick: () => handleQuickStatus(id, 'closed'),
-                              },
-                              { divider: true },
-                              { label: 'Delete Report', icon: Trash2, tone: 'rose', onClick: () => setDeleteTarget(report) },
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
-                      <Bug className="w-6 h-6 text-neutral-300 mx-auto" />
-                      <p className="text-sm font-medium text-neutral-500 mt-2">{emptyMessage}</p>
-                      <p className="text-xs text-neutral-400 mt-1">Try changing your search or filters.</p>
-                    </td>
-                  </tr>
-                )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={clsx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold', st.cls)}><span className={clsx('h-1.5 w-1.5 rounded-full', st.dot)} />{st.label}</span>
+                            {r.resolveMs !== null && !isOpenBug(r) && <p className="mt-0.5 text-[10.5px] text-neutral-500">in {duration(r.resolveMs)}</p>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <RowMenu row={r} onView={() => navigate(`/reports/bugs/${r.id}`)} onStatus={(s) => runEach([r.id], { status: s }, `marked ${BUG_STATUS[s].label.toLowerCase()}`)} onAssignMe={() => runEach([r.id], { assigned_to: myId }, 'assigned')} onDelete={() => setConfirm({ ids: [r.id] })} />
+                          </td>
+                        </tr>
+                      );
+                    })}
               </tbody>
             </table>
           </div>
 
-          {filteredReports.length > 0 && (
-            <div className="px-4 py-3 border-t border-neutral-100 flex items-center justify-between">
-              <p className="text-xs text-neutral-500">
-                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredReports.length)} of{' '}
-                {formatNumber(filteredReports.length)} reports
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs font-medium text-neutral-700 px-2">{page} / {totalPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
+          <Pager page={page} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize} total={filtered.length} noun="incidents"
+            extra={stats.critical > 0 && <span className="inline-flex items-center gap-1 font-semibold text-rose-600">· <AlertOctagon className="h-3.5 w-3.5" />{stats.critical} P0 open</span>} />
         </div>
       </div>
 
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        title="Delete Bug Report?"
-        description={`Ticket ${deleteTarget?.ticket_id || ''} will be permanently removed. This action cannot be undone.`}
-        confirmText="Delete"
-        confirmVariant="danger"
-        loading={deleteStatus === 'loading'}
-      />
+      <ConfirmModal isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={runDelete} title={`Delete ${confirm?.ids.length === 1 ? 'bug report' : `${confirm?.ids.length || 0} bug reports`}?`} description="The report and its attachments are permanently removed. This can't be undone." confirmText="Delete" confirmVariant="danger" />
+      {toast && <div className={clsx('fixed bottom-6 right-6 z-50 rounded-xl border px-4 py-3 text-sm font-semibold shadow-soft', toast.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>{toast.message}</div>}
     </>
   );
 };

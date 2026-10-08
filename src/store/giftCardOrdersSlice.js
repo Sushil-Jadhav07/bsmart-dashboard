@@ -16,13 +16,20 @@ export const fetchGiftCardOrders = createAsyncThunk(
       const qs = new URLSearchParams();
       if (params.status && params.status !== 'all') qs.set('status', params.status);
       if (params.userId) qs.set('userId', params.userId);
-      if (params.page) qs.set('page', params.page);
-      if (params.limit) qs.set('limit', params.limit);
-      const url = qs.toString() ? `${BASE}/admin/all?${qs}` : `${BASE}/admin/all`;
-      const res = await fetch(url, { headers: authHeader(token) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || 'Failed to load gift card orders');
-      return Array.isArray(json.data) ? json.data : (json.data?.items ?? []);
+      // The endpoint pages at 50 by default; without an explicit page, walk every
+      // page (200 each, capped at 25 pages) so stats and filters see all orders.
+      const single = !!params.page;
+      qs.set('limit', params.limit || (single ? 50 : 200));
+      const items = [];
+      for (let page = params.page || 1; page <= (single ? params.page : 25); page += 1) {
+        qs.set('page', page);
+        const res = await fetch(`${BASE}/admin/all?${qs}`, { headers: authHeader(token) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to load gift card orders');
+        items.push(...(Array.isArray(json.data) ? json.data : (json.data?.items ?? [])));
+        if (page >= (json.pagination?.pages || 1)) break;
+      }
+      return items;
     } catch (e) { return rejectWithValue(e.message); }
   }
 );
@@ -45,7 +52,7 @@ export const cancelGiftCardOrder = createAsyncThunk(
   async (orderId, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
     try {
-      const res = await fetch(`${BASE}/admin/${orderId}/cancel`, { method: 'PUT', headers: jsonHeader(token) });
+      const res = await fetch(`${BASE}/${orderId}/cancel`, { method: 'PATCH', headers: jsonHeader(token) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || 'Failed to cancel gift card order');
       return json.data;
@@ -88,12 +95,18 @@ export const deleteGiftCardOrder = createAsyncThunk(
   async (orderId, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
     try {
-      const res = await fetch(`${BASE}/admin/${orderId}`, { method: 'DELETE', headers: authHeader(token) });
-      if (!res.ok) throw new Error('Failed to delete order');
+      const res = await fetch(`${BASE}/${orderId}`, { method: 'DELETE', headers: authHeader(token) });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.message || 'Failed to delete order');
+      }
       return orderId;
     } catch (e) { return rejectWithValue(e.message); }
   }
 );
+
+// Action responses return user_id unpopulated; keep the populated buyer from the list.
+const keepBuyer = (prev, next) => (prev && typeof prev.user_id === 'object' && typeof next.user_id !== 'object' ? { ...next, user_id: prev.user_id } : next);
 
 // ── Slice ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +156,7 @@ const giftCardOrdersSlice = createSlice({
         if (a.payload) {
           s.current = a.payload;
           const idx = s.list.findIndex((o) => o.id === a.payload.id || o._id === a.payload._id);
-          if (idx !== -1) s.list[idx] = a.payload;
+          if (idx !== -1) s.list[idx] = keepBuyer(s.list[idx], a.payload);
         }
       })
       .addCase(cancelGiftCardOrder.rejected, (s, a) => { s.cancelStatus = 'failed'; s.cancelError = a.payload; });
@@ -156,7 +169,7 @@ const giftCardOrdersSlice = createSlice({
         if (a.payload) {
           s.current = a.payload;
           const idx = s.list.findIndex((o) => o.id === a.payload.id || o._id === a.payload._id);
-          if (idx !== -1) s.list[idx] = a.payload;
+          if (idx !== -1) s.list[idx] = keepBuyer(s.list[idx], a.payload);
         }
       })
       .addCase(startProcessingGiftCardOrder.rejected, (s, a) => { s.startProcessingStatus = 'failed'; s.startProcessingError = a.payload; });
@@ -169,7 +182,7 @@ const giftCardOrdersSlice = createSlice({
         if (a.payload) {
           s.current = a.payload;
           const idx = s.list.findIndex((o) => o.id === a.payload.id || o._id === a.payload._id);
-          if (idx !== -1) s.list[idx] = a.payload;
+          if (idx !== -1) s.list[idx] = keepBuyer(s.list[idx], a.payload);
         }
       })
       .addCase(completeGiftCardOrder.rejected, (s, a) => { s.completeStatus = 'failed'; s.completeError = a.payload; });

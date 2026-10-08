@@ -1,9 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
 
+// "Keep session active" stores the session in localStorage (survives restarts);
+// otherwise it lives in sessionStorage and ends when the browser closes.
 const persisted = (() => {
   try {
-    const raw = localStorage.getItem('auth_state')
+    const raw = localStorage.getItem('auth_state') || sessionStorage.getItem('auth_state')
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -13,6 +15,7 @@ const persisted = (() => {
 const initialState = {
   user: persisted?.user || null,
   token: persisted?.token || null,
+  remember: persisted?.remember !== false,
   status: 'idle',
   error: null,
   adminCreateStatus: 'idle',
@@ -21,11 +24,15 @@ const initialState = {
 
 function persist(state) {
   try {
-    localStorage.setItem('auth_state', JSON.stringify({ user: state.user, token: state.token }))
+    const value = JSON.stringify({ user: state.user, token: state.token, remember: state.remember })
+    const keep = state.remember ? localStorage : sessionStorage
+    const drop = state.remember ? sessionStorage : localStorage
+    drop.removeItem('auth_state')
+    keep.setItem('auth_state', value)
   } catch {}
 }
 
-export const login = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
+export const login = createAsyncThunk('auth/login', async ({ email, password, remember = true, allowedRoles }, { rejectWithValue }) => {
   try {
     const res = await fetch(`${API_BASE_WITH_PATH}/auth/login`, {
       method: 'POST',
@@ -38,7 +45,13 @@ export const login = createAsyncThunk('auth/login', async ({ email, password }, 
     }
     const token = data?.token || data?.accessToken || data?.jwt || data?.data?.token || null
     const user = data?.user || data?.data?.user || { email }
-    return { token, user }
+    const role = String(user?.role || '').toLowerCase()
+    if (Array.isArray(allowedRoles) && !allowedRoles.includes(role)) {
+      return rejectWithValue(role
+        ? `This is a ${role} account and can't open this workspace.`
+        : "This account's role couldn't be confirmed.")
+    }
+    return { token, user, remember }
   } catch (e) {
     return rejectWithValue(e.message || 'Network error')
   }
@@ -117,6 +130,12 @@ const slice = createSlice({
       state.error = null
       persist(state)
     },
+    // Merge edited profile fields (Settings) into the signed-in user.
+    updateUser(state, action) {
+      if (!state.user) return
+      state.user = { ...state.user, ...action.payload }
+      persist(state)
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -128,6 +147,7 @@ const slice = createSlice({
         state.status = 'succeeded'
         state.user = action.payload.user
         state.token = action.payload.token
+        state.remember = action.payload.remember !== false
         persist(state)
       })
       .addCase(login.rejected, (state, action) => {
@@ -162,5 +182,5 @@ const slice = createSlice({
   },
 })
 
-export const { logout } = slice.actions
+export const { logout, updateUser } = slice.actions
 export default slice.reducer

@@ -107,7 +107,8 @@ export const ConfirmModal = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   confirmVariant = 'danger',
-  loading = false
+  loading = false,
+  note = 'This action cannot be undone.'
 }) => {
   return (
     <Modal
@@ -137,7 +138,7 @@ export const ConfirmModal = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
-        <p className="text-neutral-600">This action cannot be undone.</p>
+        <p className="text-neutral-600">{note}</p>
       </div>
     </Modal>
   );

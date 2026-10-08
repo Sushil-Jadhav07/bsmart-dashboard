@@ -16,17 +16,24 @@ export const fetchContentReports = createAsyncThunk(
       const qs = new URLSearchParams();
       if (params.content_type && params.content_type !== 'all') qs.set('content_type', params.content_type);
       if (params.status && params.status !== 'all') qs.set('status', params.status);
-      qs.set('page', params.page || 1);
-      qs.set('limit', params.limit || 20);
-      const res = await fetch(`${BASE}/admin?${qs}`, { headers: authHeader(token) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || 'Failed to load content reports');
-      return {
-        items: Array.isArray(json?.reports) ? json.reports : [],
-        total: json?.total ?? 0,
-        page: json?.page ?? params.page ?? 1,
-        totalPages: json?.total_pages ?? 1,
-      };
+      // Without an explicit page, walk every page (100 each, max 30) so reports
+      // can be grouped by content and counted across the whole queue.
+      const single = params.page !== undefined;
+      qs.set('limit', params.limit || (single ? 20 : 100));
+      const items = [];
+      let total = 0;
+      let totalPages = 1;
+      for (let page = params.page || 1; page <= (single ? params.page : 30); page += 1) {
+        qs.set('page', page);
+        const res = await fetch(`${BASE}/admin?${qs}`, { headers: authHeader(token) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.message || 'Failed to load content reports');
+        items.push(...(Array.isArray(json?.reports) ? json.reports : []));
+        total = json?.total ?? items.length;
+        totalPages = json?.total_pages ?? 1;
+        if (page >= totalPages) break;
+      }
+      return { items, total, page: single ? params.page : 1, totalPages: single ? totalPages : 1 };
     } catch (e) { return rejectWithValue(e.message); }
   }
 );
@@ -99,7 +106,16 @@ const contentReportsSlice = createSlice({
         s.updateStatus = 'succeeded';
         if (a.payload) {
           const idx = s.list.findIndex((r) => (r._id || r.id) === (a.payload._id || a.payload.id));
-          if (idx !== -1) s.list[idx] = { ...s.list[idx], ...a.payload };
+          // The update response isn't populated; keep the populated reporter/owner.
+          if (idx !== -1) {
+            const prev = s.list[idx];
+            s.list[idx] = {
+              ...prev,
+              ...a.payload,
+              reporter_id: typeof a.payload.reporter_id === 'object' ? a.payload.reporter_id : prev.reporter_id,
+              owner_id: typeof a.payload.owner_id === 'object' ? a.payload.owner_id : prev.owner_id,
+            };
+          }
         }
       })
       .addCase(updateContentReport.rejected, (s, a) => { s.updateStatus = 'failed'; s.updateError = a.payload; });

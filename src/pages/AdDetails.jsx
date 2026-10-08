@@ -16,7 +16,11 @@ import {
 import Button from '../components/Button.jsx'
 import Input from '../components/Input.jsx'
 import Modal, { ConfirmModal } from '../components/Modal.jsx'
-import { formatDateTime, getStatusColor, capitalize, formatNumber } from '../utils/helpers.jsx'
+import { formatDateTime, formatNumber } from '../utils/helpers.jsx'
+import {
+  CaptionPanel, CommunityPanel, DetailTopBar, ErrorState, HashtagsPanel, IconBtn, InfoPanel, Lightbox,
+  LoadingState, MediaActions, MediaCarousel, ModerationPanel, Panel, Pill, VideoStage,
+} from '../components/ContentDetailKit.jsx'
 import {
   fetchAdById, patchAdStatus, deleteAdById,
   fetchAdComments, deleteAdComment, fetchAdStats, resetAdStats,
@@ -51,7 +55,6 @@ const GENDER_COLORS = [
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const THUMB_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0U1RTdFQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+QWQ8L3RleHQ+PC9zdmc+'
 const getThumbnailUrl = (m) => {
   if (!m) return ''
   if (Array.isArray(m.thumbnail) && m.thumbnail[0]?.fileUrl) return m.thumbnail[0].fileUrl
@@ -65,11 +68,6 @@ const normalizeType = (v) => String(v || '').trim().replace(/[\s-]+/g, '_').toUp
 const toNumber = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0 }
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0)
 
-function Divider() { return <div className="h-px bg-neutral-100 mx-6" /> }
-function SectionLabel({ children }) {
-  return <p className="text-[10px] font-bold tracking-[0.14em] text-neutral-400 uppercase mb-3">{children}</p>
-}
-
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
@@ -80,67 +78,6 @@ function ChartTooltip({ active, payload, label }) {
           {p.name}: {formatNumber(p.value)}
         </p>
       ))}
-    </div>
-  )
-}
-
-// ─── Media panels ─────────────────────────────────────────────────────────────
-function VideoMediaPanel({ item }) {
-  const [showVideo, setShowVideo] = useState(false)
-  const thumbUrl = getThumbnailUrl(item)
-  const videoUrl = item?.fileUrl || item?.url || ''
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 w-full">
-      <div className="min-w-0">
-        <SectionLabel>Thumbnail</SectionLabel>
-        <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 shadow-md">
-          {thumbUrl ? <img src={thumbUrl} alt="thumbnail" className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center"><Film className="w-8 h-8 text-neutral-600" /></div>}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-          <span className="absolute bottom-2.5 left-2.5 text-[10px] font-semibold text-white/80 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">Thumbnail</span>
-        </div>
-      </div>
-      <div className="min-w-0">
-        <SectionLabel>Ad Video</SectionLabel>
-        <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 shadow-md">
-          {!showVideo ? (
-            <button onClick={() => setShowVideo(true)} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-3 group">
-              {(thumbUrl || videoUrl) && <img src={thumbUrl || THUMB_PLACEHOLDER} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />}
-              <div className="relative z-10 w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center group-hover:scale-110 transition-all duration-200">
-                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
-              </div>
-              <span className="relative z-10 text-white/60 text-[11px]">Tap to play</span>
-            </button>
-          ) : (
-            <video src={videoUrl} className="w-full h-full object-cover" controls autoPlay playsInline />
-          )}
-          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-          {!showVideo && <span className="absolute bottom-2.5 left-2.5 text-[10px] font-semibold text-white/80 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full pointer-events-none">Video</span>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ImageMediaPanel({ media }) {
-  const item = media?.[0]
-  const imgUrl = getThumbnailUrl(item) || item?.fileUrl || item?.url || ''
-  if (!item) return <div className="aspect-square rounded-2xl bg-neutral-100 flex items-center justify-center"><ImageIcon className="w-8 h-8 text-neutral-300" /></div>
-  return (
-    <div className="w-full min-w-0">
-      <SectionLabel>Image</SectionLabel>
-      <div className="aspect-square rounded-2xl overflow-hidden shadow-md bg-neutral-100">
-        <img src={imgUrl || THUMB_PLACEHOLDER} alt="ad" className="w-full h-full object-cover" />
-      </div>
-      {media.length > 1 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-          {media.slice(1).map((m, i) => (
-            <div key={i} className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-neutral-200">
-              <img src={getThumbnailUrl(m) || m.fileUrl || m.url || THUMB_PLACEHOLDER} alt="" className="w-full h-full object-cover" />
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -582,6 +519,8 @@ function AdStatsPanel({ stats, status, error, onRefresh }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+const AD_STATUS_TONE = { active: 'green', pending: 'amber', paused: 'grey', rejected: 'red', draft: 'purple' }
+
 export default function AdDetails() {
   const { id } = useParams()
   const dispatch = useDispatch()
@@ -597,6 +536,7 @@ export default function AdDetails() {
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [commentDeleting, setCommentDeleting] = useState(false)
+  const [viewerIndex,     setViewerIndex]     = useState(-1)
 
   const { adHistory, adWallet, adStatus, adError } = useSelector((s) => s.wallet)
 
@@ -625,19 +565,29 @@ export default function AdDetails() {
     const isVideo = String(media[0]?.media_type || media[0]?.type || '').toLowerCase().includes('video')
     const categoryRaw = a.category || a.targeting_rules?.category_label || ''
     const category = typeof categoryRaw === 'string' ? categoryRaw : (categoryRaw?.label || categoryRaw?.name || '')
+    const owner = (a.user_id && typeof a.user_id === 'object' ? a.user_id : null)
+      || (a.vendor_id?.user_id && typeof a.vendor_id.user_id === 'object' ? a.vendor_id.user_id : null)
+      || {}
     return {
       id: a._id || a.ad_id || a.id || id,
       title: a.title || a.headline || a.caption || 'Untitled ad',
-      caption: a.caption || '',
+      caption: a.caption || a.description || '',
       location: a.location || a.location_name || '',
       category,
       coinsReward: a.coins_reward ?? a.coins_per_engagement ?? a.coinsPerEngagement ?? a.reward_config?.coins_per_engagement ?? 0,
       totalBudgetCoins: a.total_budget_coins ?? a.totalBudgetCoins ?? a.budget?.total_budget_coins ?? 0,
       totalCoinsSpent: a.total_coins_spent ?? a.totalCoinsSpent ?? a.total_coins_used ?? a.coins_spent ?? 0,
-      likes: a.likes_count ?? a.likes ?? a.likesCount ?? 0,
       createdAt: a.createdAt || a.created_at || '',
-      status: a.status || 'pending',
+      status: String(a.status || 'pending').toLowerCase(),
+      rejectionReason: a.rejection_reason || '',
       targeting: a.targeting_rules || a.targeting || {},
+      owner: {
+        id: owner._id || owner.id || '',
+        name: owner.full_name || owner.username || a.vendor_id?.business_name || 'Unknown advertiser',
+        handle: owner.username || '',
+        avatar: owner.avatar_url || '',
+      },
+      tags: Array.isArray(a.tags) ? a.tags : [],
       media, isVideo,
     }
   }, [current, id])
@@ -683,219 +633,151 @@ export default function AdDetails() {
 
   const isLoading = currentStatus === 'loading'
   const spentPct  = walletStats.totalBudgetCoins > 0 ? Math.min(100, Math.round((walletStats.totalCoinsSpent / walletStats.totalBudgetCoins) * 100)) : 0
+  const images = ad.media.map((m) => getThumbnailUrl(m) || m?.fileUrl || m?.url || '').filter(Boolean)
+  const videoUrl = ad.media[0]?.fileUrl || ad.media[0]?.url || ''
+  const exhausted = walletStats.totalBudgetCoins > 0 && walletStats.totalCoinsSpent >= walletStats.totalBudgetCoins
+  const targeting = ad.targeting || {}
+  const statusTone = AD_STATUS_TONE[ad.status] || 'grey'
 
   return (
-    <div className="w-full min-w-0 pb-16">
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-8">
-        <button onClick={() => navigate('/ads')} className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-800 transition-colors group">
-          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Spotlights
-        </button>
-        <div className="flex items-center gap-2">
-          {!isLoading && (
-            <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full', getStatusColor(ad.status))}>
-              {ad.isVideo ? <Film className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />} {capitalize(ad.status)}
-            </span>
-          )}
-          <button onClick={() => setDeleteModal(true)} className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full text-red-500 bg-red-50 border border-red-100 hover:bg-red-100 transition-colors">
-            <Trash2 className="w-3 h-3" /> Delete
-          </button>
-        </div>
-      </div>
+    <div className="mx-auto w-full min-w-0 max-w-[1400px] pb-16">
+      <DetailTopBar
+        backLabel="Back to Spotlights"
+        onBack={() => navigate('/ads')}
+        chips={!isLoading ? <Pill tone={statusTone} dot>{ad.status}</Pill> : null}
+        onDelete={() => setDeleteModal(true)}
+        deleteLabel="Delete Spotlight"
+      />
 
-      {isLoading && (
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-neutral-400">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p className="text-sm font-medium">Loading ad details…</p>
-        </div>
-      )}
-      {!isLoading && currentError && (
-        <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-            <Eye className="w-6 h-6 text-red-400" />
-          </div>
-          <p className="font-semibold text-neutral-800">Could not load ad</p>
-          <p className="text-sm text-neutral-400">{currentError}</p>
-        </div>
-      )}
+      {isLoading && <LoadingState label="Loading spotlight…" />}
+      {!isLoading && currentError && <ErrorState title="Could not load spotlight" message={currentError} />}
 
       {!isLoading && !currentError && (
         <div className="space-y-8">
-          {/* Row 1: media + sidebar */}
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] gap-6 xl:gap-8 items-start">
-            <div className="space-y-6 min-w-0">
-              {ad.isVideo ? <VideoMediaPanel item={ad.media[0]} /> : <ImageMediaPanel media={ad.media} />}
+          <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="min-w-0 space-y-5">
+              <Panel
+                icon={ad.isVideo ? Film : ImageIcon}
+                title="Spotlight Creative"
+                badge={!ad.isVideo && images.length > 1 ? <Pill tone="lavender" className="normal-case">{images.length} files</Pill> : null}
+                actions={<MediaActions url={ad.isVideo ? videoUrl : images[0]} onExpand={!ad.isVideo && images.length ? () => setViewerIndex(0) : null} />}
+              >
+                {ad.isVideo
+                  ? <VideoStage videoUrl={videoUrl} posterUrl={getThumbnailUrl(ad.media[0])} />
+                  : <MediaCarousel images={images} onExpand={setViewerIndex} />}
+              </Panel>
 
-              <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4" style={{ color: C.purple }} />
-                  <p className="text-[10px] font-bold tracking-[0.14em] text-neutral-400 uppercase">Comments</p>
-                  <span className="ml-auto text-xs text-neutral-300 font-semibold">{comments.length}</span>
-                </div>
-                <div className="px-6 py-5">
-                  {commentsLoading ? (
-                    <div className="space-y-2">
-                      <div className="h-12 bg-neutral-100 rounded-xl animate-pulse" />
-                      <div className="h-12 bg-neutral-100 rounded-xl animate-pulse" />
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                      {comments.length === 0 && <p className="text-sm text-neutral-300 text-center py-8">No comments</p>}
-                      {comments.map((c, i) => {
-                        const cid = c.comment_id || c._id || c.id || i
-                        const username = c.user?.username || c.username || 'user'
-                        return (
-                          <div key={cid} className="flex items-start gap-3 group/comment rounded-xl border border-neutral-100 bg-neutral-50/40 p-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0" style={{ background: BRAND_GRADIENT }}>
-                              {(username[0] || 'U').toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-xs font-semibold text-neutral-800">@{username}</span>
-                                <span className="text-[10px] text-neutral-300">{c.createdAt ? formatDateTime(c.createdAt) : ''}</span>
-                                <button onClick={() => setCommentToDelete(c)} className="ml-auto opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <p className="text-sm text-neutral-600 mt-1 leading-relaxed">{c.text || c.comment || ''}</p>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CaptionPanel caption={ad.caption} title={ad.title} />
+
+              {ad.tags.length > 0 && <HashtagsPanel tags={ad.tags} />}
+
+              <CommunityPanel comments={comments} loading={commentsLoading} authorId={ad.owner.id} authorHandle={ad.owner.handle} onDeleteComment={setCommentToDelete} />
             </div>
 
-            <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden shadow-sm w-full min-w-0">
-              <div className="px-5 py-5">
-                <p className="text-sm font-semibold text-neutral-900">{ad.title}</p>
-                {ad.caption ? <p className="text-sm text-neutral-700 leading-relaxed mt-2">{ad.caption}</p>
-                  : <p className="text-sm text-neutral-300 italic mt-2">No caption</p>}
-                <div className="space-y-1.5 mt-3">
-                  {ad.createdAt && <div className="flex items-center gap-1.5 text-xs text-neutral-400"><Calendar className="w-3.5 h-3.5 flex-shrink-0" />{formatDateTime(ad.createdAt)}</div>}
-                  {ad.location  && <div className="flex items-center gap-1.5 text-xs text-neutral-400"><MapPin className="w-3.5 h-3.5 flex-shrink-0" />{ad.location}</div>}
-                  {ad.category  && <div className="flex items-center gap-1.5 text-xs text-neutral-400"><Tag className="w-3.5 h-3.5 flex-shrink-0" />{ad.category}</div>}
+            <div className="space-y-5 xl:sticky xl:top-[72px]">
+              <InfoPanel
+                title="Spotlight Info"
+                status={{ label: ad.status, tone: statusTone }}
+                creator={{ name: ad.owner.name, handle: ad.owner.handle, avatar: ad.owner.avatar }}
+                rows={[
+                  { label: 'Spotlight ID', value: `#SPT-${String(ad.id).slice(-5).toUpperCase()}`, chip: true },
+                  { label: 'Created date', value: ad.createdAt ? formatDateTime(ad.createdAt) : '—' },
+                  { label: 'Category', value: ad.category, icon: Tag },
+                  { label: 'Location', value: ad.location, icon: MapPin },
+                  { label: 'Language', value: targeting.language ? String(targeting.language) : null },
+                  { label: 'Country', value: targeting.country ? String(targeting.country) : null },
+                  { label: 'Target areas', value: Array.isArray(targeting.locations) && targeting.locations.length ? targeting.locations.join(', ') : null },
+                ]}
+                onViewCreator={ad.owner.id ? () => navigate(`/users/${ad.owner.id}`) : null}
+              />
+
+              <Panel title="Review Decision" actions={<Pill tone={statusTone} dot>{ad.status}</Pill>}>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={handleApprove} disabled={updatingStatus || ad.status === 'active'} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#E8194E] to-[#8E35B5] text-[12.5px] font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_-10px_rgba(232,25,78,0.7)] disabled:translate-y-0 disabled:opacity-40 disabled:shadow-none">
+                    <CheckCircle2 className="h-4 w-4" /> Approve
+                  </button>
+                  <button type="button" onClick={handlePause} disabled={updatingStatus || ad.status === 'paused'} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[#E9EBFA] text-[12.5px] font-semibold text-neutral-900 transition hover:-translate-y-0.5 hover:bg-[#DFE2F7] disabled:translate-y-0 disabled:opacity-40">
+                    <PauseCircle className="h-4 w-4" /> Pause
+                  </button>
+                  <button type="button" onClick={() => setRejectModal(true)} disabled={updatingStatus || ad.status === 'rejected'} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 text-[12.5px] font-semibold text-[#C81345] transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:translate-y-0 disabled:opacity-40">
+                    <XCircle className="h-4 w-4" /> Reject
+                  </button>
                 </div>
-                <p className="text-[10px] font-mono text-neutral-300 break-all mt-3">{ad.id}</p>
-              </div>
-              <Divider />
-              <div className="px-5 py-4 space-y-3">
-                <div className="flex items-center justify-between"><p className="text-xs text-neutral-500">Likes</p><p className="text-sm font-semibold text-neutral-900">{formatNumber(ad.likes)}</p></div>
-                <div className="flex items-center justify-between"><p className="text-xs text-neutral-500">Reward coins</p><p className="text-sm font-semibold text-neutral-900">{formatNumber(walletStats.coinsPerEngagement)}</p></div>
-                <div className="flex items-center justify-between"><p className="text-xs text-neutral-500">Total budget coins</p><p className="text-sm font-semibold text-neutral-900">{formatNumber(walletStats.totalBudgetCoins)}</p></div>
-                {ad.targeting && Object.keys(ad.targeting || {}).length > 0 && (
-                  <div className="pt-2">
-                    <SectionLabel>Targeting</SectionLabel>
-                    <div className="space-y-1.5 text-xs text-neutral-600">
-                      {ad.targeting.language && <div className="flex items-center justify-between gap-3"><span className="text-neutral-400">Language</span><span className="truncate">{String(ad.targeting.language)}</span></div>}
-                      {ad.targeting.country  && <div className="flex items-center justify-between gap-3"><span className="text-neutral-400">Country</span><span className="truncate">{String(ad.targeting.country)}</span></div>}
-                      {Array.isArray(ad.targeting.locations) && ad.targeting.locations.length > 0 && <div className="flex items-center justify-between gap-3"><span className="text-neutral-400">Locations</span><span className="truncate">{ad.targeting.locations.join(', ')}</span></div>}
-                    </div>
+                {updatingStatus && <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] text-neutral-500"><Loader2 className="h-3 w-3 animate-spin" /> Updating status…</p>}
+                {ad.status === 'rejected' && ad.rejectionReason && (
+                  <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-rose-500">Rejection reason</p>
+                    <p className="mt-0.5 text-[12.5px] text-rose-800">{ad.rejectionReason}</p>
                   </div>
                 )}
-              </div>
-              <Divider />
-              <div className="px-5 py-5 space-y-4">
-                <SectionLabel>Budget &amp; Coin Rewards</SectionLabel>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Coins Per Engagement card — brand pink tint */}
-                  <div className="rounded-xl p-4" style={{ background: 'rgba(232,25,78,0.06)', border: '1px solid rgba(232,25,78,0.12)' }}>
-                    <p className="text-xs font-medium mb-1" style={{ color: C.brand }}>Coins Per Engagement</p>
-                    <p className="text-2xl font-bold" style={{ color: C.brand }}>🪙 {formatNumber(walletStats.coinsPerEngagement || 0)}</p>
-                    <p className="text-xs mt-1" style={{ color: 'rgba(232,25,78,0.6)' }}>Per view / like / comment</p>
+              </Panel>
+
+              <Panel title="Budget & Coin Rewards" actions={exhausted ? <Pill tone="red">Exhausted</Pill> : null}>
+                <div className="rounded-xl bg-[#F1F3FC] p-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-700">Budget used</p>
+                    <p className="text-[11px] font-bold text-[#C81345]">{spentPct}%</p>
                   </div>
-                  {/* Budget Used card — brand purple tint */}
-                  <div className="rounded-xl p-4" style={{ background: 'rgba(131,58,180,0.06)', border: '1px solid rgba(131,58,180,0.12)' }}>
-                    <p className="text-xs font-medium mb-1" style={{ color: C.purple }}>Budget Used</p>
-                    <p className="text-2xl font-bold" style={{ color: C.purple }}>
-                      {formatNumber(walletStats.totalCoinsSpent || 0)}
-                      <span className="text-sm font-normal" style={{ color: 'rgba(131,58,180,0.6)' }}> / {formatNumber(walletStats.totalBudgetCoins || 0)}</span>
-                    </p>
-                    {walletStats.totalBudgetCoins > 0 && <p className="text-xs mt-1" style={{ color: 'rgba(131,58,180,0.6)' }}>Left {formatNumber(walletStats.remainingBudget || 0)}</p>}
-                    {walletStats.totalBudgetCoins > 0 && (
-                      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(131,58,180,0.15)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${spentPct}%`, background: BRAND_GRADIENT }} />
-                      </div>
-                    )}
-                    {walletStats.totalCoinsSpent >= walletStats.totalBudgetCoins && walletStats.totalBudgetCoins > 0 && (
-                      <p className="text-xs font-semibold mt-1 text-red-500">⚠️ Budget Exhausted</p>
-                    )}
+                  <p className="mt-1 font-display text-[22px] font-extrabold leading-tight text-neutral-900">
+                    {formatNumber(walletStats.totalCoinsSpent)}<span className="text-[13px] font-semibold text-neutral-500"> / {formatNumber(walletStats.totalBudgetCoins)} coins</span>
+                  </p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#E8194E] to-[#8E35B5] transition-all duration-500" style={{ width: `${Math.max(2, spentPct)}%` }} />
                   </div>
                 </div>
-              </div>
-              <Divider />
-              <div className="px-5 py-4">
-                <SectionLabel>Moderation</SectionLabel>
-                <div className="flex gap-2">
-                  <Button variant="primary"   size="sm" icon={CheckCircle2} onClick={handleApprove} disabled={updatingStatus || ad.status === 'active'}>Approve</Button>
-                  <Button variant="secondary" size="sm" icon={PauseCircle}  onClick={handlePause}   disabled={updatingStatus || ad.status === 'paused'}>Pause</Button>
-                  <Button variant="outline"   size="sm" icon={XCircle}      onClick={() => setRejectModal(true)} disabled={updatingStatus || ad.status === 'rejected'}>Reject</Button>
-                </div>
-              </div>
-              <Divider />
-              <div className="px-5 py-4">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Wallet className="w-3 h-3" style={{ color: C.brand }} />
-                  <SectionLabel>Coin Transaction History</SectionLabel>
-                  <button onClick={() => dispatch(fetchAdWalletHistory(id))} className="ml-auto p-1 rounded text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"><RefreshCw className="w-3 h-3" /></button>
-                </div>
-                {adHistory.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="rounded-xl p-3" style={{ background: 'rgba(232,25,78,0.06)', border: '1px solid rgba(232,25,78,0.10)' }}>
-                      <p className="text-[10px] font-medium" style={{ color: C.brand }}>Spent</p>
-                      <p className="text-base font-bold" style={{ color: C.brand }}>{formatNumber(walletStats.engagementSpent)}</p>
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Per engagement', value: formatNumber(walletStats.coinsPerEngagement), tone: 'text-[#C81345]' },
+                    { label: 'Rewarded', value: formatNumber(walletStats.rewardsPaid), tone: 'text-[#8E35B5]' },
+                    { label: 'Remaining', value: formatNumber(walletStats.remainingBudget), tone: 'text-emerald-700' },
+                  ].map((tile) => (
+                    <div key={tile.label} className="rounded-xl bg-[#F1F3FC] px-2.5 py-2 transition hover:-translate-y-0.5 hover:bg-[#E9EBFA]">
+                      <p className="text-[9.5px] font-bold uppercase tracking-wide text-neutral-600">{tile.label}</p>
+                      <p className={clsx('mt-0.5 text-[15px] font-extrabold', tile.tone)}>🪙 {tile.value}</p>
                     </div>
-                    <div className="rounded-xl p-3" style={{ background: 'rgba(131,58,180,0.06)', border: '1px solid rgba(131,58,180,0.10)' }}>
-                      <p className="text-[10px] font-medium" style={{ color: C.purple }}>Rewarded</p>
-                      <p className="text-base font-bold" style={{ color: C.purple }}>{formatNumber(walletStats.rewardsPaid)}</p>
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
+              </Panel>
+
+              <Panel
+                icon={Wallet}
+                title="Coin Transactions"
+                badge={adHistory.length ? <Pill tone="lavender" className="normal-case">{adHistory.length}</Pill> : null}
+                actions={<IconBtn icon={RefreshCw} title="Refresh transactions" onClick={() => dispatch(fetchAdWalletHistory(id))} />}
+              >
                 {adStatus === 'loading' ? (
-                  <div className="flex items-center justify-center py-8 gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: C.brand }} />
-                    <span className="text-xs text-neutral-400">Loading transactions…</span>
-                  </div>
+                  <div className="flex items-center justify-center gap-2 py-6"><Loader2 className="h-4 w-4 animate-spin text-[#E8194E]" /><span className="text-xs text-neutral-400">Loading transactions…</span></div>
                 ) : adStatus === 'failed' ? (
-                  <p className="text-xs text-red-400 text-center py-4">{adError || 'Failed to load'}</p>
+                  <p className="py-4 text-center text-xs text-red-500">{adError || 'Failed to load'}</p>
                 ) : adHistory.length === 0 ? (
-                  <p className="text-sm text-neutral-300 text-center py-6">No transactions found</p>
+                  <p className="py-4 text-center text-[12.5px] text-neutral-400">No transactions found</p>
                 ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
                     {adHistory.map((tx, i) => {
                       const isDeduction = (tx.amount ?? 0) < 0
                       return (
-                        <div key={tx._id || i} className="flex items-center gap-2.5 py-2 border-b border-neutral-50 last:border-0">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: isDeduction ? 'rgba(232,25,78,0.08)' : 'rgba(131,58,180,0.08)' }}>
-                            {isDeduction
-                              ? <TrendingDown className="w-3.5 h-3.5" style={{ color: C.brand }} />
-                              : <TrendingUp   className="w-3.5 h-3.5" style={{ color: C.purple }} />}
+                        <div key={tx._id || i} className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-[#F1F3FC]">
+                          <span className={clsx('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg', isDeduction ? 'bg-pink-100 text-[#C81345]' : 'bg-purple-100 text-[#8E35B5]')}>
+                            {isDeduction ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[12px] font-semibold capitalize text-neutral-800">{String(tx.type || 'Transaction').replace(/_/g, ' ').toLowerCase()}</p>
+                            <p className="text-[10.5px] text-neutral-500">{formatDateTime(tx.createdAt || tx.transactionDate)}</p>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-neutral-700 truncate capitalize">{String(tx.type || 'Transaction').replace(/_/g, ' ').toLowerCase()}</p>
-                            <p className="text-[10px] text-neutral-400">{formatDateTime(tx.createdAt || tx.transactionDate)}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xs font-bold" style={{ color: isDeduction ? C.brand : C.purple }}>
-                              {isDeduction ? '' : '+'}{formatNumber(tx.amount ?? 0)}
-                            </p>
-                            {tx.status && (
-                              <p className="text-[9px]" style={{ color: tx.status === 'SUCCESS' ? C.purple : '#94a3b8' }}>{tx.status}</p>
-                            )}
-                          </div>
+                          <p className={clsx('flex-shrink-0 text-[12.5px] font-bold', isDeduction ? 'text-[#C81345]' : 'text-[#8E35B5]')}>
+                            {isDeduction ? '' : '+'}{formatNumber(tx.amount ?? 0)}
+                          </p>
                         </div>
                       )
                     })}
                   </div>
                 )}
-              </div>
+              </Panel>
+
+              <ModerationPanel contentType="ad" contentId={ad.id} />
             </div>
           </div>
 
-          {/* Row 2: analytics */}
           <AdStatsPanel stats={adStats} status={adStatsStatus} error={adStatsError} onRefresh={() => dispatch(fetchAdStats(id))} />
         </div>
       )}
@@ -906,6 +788,7 @@ export default function AdDetails() {
         footer={<><Button variant="ghost" onClick={() => setRejectModal(false)} disabled={updatingStatus}>Cancel</Button><Button variant="danger" onClick={handleReject} loading={updatingStatus}>Reject</Button></>}>
         <Input label="Rejection reason" placeholder="Enter rejection reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} fullWidth />
       </Modal>
+      <Lightbox images={images} index={viewerIndex} onClose={() => setViewerIndex(-1)} onIndex={setViewerIndex} />
     </div>
   )
 }
