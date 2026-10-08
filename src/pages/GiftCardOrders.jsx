@@ -14,6 +14,7 @@ import {
 import { fetchGiftCards } from '../store/giftCardsSlice.js';
 import { formatDateTime, formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const HOUR = 3600 * 1000;
 const SLA_HOURS = 24;
@@ -83,7 +84,7 @@ const GiftCardOrders = () => {
   const [vendor, setVendor] = useState('all');
   const [range, setRange] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
   const [confirm, setConfirm] = useState(null); // { kind: 'cancel' | 'delete', row }
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);

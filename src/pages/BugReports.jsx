@@ -11,6 +11,7 @@ import { ConfirmModal } from '../components/Modal.jsx';
 import { deleteBugReport, fetchBugReports, updateBugReport } from '../store/bugReportsSlice.js';
 import { fetchSalesOfficers } from '../store/salesSlice.js';
 import { formatNumber } from '../utils/helpers.jsx';
+import { prefRows } from '../utils/consolePrefs.js';
 import { DAY_MS, downloadCsv } from '../utils/contentHelpers.js';
 import {
   BUG_CATEGORY, BUG_SEVERITY, BUG_STATUS, NETWORK_LABEL, OS_LABEL, bugId, bugRef, bugTitle, isOpenBug, platformOf, refOf,
@@ -60,7 +61,7 @@ const BugReports = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [assignee, setAssignee] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
   const [selected, setSelected] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);

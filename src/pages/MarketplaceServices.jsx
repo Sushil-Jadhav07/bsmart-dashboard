@@ -11,6 +11,7 @@ import useCatalogQuery from '../hooks/useCatalogQuery.js';
 import { fetchAdminServices } from '../store/marketplaceSlice.js';
 import { formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const RATE_LABEL = { starting_from: 'Starting from', fixed: 'Fixed package', per_hour: 'Per hour', per_session: 'Per session' };
@@ -53,7 +54,7 @@ const MarketplaceServices = () => {
   const [view, setView] = useState('all');
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
 
   const rows = useMemo(() => items.map((service) => {
     const seller = sellerOf(service);

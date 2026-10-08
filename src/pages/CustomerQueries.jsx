@@ -11,6 +11,7 @@ import { assignQuery, deleteCustomerQuery, fetchAllCustomerQueries, updateQueryS
 import { fetchSalesOfficers } from '../store/salesSlice.js';
 import { formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const HOUR = 3600 * 1000;
 const SLA_HOURS = 24;
@@ -89,7 +90,7 @@ const CustomerQueries = () => {
   const [source, setSource] = useState('all');
   const [assignee, setAssignee] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [busy, setBusy] = useState(false);

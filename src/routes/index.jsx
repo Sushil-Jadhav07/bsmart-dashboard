@@ -48,6 +48,7 @@ import GiftCardOrderProcess from '../pages/GiftCardOrderProcess.jsx';
 import BugReports from '../pages/BugReports.jsx';
 import BugReportDetail from '../pages/BugReportDetail.jsx';
 import ContentReports from '../pages/ContentReports.jsx';
+import ContentReportDetail from '../pages/ContentReportDetail.jsx';
 import MarketplaceInfluencers from '../pages/MarketplaceInfluencers.jsx';
 import MarketplaceProducts from '../pages/MarketplaceProducts.jsx';
 import InfluencerProducts from '../pages/InfluencerProducts.jsx';
@@ -260,6 +261,10 @@ export const router = createBrowserRouter([
       {
         path: '/reports/content',
         element: <ContentReports />
+      },
+      {
+        path: '/reports/content/:id',
+        element: <ContentReportDetail />
       },
       {
         path: '/marketplace',

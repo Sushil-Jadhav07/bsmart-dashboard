@@ -130,6 +130,12 @@ const slice = createSlice({
       state.error = null
       persist(state)
     },
+    // Merge edited profile fields (Settings) into the signed-in user.
+    updateUser(state, action) {
+      if (!state.user) return
+      state.user = { ...state.user, ...action.payload }
+      persist(state)
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -176,5 +182,5 @@ const slice = createSlice({
   },
 })
 
-export const { logout } = slice.actions
+export const { logout, updateUser } = slice.actions
 export default slice.reducer

@@ -11,6 +11,7 @@ import useCatalogQuery from '../hooks/useCatalogQuery.js';
 import { fetchAdminProducts } from '../store/marketplaceSlice.js';
 import { formatDate, formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All Statuses' }, ...Object.entries(PRODUCT_STATUS).map(([value, s]) => ({ value, label: s.label }))];
 
@@ -36,7 +37,7 @@ const MarketplaceProducts = () => {
   const { items, total, status: loadStatus, error } = useSelector((s) => s.marketplace.products);
   const query = useCatalogQuery({ fetchThunk: fetchAdminProducts, items });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
 
   const rows = useMemo(() => items.map((product) => {
     const seller = sellerOf(product);

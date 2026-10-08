@@ -11,6 +11,7 @@ import { clearDeleteStatus, deleteGiftCard, fetchGiftCards, updateGiftCard } fro
 import { fetchGiftCardOrders } from '../store/giftCardOrdersSlice.js';
 import { formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const HOUR = 3600 * 1000;
 const STATUS = {
@@ -104,7 +105,7 @@ export default function GiftCards() {
   const [sort, setSort] = useState('revenue');
   const [view, setView] = useState('list');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 

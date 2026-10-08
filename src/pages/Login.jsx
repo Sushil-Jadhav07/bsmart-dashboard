@@ -11,6 +11,7 @@ import { connectSocket, fetchNotifications } from '../store/notificationsSlice.j
 import { registerFCMToken } from '../lib/firebase.js'
 import { API_BASE_URL, API_BASE_WITH_PATH } from '../lib/apiBase.js'
 import logo from '../assets/bsmart_logo.png'
+import { startPage } from '../utils/consolePrefs.js'
 
 // Each workspace only accepts the matching account role.
 const WORKSPACES = [
@@ -184,7 +185,7 @@ function Login() {
         if (userId) connectSocket(String(userId), dispatch)
         dispatch(fetchNotifications())
         if (result?.token) registerFCMToken(result.token)
-        navigate('/dashboard', { replace: true })
+        navigate(startPage(), { replace: true })
       })
       .catch(() => {})
   }

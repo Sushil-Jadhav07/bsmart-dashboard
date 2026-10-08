@@ -13,6 +13,7 @@ import useOrderCancel from '../hooks/useOrderCancel.js';
 import { fetchAdminOrders } from '../store/marketplaceSlice.js';
 import { formatDateTime, formatNumber } from '../utils/helpers.jsx';
 import { DAY_MS, downloadCsv, toAbsoluteMediaUrl } from '../utils/contentHelpers.js';
+import { prefRows } from '../utils/consolePrefs.js';
 
 const SLA_HOURS = 48;
 
@@ -64,7 +65,7 @@ const MarketplaceOrders = () => {
   const sellerOptions = useSellerOptions(seller);
   const cancel = useOrderCancel();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(() => prefRows(10));
   const [alertDismissed, setAlertDismissed] = useState(false);
 
   const params = { seller, buyer, status, payment_status: paymentStatus, refund_failed: refundFailedOnly ? 'true' : 'all', q: debouncedSearch };
