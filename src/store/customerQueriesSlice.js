@@ -39,6 +39,31 @@ export const fetchCustomerQueries = createAsyncThunk(
   }
 )
 
+// Walks every page (100 per page, up to 20 pages) so the list page can compute
+// stats, tabs and SLA buckets across all tickets rather than one page.
+export const fetchAllCustomerQueries = createAsyncThunk(
+  'customerQueries/fetchEverything',
+  async (_, { getState, rejectWithValue }) => {
+    const token = getState().auth.token
+    if (!token) return rejectWithValue('No token')
+    try {
+      const items = []
+      let total = 0
+      for (let page = 1; page <= 20; page += 1) {
+        const res = await fetch(`${BASE}?page=${page}&limit=100`, { headers: headers(token) })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch queries')
+        items.push(...(Array.isArray(data?.queries) ? data.queries : []))
+        total = data?.total || items.length
+        if (page >= (data?.total_pages || 1)) break
+      }
+      return { items, total, page: 1, totalPages: 1 }
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
 export const fetchQueryById = createAsyncThunk(
   'customerQueries/fetchById',
   async (id, { getState, rejectWithValue }) => {
@@ -166,6 +191,16 @@ const slice = createSlice({
       })
       .addCase(fetchCustomerQueries.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload || 'Failed to fetch' })
 
+      .addCase(fetchAllCustomerQueries.pending, (state) => { state.status = 'loading'; state.error = null })
+      .addCase(fetchAllCustomerQueries.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.items = action.payload.items
+        state.total = action.payload.total
+        state.page = 1
+        state.totalPages = 1
+      })
+      .addCase(fetchAllCustomerQueries.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload || 'Failed to fetch' })
+
       .addCase(fetchQueryById.pending, (state) => { state.currentStatus = 'loading'; state.current = null })
       .addCase(fetchQueryById.fulfilled, (state, action) => { state.currentStatus = 'succeeded'; state.current = action.payload })
       .addCase(fetchQueryById.rejected, (state) => { state.currentStatus = 'failed' })
@@ -192,6 +227,11 @@ const slice = createSlice({
       .addCase(assignQuery.fulfilled, (state, action) => {
         state.assignStatus = 'succeeded'
         const { id, data } = action.payload
+        const assigned = data?.query
+        if (assigned) {
+          const item = state.items.find((i) => (i._id || i.id) === id)
+          if (item) Object.assign(item, { assigned_to: assigned.assigned_to, assigned_by: assigned.assigned_by, assigned_at: assigned.assigned_at })
+        }
         if (state.current && (state.current._id || state.current.id) === id) {
           state.current = { ...state.current, ...data }
         }

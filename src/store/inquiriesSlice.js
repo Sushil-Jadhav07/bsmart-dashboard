@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { API_BASE_WITH_PATH } from '../lib/apiBase.js'
+import { assignQuery, updateQueryStatus } from './customerQueriesSlice.js'
 
 const BASE = `${API_BASE_WITH_PATH}/support-queries/admin`
 
@@ -30,6 +31,49 @@ export const fetchInquiries = createAsyncThunk(
         page: data?.page || page,
         totalPages: data?.total_pages || 1,
       }
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
+// Every website inquiry (100 per page, up to 20 pages) so stats and tabs cover all of them.
+export const fetchAllInquiries = createAsyncThunk(
+  'inquiries/fetchEverything',
+  async (_, { getState, rejectWithValue }) => {
+    const token = getState().auth.token
+    if (!token) return rejectWithValue('No token')
+    try {
+      const items = []
+      let total = 0
+      for (let page = 1; page <= 20; page += 1) {
+        const res = await fetch(`${BASE}/website?page=${page}&limit=100`, { headers: headers(token) })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return rejectWithValue(data?.message || 'Failed to fetch inquiries')
+        items.push(...(Array.isArray(data?.queries) ? data.queries : Array.isArray(data?.inquiries) ? data.inquiries : []))
+        total = data?.total || items.length
+        if (page >= (data?.total_pages || 1)) break
+      }
+      return { items, total, page: 1, totalPages: 1 }
+    } catch (e) {
+      return rejectWithValue(e.message || 'Network error')
+    }
+  }
+)
+
+// Public website form endpoint; also emails the customer an acknowledgement.
+export const logInquiry = createAsyncThunk(
+  'inquiries/log',
+  async (body, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_BASE_WITH_PATH}/support-queries/website`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return rejectWithValue(data?.message || 'Failed to log inquiry')
+      return data?.query
     } catch (e) {
       return rejectWithValue(e.message || 'Network error')
     }
@@ -99,6 +143,28 @@ const slice = createSlice({
         state.totalPages = action.payload.totalPages
       })
       .addCase(fetchInquiries.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload || 'Failed to fetch' })
+      .addCase(fetchAllInquiries.pending, (state) => { state.status = 'loading'; state.error = null })
+      .addCase(fetchAllInquiries.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.items = action.payload.items
+        state.total = action.payload.total
+        state.page = 1
+        state.totalPages = 1
+      })
+      .addCase(fetchAllInquiries.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload || 'Failed to fetch' })
+      .addCase(logInquiry.fulfilled, (state, action) => {
+        if (action.payload?._id) { state.items.unshift(action.payload); state.total += 1 }
+      })
+      // Status and assignment go through the shared support-query admin routes.
+      .addCase(updateQueryStatus.fulfilled, (state, action) => {
+        const item = state.items.find((i) => (i._id || i.id) === action.payload.id)
+        if (item) item.status = action.payload.status
+      })
+      .addCase(assignQuery.fulfilled, (state, action) => {
+        const assigned = action.payload.data?.query
+        const item = state.items.find((i) => (i._id || i.id) === action.payload.id)
+        if (item && assigned) Object.assign(item, { assigned_to: assigned.assigned_to, assigned_by: assigned.assigned_by, assigned_at: assigned.assigned_at })
+      })
       .addCase(fetchInquiryById.pending, (state) => { state.currentStatus = 'loading'; state.current = null })
       .addCase(fetchInquiryById.fulfilled, (state, action) => { state.currentStatus = 'succeeded'; state.current = action.payload })
       .addCase(fetchInquiryById.rejected, (state) => { state.currentStatus = 'failed' })

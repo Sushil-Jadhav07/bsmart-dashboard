@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { CircleMinus, CirclePlus, Search, ShieldCheck, Zap } from 'lucide-react';
 import { adminAdjustCoins, rechargeVendorWallet } from '../store/walletSlice.js';
 import { formatNumber } from '../utils/helpers.jsx';
+import { FieldSelect } from './MarketplaceKit.jsx';
 
 const REASONS = [
   { value: 'adjustment', label: 'Manual correction' },
@@ -119,9 +120,7 @@ export default function CoinAdjustForm({ wallet, wallets, onDone, compact = fals
         </div>
         <div>
           <label className={label}>Reason</label>
-          <select value={reason} onChange={(e) => setReason(e.target.value)} className={clsx(field, 'cursor-pointer')}>
-            {reasons.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </select>
+          <FieldSelect value={reason} onChange={setReason} options={reasons.map((r) => ({ value: r.value, label: r.label }))} />
         </div>
       </div>
 

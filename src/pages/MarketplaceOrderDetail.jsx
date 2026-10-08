@@ -6,7 +6,7 @@ import {
   AlertCircle, AlertOctagon, ArrowLeft, Ban, Check, CheckCircle2, ClipboardCheck, Copy, CreditCard, ExternalLink, Loader2, Mail, MapPin,
   Package, PackageCheck, Phone, Printer, Receipt, Save, ShieldCheck, ShoppingBag, Store, Truck, Wallet, XCircle,
 } from 'lucide-react';
-import { ORDER_STATUS, PAYMENT_STATUS, inr } from '../components/MarketplaceKit.jsx';
+import { FieldSelect, ORDER_STATUS, PAYMENT_STATUS, inr } from '../components/MarketplaceKit.jsx';
 import { Avatar, Toast, humanize } from '../components/MarketplaceShared.jsx';
 import { CANCELLABLE, CancelOrderModal, ORDER_FLOW, buyerOf } from '../components/OrderShared.jsx';
 import useOrderCancel from '../hooks/useOrderCancel.js';
@@ -173,9 +173,7 @@ const AdminControls = ({ order, onCancel }) => {
         <div className="space-y-3">
           <div>
             <label className={label}>Order status</label>
-            <select value={nextStatus} onChange={(e) => setNextStatus(e.target.value)} className={clsx(field, 'cursor-pointer font-semibold')}>
-              {options.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
-            </select>
+            <FieldSelect value={nextStatus} onChange={setNextStatus} options={options.map((s) => ({ value: s, label: ORDER_STATUS[s]?.label || humanize(s), dot: ORDER_STATUS[s]?.dot }))} />
           </div>
           {showShipping && (
             <div className="grid grid-cols-2 gap-2">

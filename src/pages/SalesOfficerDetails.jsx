@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import Modal from '../components/Modal.jsx'
 import Button from '../components/Button.jsx'
+import { FieldSelect } from '../components/MarketplaceKit.jsx'
 import { assignSalesOfficer, fetchSalesOfficerById } from '../store/salesSlice.js'
 import { fetchVendors } from '../store/vendorsSlice.js'
 import { fetchUsers } from '../store/usersSlice.js'
@@ -430,10 +431,16 @@ export default function SalesOfficerDetails() {
         <><Button variant="ghost" onClick={() => setTransferOpen(false)} disabled={!!transferProgress}>Cancel</Button><Button variant="primary" onClick={runTransfer} disabled={!transferTo || !transferIds.size} loading={!!transferProgress}>Move {transferIds.size} vendor{transferIds.size === 1 ? '' : 's'}</Button></>
       )}>
         <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-neutral-600">New sales officer</label>
-        <select value={transferTo} onChange={(e) => setTransferTo(e.target.value)} className="h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm outline-none focus:border-primary/50">
-          <option value="">Choose an officer…</option>
-          {otherOfficers.map((o) => <option key={o._id} value={String(o._id)}>{o.full_name || o.username}{o.location ? ` · ${o.location}` : ''} ({(vendorsByOfficer.get(String(o._id)) || []).length} vendors)</option>)}
-        </select>
+        <FieldSelect
+          value={transferTo}
+          onChange={setTransferTo}
+          placeholder="Choose an officer…"
+          options={otherOfficers.map((o) => ({
+            value: String(o._id),
+            label: o.full_name || o.username,
+            hint: `${o.location ? `${o.location} · ` : ''}${(vendorsByOfficer.get(String(o._id)) || []).length} vendors`,
+          }))}
+        />
         <div className="mt-4 flex items-center justify-between">
           <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-600">Vendors to move</p>
           <button type="button" onClick={() => setTransferIds((prev) => prev.size === vendorRows.length ? new Set() : new Set(vendorRows.map((r) => r.userId).filter(Boolean)))} className="text-[11.5px] font-bold text-[#C81345]">

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { clsx } from 'clsx';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCw, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCw, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { formatNumber } from '../utils/helpers.jsx';
 import { pageList } from '../utils/contentHelpers.js';
 
@@ -123,7 +123,116 @@ export const Select = ({ value, options, onChange, prefix, className }) => {
   );
 };
 
-export const SearchInput = ({ value, onChange, placeholder, className }) => (
+// Form-field dropdown. The menu is position:fixed so it isn't clipped by a
+// modal's scrolling body, and it flips upward when there's no room below.
+export const FieldSelect = ({ value, onChange, options, placeholder = 'Select…', className, id }) => {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const [active, setActive] = useState(-1);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const selected = options.find((o) => o.value === value);
+
+  const place = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const menuHeight = Math.min(288, options.length * 40 + 8);
+    const below = window.innerHeight - rect.bottom;
+    const up = below < menuHeight + 12 && rect.top > below;
+    setPos({ left: rect.left, width: rect.width, ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) });
+  };
+
+  const openMenu = () => { place(); setActive(Math.max(0, options.findIndex((o) => o.value === value))); setOpen(true); };
+  const choose = (o) => { onChange(o.value); setOpen(false); buttonRef.current?.focus(); };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!menuRef.current?.contains(e.target) && !buttonRef.current?.contains(e.target)) setOpen(false); };
+    const onScroll = (e) => { if (!menuRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open && active >= 0) menuRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const onKeyDown = (e) => {
+    if (!open && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); openMenu(); return; }
+    if (!open) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(options.length - 1, i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (options[active]) choose(options[active]); }
+    else if (e.key === 'Tab') setOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        id={id}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={onKeyDown}
+        className={clsx('flex h-10 w-full items-center justify-between gap-2 rounded-lg border bg-[#F1F3FC] px-3 text-left text-[13px] font-semibold outline-none transition',
+          open ? 'border-[#E8194E]/40 bg-white ring-2 ring-[#E8194E]/10' : 'border-transparent hover:bg-[#E9EBFA] focus-visible:border-[#E8194E]/40 focus-visible:ring-2 focus-visible:ring-[#E8194E]/10',
+          selected ? 'text-neutral-900' : 'text-neutral-400', className)}
+      >
+        <span className="flex min-w-0 items-center gap-2 truncate">
+          {selected?.icon && <selected.icon className="h-4 w-4 flex-shrink-0 text-[#8E35B5]" />}
+          {selected?.dot && <span className={clsx('h-2 w-2 flex-shrink-0 rounded-full', selected.dot)} />}
+          <span className="truncate">{selected?.label || placeholder}</span>
+        </span>
+        <ChevronDown className={clsx('h-4 w-4 flex-shrink-0 text-neutral-500 transition-transform duration-200', open && 'rotate-180 text-[#E8194E]')} />
+      </button>
+      {open && pos && (
+        <div
+          ref={menuRef}
+          role="listbox"
+          style={{ position: 'fixed', left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }}
+          className="z-[70] max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-[0_18px_40px_-12px_rgba(31,35,64,0.35)]"
+        >
+          {options.map((o, i) => {
+            const isSel = o.value === value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={isSel}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => choose(o)}
+                className={clsx('flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition',
+                  isSel ? 'bg-pink-50 font-bold text-[#C81345]' : i === active ? 'bg-[#F1F3FC] text-neutral-900' : 'text-neutral-700')}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  {o.icon && <o.icon className={clsx('h-4 w-4 flex-shrink-0', isSel ? 'text-[#C81345]' : 'text-neutral-400')} />}
+                  {o.dot && <span className={clsx('h-2 w-2 flex-shrink-0 rounded-full', o.dot)} />}
+                  <span className="min-w-0">
+                    <span className="block truncate">{o.label}</span>
+                    {o.hint && <span className={clsx('block truncate text-[11px] font-normal', isSel ? 'text-[#C81345]/70' : 'text-neutral-500')}>{o.hint}</span>}
+                  </span>
+                </span>
+                {isSel && <Check className="h-4 w-4 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+};
+
+export const SearchInput =({ value, onChange, placeholder, className }) => (
   <div className={clsx('relative min-w-[240px] flex-1', className)}>
     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6E72A8]" />
     <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-[#E2E5F4] bg-[#EEF0FA] pl-9 pr-3 text-[13px] text-neutral-800 placeholder-[#7E8299] outline-none transition focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/10" />
